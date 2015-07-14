@@ -1,0 +1,311 @@
+#pragma once
+
+#include "def.h"
+#include "base.h"
+
+#include <array>
+#include <tuple>
+#include <vector>
+#include <map>
+#include <string>
+
+#include <stdint.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include OPENGL_API_H
+#include OPENGL_API_EXT_H
+
+#define UBO_TRANSFORMS_BLOCK_BINDING 0
+#define ATTRIB_OFFSET( type, member )( ( void* ) offsetof( type, member ) ) 
+
+// Extensions
+#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+
+#if defined( _DEBUG_USE_GL_ASYNC_CALLBACK )
+#	define GL_CHECK( expr )\
+		do\
+		{\
+			( expr );\
+			glDebugSetCallInfo( std::string( #expr ), _FUNC_NAME_ );\
+		}\
+		while ( 0 )
+#elif defined( _DEBUG_USE_GL_GET_ERR )
+#	define GL_CHECK( expr )\
+		do\
+		{\
+			( expr );\
+			ExitOnGLError( _LINE_NUM_, #expr, _FUNC_NAME_ );\
+		}\
+		while ( 0 )
+#else
+#	define GL_CHECK( expr ) ( expr )
+#endif // _DEBUG_USE_GL_ASYNC_CALLBACK
+
+#define GL_CHECK_WITH_NAME( expr, funcname )\
+	do\
+	{\
+		( expr );\
+		ExitOnGLError( _LINE_NUM_, #expr, funcname );\
+	}\
+	while ( 0 )
+
+class GLConfig
+{
+public:
+	// must match the same number used in main.frag
+	static const int32_t MAX_MIP_LEVELS = 16; 
+};
+
+struct vertex_t
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 texCoord;
+	glm::u8vec4 color;
+};
+
+class Program;
+
+#ifdef R_GL_CORE_PROFILE
+
+class AABB;
+
+void ImPrep( const glm::mat4& viewTransform, const glm::mat4& clipTransform );
+void ImDrawAxes( const float size );
+void ImDrawBounds( const AABB& bounds, const glm::vec4& color ); 
+void ImDrawPoint( const glm::vec3& point, const glm::vec4& color, float size = 1.0f );
+
+#endif // R_GL_CORE_PROFILE
+
+GLuint GenSampler( bool mipmap, GLenum wrap );
+
+void BindTexture( GLenum target, GLuint handle, int32_t offset, 
+	int32_t sampler, const std::string& uniform, const Program& program );
+	
+static INLINE void MapVec3( int32_t location, size_t offset );
+
+static INLINE void MapProgramToUBO( GLuint programID, const char* uboName );
+
+static INLINE GLuint GenVertexArrayObject( void );
+
+template < typename T >
+static INLINE GLuint GenBufferObject( GLenum target, const std::vector< T >& data, GLenum usage );
+
+template < typename T >
+static INLINE void UpdateBufferObject( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
+
+static INLINE void DeleteBufferObject( GLenum target, GLuint obj );
+static INLINE void DrawElementBuffer( GLuint ibo, size_t numIndices );
+
+static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t baseHeight );
+
+template< typename textureHelper_t >
+static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex, int32_t baseWidth, int32_t baseHeight, int32_t maxLevels );
+
+//---------------------------------------------------------------------
+struct texture_t
+{
+	bool srgb: 1;
+	bool mipmap: 1;
+
+	GLuint handle;
+	GLuint sampler;
+	GLenum wrap;
+	GLenum minFilter;
+	GLenum magFilter;
+	GLenum format;
+	GLenum internalFormat;
+	GLenum target;
+	GLuint maxMip;
+
+	GLsizei width, height, depth, bpp; // bpp is in bytes
+
+	std::vector< uint8_t > pixels;
+
+	texture_t( void );
+	~texture_t( void );
+	
+	void Bind( void ) const;
+	
+	void Bind( int32_t offset, const std::string& unif, const Program& prog ) const;
+	
+	void Release( void ) const;
+	
+	void Release( int32_t offset ) const;
+	
+	void GenHandle( void );
+	
+	void LoadCubeMap( void );
+	
+	void LoadSettings( void );
+	
+	void Load2D( void );
+	
+	bool LoadFromFile( const char* texPath );
+	
+	bool SetBufferSize( int32_t width, int32_t height, int32_t bpp, uint8_t fill );
+
+	bool DetermineFormats( void );
+
+	void CalcMipLevel2D( int32_t mip, int32_t width, int32_t height ) const;
+};
+//---------------------------------------------------------------------
+#ifdef R_GL_CORE_PROFILE
+
+struct textureArray_t
+{
+	struct mipSetter_t
+	{
+		const GLuint handle;
+		
+		const int32_t layerOffset;
+		const int32_t numLayers;
+
+		const std::vector< uint8_t >& buffer;
+
+		mipSetter_t( 
+			const GLuint handle,
+			const int32_t layerOffset,
+			const int32_t numLayers,
+			const std::vector< uint8_t >& buffer );
+
+		void CalcMipLevel2D( int32_t mip, int32_t mipWidth, int32_t mipHeight ) const;
+	};
+
+	GLuint handle;
+
+	glm::ivec4 megaDims;
+
+	std::vector< GLuint > samplers;
+	std::vector< uint8_t > usedSlices;	// 1 -> true, 0 -> false
+	std::vector< glm::vec3 > biases;	// x and y point to sliceWidth / megaWidth and sliceHeight / megaHeight, respectively. z is the slice index
+
+				textureArray_t( GLsizei width, GLsizei height, GLsizei depth, bool genMipLevels );
+				
+				~textureArray_t( void );
+
+	void			LoadSlice( GLuint sampler, const glm::ivec3& dims, const std::vector< uint8_t >& buffer, bool genMipMaps );
+	
+	void			Bind( GLuint unit, const std::string& samplerName, const Program& program ) const;
+	
+	void			Release( GLuint unit ) const;
+};
+
+#endif // R_GL_CORE_PROFILE
+//-------------------------------------------------------------------------------------------------
+class Program
+{
+private:
+	GLuint program;
+
+	void GenData( const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo );
+
+public:
+	std::map< std::string, GLint > uniforms; 
+	std::map< std::string, GLint > attribs;
+
+	std::vector< std::string > disableAttribs; // Cleared on each invocation of LoadAttribLayout
+
+	Program( const std::string& vertexShader, const std::string& fragmentShader );
+	
+	Program( const std::string& vertexShader, const std::string& fragmentShader, 
+		const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo = true );
+	
+	Program( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader, 
+		const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo = true );
+
+	Program( const Program& copy );
+
+	~Program( void );
+
+	void AddUnif( const std::string& name );
+	void AddAttrib( const std::string& name );
+
+	void LoadAttribLayout( void ) const;
+
+	void LoadMat4( const std::string& name, const glm::mat4& t ) const;
+	
+	void LoadMat2( const std::string& name, const glm::mat2& t ) const;
+	void LoadMat2( const std::string& name, const float* t ) const;
+
+	void LoadVec2( const std::string& name, const glm::vec2& v ) const;
+	void LoadVec2( const std::string& name, const float* v ) const;
+
+	void LoadVec2Array( const std::string& name, const float* v, int32_t num ) const;
+
+	void LoadVec3( const std::string& name, const glm::vec3& v ) const;
+
+	void LoadVec3Array( const std::string& name, const float* v, int32_t num ) const;
+
+	void LoadVec4( const std::string& name, const glm::vec4& v ) const;
+	void LoadVec4( const std::string& name, const float* v ) const;
+
+	void LoadVec4Array( const std::string& name, const float* v, int32_t num ) const;
+
+	void LoadInt( const std::string& name, int32_t v ) const;
+	void LoadFloat( const std::string& name, float v ) const;
+
+	void Bind( void ) const;
+	void Release( void ) const;
+
+	static std::vector< std::string > ArrayLocationNames( const std::string& name, int32_t length );
+};
+
+//-------------------------------------------------------------------------------------------------
+struct loadBlend_t
+{
+	GLenum prevSrcFactor, prevDstFactor;
+
+	loadBlend_t( GLenum srcFactor, GLenum dstFactor );
+   ~loadBlend_t( void );
+};
+//---------------------------------------------------------------------
+struct rtt_t
+{
+	texture_t	texture;
+	GLuint		fbo;
+	GLenum		attachment;
+
+	glm::mat4	view;
+
+	rtt_t( GLenum attachment_, const glm::mat4& view_ );
+
+	~rtt_t( void );
+
+	void Attach( int32_t width, int32_t height, int32_t bpp );
+
+	void Bind( void ) const;
+	
+	void Release( void ) const;
+};
+//---------------------------------------------------------------------
+template< typename TRenderer >
+struct transformStash_t
+{
+	const TRenderer& renderer;
+	const glm::mat4& view;
+	const glm::mat4& proj;
+	
+	transformStash_t( const TRenderer& renderer_, const glm::mat4& view_, const glm::mat4& proj_ )
+		: renderer( renderer_ ), view( view_ ), proj( proj_ )
+	{
+	}
+
+	~transformStash_t( void )
+	{
+		renderer.LoadTransforms( view, proj ); 
+	}
+};
+
+struct viewportStash_t
+{
+	std::array< GLint, 4 > original; 
+
+	viewportStash_t( GLint originX, GLint originY, GLint width, GLint height );
+	~viewportStash_t( void );
+};
+
+#include "renderer.inl"
