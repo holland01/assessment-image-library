@@ -20,6 +20,8 @@
 #define UBO_TRANSFORMS_BLOCK_BINDING 0
 #define ATTRIB_OFFSET( type, member )( ( void* ) offsetof( type, member ) ) 
 
+#define GEN_SHADER( data ) #data
+
 // Extensions
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
@@ -69,27 +71,12 @@ struct vertex_t
 
 class Program;
 
-#ifdef R_GL_CORE_PROFILE
-
-class AABB;
-
-void ImPrep( const glm::mat4& viewTransform, const glm::mat4& clipTransform );
-void ImDrawAxes( const float size );
-void ImDrawBounds( const AABB& bounds, const glm::vec4& color ); 
-void ImDrawPoint( const glm::vec3& point, const glm::vec4& color, float size = 1.0f );
-
-#endif // R_GL_CORE_PROFILE
-
 GLuint GenSampler( bool mipmap, GLenum wrap );
 
 void BindTexture( GLenum target, GLuint handle, int32_t offset, 
 	int32_t sampler, const std::string& uniform, const Program& program );
 	
 static INLINE void MapVec3( int32_t location, size_t offset );
-
-static INLINE void MapProgramToUBO( GLuint programID, const char* uboName );
-
-static INLINE GLuint GenVertexArrayObject( void );
 
 template < typename T >
 static INLINE GLuint GenBufferObject( GLenum target, const std::vector< T >& data, GLenum usage );
@@ -112,7 +99,6 @@ struct texture_t
 	bool mipmap: 1;
 
 	GLuint handle;
-	GLuint sampler;
 	GLenum wrap;
 	GLenum minFilter;
 	GLenum magFilter;
@@ -153,55 +139,12 @@ struct texture_t
 	void CalcMipLevel2D( int32_t mip, int32_t width, int32_t height ) const;
 };
 //---------------------------------------------------------------------
-#ifdef R_GL_CORE_PROFILE
-
-struct textureArray_t
-{
-	struct mipSetter_t
-	{
-		const GLuint handle;
-		
-		const int32_t layerOffset;
-		const int32_t numLayers;
-
-		const std::vector< uint8_t >& buffer;
-
-		mipSetter_t( 
-			const GLuint handle,
-			const int32_t layerOffset,
-			const int32_t numLayers,
-			const std::vector< uint8_t >& buffer );
-
-		void CalcMipLevel2D( int32_t mip, int32_t mipWidth, int32_t mipHeight ) const;
-	};
-
-	GLuint handle;
-
-	glm::ivec4 megaDims;
-
-	std::vector< GLuint > samplers;
-	std::vector< uint8_t > usedSlices;	// 1 -> true, 0 -> false
-	std::vector< glm::vec3 > biases;	// x and y point to sliceWidth / megaWidth and sliceHeight / megaHeight, respectively. z is the slice index
-
-				textureArray_t( GLsizei width, GLsizei height, GLsizei depth, bool genMipLevels );
-				
-				~textureArray_t( void );
-
-	void			LoadSlice( GLuint sampler, const glm::ivec3& dims, const std::vector< uint8_t >& buffer, bool genMipMaps );
-	
-	void			Bind( GLuint unit, const std::string& samplerName, const Program& program ) const;
-	
-	void			Release( GLuint unit ) const;
-};
-
-#endif // R_GL_CORE_PROFILE
-//-------------------------------------------------------------------------------------------------
 class Program
 {
 private:
 	GLuint program;
 
-	void GenData( const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo );
+    void GenData( const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 
 public:
 	std::map< std::string, GLint > uniforms; 
@@ -212,10 +155,10 @@ public:
 	Program( const std::string& vertexShader, const std::string& fragmentShader );
 	
 	Program( const std::string& vertexShader, const std::string& fragmentShader, 
-		const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo = true );
+        const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 	
 	Program( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader, 
-		const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs, bool bindTransformsUbo = true );
+        const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 
 	Program( const Program& copy );
 
@@ -299,7 +242,7 @@ struct transformStash_t
 		renderer.LoadTransforms( view, proj ); 
 	}
 };
-
+//---------------------------------------------------------------------
 struct viewportStash_t
 {
 	std::array< GLint, 4 > original; 

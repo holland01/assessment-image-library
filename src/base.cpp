@@ -6,6 +6,7 @@
 #include <time.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include OPENGL_API_H
 #include OPENGL_API_EXT_H
@@ -52,8 +53,8 @@ void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc )
     {
        // const char* errorString = ( const char* ) gluErrorString( error );
 
-        MyPrintf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error );
-        //FlagExit();
+        MyPrintf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, "Unknown" );
+        FlagExit();
     }
 }
 

@@ -2,36 +2,10 @@
 // Global
 //-------------------------------------------------------------------------------------------------------
 
-static INLINE void MapProgramToUBO( GLuint programID, const char* uboName )
-{
-#ifdef R_GL_CORE_PROFILE
-	if ( strcmp( uboName, "Transforms" ) == 0 )
-	{
-		GLuint uniformBlockLoc;
-		GL_CHECK( uniformBlockLoc = glGetUniformBlockIndex( programID, uboName ) );
-		GL_CHECK( glUniformBlockBinding( programID, uniformBlockLoc, UBO_TRANSFORMS_BLOCK_BINDING ) );
-	}
-#else
-	UNUSEDPARAM( uboName );
-	UNUSEDPARAM( programID );
-#endif // R_GL_CORE_PROFILE
-}
-
 static INLINE void MapVec3( int32_t location, size_t offset )
 {
 	GL_CHECK( glEnableVertexAttribArray( location ) );
 	GL_CHECK( glVertexAttribPointer( location, 3, GL_FLOAT, GL_FALSE, sizeof( vertex_t ), ( void* ) offset ) );
-}
-
-static INLINE GLuint GenVertexArrayObject( void )
-{
-#ifdef R_GL_CORE_PROFILE
-	GLuint vao;
-	GL_CHECK( glGenVertexArrays( 1, &vao ) );
-	return vao;
-#else
-	return 0;
-#endif // R_GL_CORE_PROFILE
 }
 
 template < typename T >
@@ -126,152 +100,81 @@ INLINE void Program::AddAttrib( const std::string& name )
 	GL_CHECK( attribs[ name ] = glGetAttribLocation( program, name.c_str() ) );
 }
 
-void Program::Bind( void ) const
+INLINE void Program::Bind( void ) const
 {
 	GL_CHECK( glUseProgram( program ) );
 }
 
-void Program::Release( void ) const
+INLINE void Program::Release( void ) const
 {
 	GL_CHECK( glUseProgram( 0 ) );
 }
 
-#ifdef R_GL_CORE_PROFILE
-
-void Program::LoadMat4( const std::string& name, const glm::mat4& t ) const
-{
-	GL_CHECK( glProgramUniformMatrix4fv( program, uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
-}
-
-void Program::LoadMat2( const std::string& name, const glm::mat2& t ) const
-{
-	GL_CHECK( glProgramUniformMatrix2fv( program, uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
-}
-
-void Program::LoadMat2( const std::string& name, const float* t ) const
-{
-	GL_CHECK( glProgramUniformMatrix2fv( program, uniforms.at( name ), 1, GL_FALSE, t ) );
-}
-
-void Program::LoadVec2( const std::string& name, const glm::vec2& v ) const
-{
-	GL_CHECK( glProgramUniform2fv( program, uniforms.at( name ), 1, glm::value_ptr( v ) ) );
-}
-
-void Program::LoadVec2( const std::string& name, const float* v ) const
-{
-	GL_CHECK( glProgramUniform2fv( program, uniforms.at( name ), 1, v ) );
-}
-
-void Program::LoadVec2Array( const std::string& name, const float* v, int32_t num ) const
-{
-	GL_CHECK( glProgramUniform2fv( program, uniforms.at( name ), num, v ) );
-}
-
-void Program::LoadVec3( const std::string& name, const glm::vec3& v ) const
-{
-	GL_CHECK( glProgramUniform3fv( program, uniforms.at( name ), 1, glm::value_ptr( v ) ) );
-}
-
-void Program::LoadVec3Array( const std::string& name, const float* v, int32_t num ) const
-{
-	GL_CHECK( glProgramUniform3fv( program, uniforms.at( name ), num, v ) );
-}
-
-void Program::LoadVec4( const std::string& name, const glm::vec4& v ) const
-{
-	GL_CHECK( glProgramUniform4fv( program, uniforms.at( name ), 1, glm::value_ptr( v ) ) );
-}
-
-void Program::LoadVec4( const std::string& name, const float* v ) const
-{
-	GL_CHECK( glProgramUniform4fv( program, uniforms.at( name ), 1, v ) );
-}
-
-void Program::LoadVec4Array( const std::string& name, const float* v, int32_t num ) const
-{
-	GL_CHECK( glProgramUniform4fv( program, uniforms.at( name ), num, v ) );
-}
-
-void Program::LoadInt( const std::string& name, int v ) const
-{
-	GL_CHECK( glProgramUniform1i( program, uniforms.at( name ), v ) );
-}
-
-void Program::LoadFloat( const std::string& name, float f ) const 
-{
-	GL_CHECK( glProgramUniform1f( program, uniforms.at( name ), f ) );
-}
-
-#else
-
-void Program::LoadMat4( const std::string& name, const glm::mat4& t ) const
+INLINE void Program::LoadMat4( const std::string& name, const glm::mat4& t ) const
 {
 
 	GL_CHECK( glUniformMatrix4fv( uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 
-void Program::LoadMat2( const std::string& name, const glm::mat2& t ) const
+INLINE void Program::LoadMat2( const std::string& name, const glm::mat2& t ) const
 {
 	GL_CHECK( glUniformMatrix2fv( uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 
-void Program::LoadMat2( const std::string& name, const float* t ) const
+INLINE void Program::LoadMat2( const std::string& name, const float* t ) const
 {
 	GL_CHECK( glUniformMatrix2fv( uniforms.at( name ), 1, GL_FALSE, t ) );
 }
 
-void Program::LoadVec2( const std::string& name, const glm::vec2& v ) const
+INLINE void Program::LoadVec2( const std::string& name, const glm::vec2& v ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-void Program::LoadVec2( const std::string& name, const float* v ) const
+INLINE void Program::LoadVec2( const std::string& name, const float* v ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), 1, v ) );
 }
 
-void Program::LoadVec2Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void Program::LoadVec2Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), num, v ) );
 }
 
-void Program::LoadVec3( const std::string& name, const glm::vec3& v ) const
+INLINE void Program::LoadVec3( const std::string& name, const glm::vec3& v ) const
 {
 	GL_CHECK( glUniform3fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-void Program::LoadVec3Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void Program::LoadVec3Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform3fv( uniforms.at( name ), num, v ) );
 }
 
-void Program::LoadVec4( const std::string& name, const glm::vec4& v ) const
+INLINE void Program::LoadVec4( const std::string& name, const glm::vec4& v ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-void Program::LoadVec4( const std::string& name, const float* v ) const
+INLINE void Program::LoadVec4( const std::string& name, const float* v ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), 1, v ) );
 }
 
-void Program::LoadVec4Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void Program::LoadVec4Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), num, v ) );
 }
 
-void Program::LoadInt( const std::string& name, int v ) const
+INLINE void Program::LoadInt( const std::string& name, int v ) const
 {
 	GL_CHECK( glUniform1i( uniforms.at( name ), v ) );
 }
 
-void Program::LoadFloat( const std::string& name, float f ) const 
+INLINE void Program::LoadFloat( const std::string& name, float f ) const 
 {
 	GL_CHECK( glUniform1f( uniforms.at( name ), f ) );
 }
-
-#endif // R_GL_CORE_PROFILE
 
 //-------------------------------------------------------------------------------------------------------
 // texture_t
@@ -304,15 +207,11 @@ INLINE void texture_t::Release( int offset ) const
 {
 	GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
 	GL_CHECK( glBindTexture( target, 0 ) );
-	
-#ifdef R_GL_CORE_PROFILE
-	GL_CHECK( glBindSampler( offset, 0 ) );
-#endif
 }
 //-------------------------------------------------------------------------------------------------------
 // rtt_t
 //-------------------------------------------------------------------------------------------------------
-rtt_t::rtt_t( GLenum attachment_, const glm::mat4& view_ ) 
+INLINE rtt_t::rtt_t( GLenum attachment_, const glm::mat4& view_ ) 
 	:	fbo( 0 ),
 		attachment( attachment_ ),
 		view( view_ )
@@ -320,7 +219,7 @@ rtt_t::rtt_t( GLenum attachment_, const glm::mat4& view_ )
 	GL_CHECK( glGenFramebuffers( 1, &fbo ) );
 }
 
-rtt_t::~rtt_t( void )
+INLINE rtt_t::~rtt_t( void )
 {
 	if ( fbo )
 	{
@@ -328,7 +227,7 @@ rtt_t::~rtt_t( void )
 	}
 }
 
-void rtt_t::Attach( int32_t width, int32_t height, int32_t bpp )
+INLINE void rtt_t::Attach( int32_t width, int32_t height, int32_t bpp )
 {
 	texture.mipmap = false;
 	texture.wrap = GL_REPEAT;
@@ -348,31 +247,25 @@ void rtt_t::Attach( int32_t width, int32_t height, int32_t bpp )
 	GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
 }
 
-void rtt_t::Bind( void ) const
+INLINE void rtt_t::Bind( void ) const
 {
 	GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, fbo ) );
-#ifdef R_GL_CORE_PROFILE
-	GL_CHECK( glDrawBuffer( attachment ) );
-#endif
 }
 
-void rtt_t::Release( void ) const
+INLINE void rtt_t::Release( void ) const
 {
 	GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
-#ifdef R_GL_CORE_PROFILE
-	GL_CHECK( glDrawBuffer( GL_BACK ) );
-#endif
 }
 //-------------------------------------------------------------------------------------------------------
 // viewportStash_t
 //-------------------------------------------------------------------------------------------------------
-viewportStash_t::viewportStash_t( GLint originX, GLint originY, GLint width, GLint height )
+INLINE viewportStash_t::viewportStash_t( GLint originX, GLint originY, GLint width, GLint height )
 {
 	GL_CHECK( glGetIntegerv( GL_VIEWPORT, &original[ 0 ] ) );
 	GL_CHECK( glViewport( originX, originY, width, height ) );
 }
 
-viewportStash_t::~viewportStash_t( void )
+INLINE viewportStash_t::~viewportStash_t( void )
 {
 	GL_CHECK( glViewport( original[ 0 ], original[ 1 ], original[ 2 ], original[ 3 ] ) );
 }

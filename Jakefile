@@ -29,5 +29,5 @@ function run(command, onfinish) {
 }
 
 task("build", [], function (params) {
-	run("make clean", ["make", "emrun testbin.html"]);
+	run("make clean", "make");
 });

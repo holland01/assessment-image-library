@@ -6,13 +6,14 @@
 #include <vector>
 #include <string>
 
+extern void FlagExit( void ); // can be defined by the user in a different source file
+
 bool File_GetPixels( const std::string& filepath, 
 	std::vector< uint8_t >& outBuffer, int32_t& outBpp, int32_t& outWidth, int32_t& outHeight );
 
 void MyPrintf( const char* header, const char* fmt, ... );
 void MyFprintf( FILE* f, const char* header, const char* fmt, ... );
 void MyDateTime( const char* format, char* outBuffer, int32_t length );
-
 void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc );
 
 #if defined(__GNUC__) || defined(__clang__)
