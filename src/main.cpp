@@ -14,6 +14,8 @@
 #include <array>
 
 static bool running = true;
+static SDL_Window* window = nullptr;
+
 
 #define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
@@ -21,6 +23,8 @@ static void LoopIter( void )
 {
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
     GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 3 ) );
+
+    SDL_GL_SwapWindow( window );
 }
 
 static inline void RunLoop( void )
@@ -65,8 +69,7 @@ int main( void )
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
     SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, 8 );
  
-    SDL_Window *window = NULL;
-    SDL_Renderer* renderer = NULL;
+    SDL_Renderer* renderer = nullptr;
     SDL_RendererInfo info;
     SDL_GLContext gl_context;
 
