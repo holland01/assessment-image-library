@@ -288,8 +288,11 @@ INLINE viewportStash_t::~viewportStash_t( void )
 	GL_CHECK( glViewport( original[ 0 ], original[ 1 ], original[ 2 ], original[ 3 ] ) );
 }
 
-#define LOADER_FUNC_NAME "attribLoader_t::functions::"
+//-------------------------------------------------------------------------------------------------------
+// attribLoader_t: loads vertex attributes from an arbitrary vertex type
+//-------------------------------------------------------------------------------------------------------
 
+#define LOADER_FUNC_NAME "attribLoader_t::functions::"
 #define MAP_VEC_3( name, funcname )\
     do {\
         GLint location = program.attribs.at( #name );\
@@ -340,5 +343,8 @@ typename attribLoader_t< vertexType_t >::loaderFuncMap_t attribLoader_t< vertexT
         }
     }
 };
+
+#undef LOADER_FUNC_NAME
+#undef MAP_VEC_3
 
 } // namespace glrend

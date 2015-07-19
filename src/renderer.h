@@ -22,8 +22,6 @@
 #define UBO_TRANSFORMS_BLOCK_BINDING 0
 #define ATTRIB_OFFSET( type, member )( ( void* ) offsetof( type, member ) ) 
 
-
-
 // Extensions
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF

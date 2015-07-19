@@ -391,7 +391,6 @@ std::vector< std::string > Program::ArrayLocationNames( const std::string& name,
 }
 
 //-------------------------------------------------------------------------------------------------
-
 loadBlend_t::loadBlend_t( GLenum srcFactor, GLenum dstFactor )
 {
 	GL_CHECK( glGetIntegerv( GL_BLEND_SRC_RGB, ( GLint* ) &prevSrcFactor ) );

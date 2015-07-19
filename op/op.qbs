@@ -15,7 +15,7 @@ Product {
     cpp.cxxFlags:[
         "-Wno-unused-function",
         "-Wno-unused-but-set-variable",
-        "-std=c++11"
+        "-std=c++1y"
     ]
     cpp.linkerFlags: [
         "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
@@ -53,12 +53,16 @@ Product {
         "../src/base.h",
         "../src/base.inl",
         "../src/def.h",
+        "../src/geom.cpp",
         "../src/geom.h",
+        "../src/input.h",
         "../src/lib/stb_image.c",
         "../src/main.cpp",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",
+        "../src/view.cpp",
+        "../src/view.h",
     ]
 
     Group {     // Properties for the produced executable

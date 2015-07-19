@@ -89,7 +89,7 @@ int main( void )
 
     SDL_RenderPresent(renderer);
 
-    std::array< drawVertex_t, 3 > vertices =
+    std::array< geom::drawVertex_t, 3 > vertices =
     {{
         VERT( glm::vec3( -1.0f, 0.0f, 0.0f ), glm::u8vec4( 255, 0, 0, 255 ) ),
         VERT( glm::vec3( 0.0f, 1.0f, 0.0f ), glm::u8vec4( 0, 255, 0, 255 ) ),
@@ -125,7 +125,7 @@ int main( void )
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER,
         sizeof( vertices[ 0 ] ) * 3, &vertices[ 0 ], GL_STATIC_DRAW ) );
 
-    Program::LoadAttribLayout< drawVertex_t >( prog );
+    Program::LoadAttribLayout< geom::drawVertex_t >( prog );
 
     prog.Bind();
 
