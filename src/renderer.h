@@ -54,12 +54,16 @@
 #   define GL_CHECK_WITH_NAME( expr, funcname ) ( expr )
 #endif // __DEBUG_RENDERER__
 
-namespace glrend {
+namespace rend {
 
-class Program;
+class shader_program_t;
+
+//---------------------------------------------------------------------
+// Util Functions
+//---------------------------------------------------------------------
 
 void BindTexture( GLenum target,
-                  GLuint handle, int32_t offset, const std::string& uniform, const Program& program );
+                  GLuint handle, int32_t offset, const std::string& uniform, const shader_program_t& program );
 	
 static INLINE void MapVec3( int32_t location, size_t offset );
 
@@ -75,8 +79,11 @@ static INLINE void DrawElementBuffer( GLuint ibo, size_t numIndices );
 static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t baseHeight );
 
 template< typename textureHelper_t >
-static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex, int32_t baseWidth, int32_t baseHeight, int32_t maxLevels );
+static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex,
+                                                int32_t baseWidth, int32_t baseHeight, int32_t maxLevels );
 
+//---------------------------------------------------------------------
+// texture_t
 //---------------------------------------------------------------------
 struct texture_t
 {
@@ -101,7 +108,7 @@ struct texture_t
 	
 	void Bind( void ) const;
 	
-	void Bind( int32_t offset, const std::string& unif, const Program& prog ) const;
+    void Bind( int32_t offset, const std::string& unif, const shader_program_t& prog ) const;
 	
 	void Release( void ) const;
 	
@@ -123,8 +130,11 @@ struct texture_t
 
 	void CalcMipLevel2D( int32_t mip, int32_t width, int32_t height ) const;
 };
+
 //---------------------------------------------------------------------
-class Program
+// Program
+//---------------------------------------------------------------------
+class shader_program_t
 {
 private:
 	GLuint program;
@@ -137,17 +147,23 @@ public:
 
 	std::vector< std::string > disableAttribs; // Cleared on each invocation of LoadAttribLayout
 
-	Program( const std::string& vertexShader, const std::string& fragmentShader );
+    shader_program_t( void );
+
+    shader_program_t( const std::string& vertexShader, const std::string& fragmentShader );
 	
-	Program( const std::string& vertexShader, const std::string& fragmentShader, 
+    shader_program_t( const std::string& vertexShader, const std::string& fragmentShader,
         const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 	
-	Program( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader, 
+    shader_program_t( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader,
         const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 
-	Program( const Program& copy );
+    shader_program_t( const shader_program_t& copy );
 
-	~Program( void );
+    shader_program_t( shader_program_t&& original );
+
+    ~shader_program_t( void );
+
+    shader_program_t& operator=( shader_program_t&& original );
 
 	void AddUnif( const std::string& name );
 	void AddAttrib( const std::string& name );
@@ -181,18 +197,24 @@ public:
 
 	static std::vector< std::string > ArrayLocationNames( const std::string& name, int32_t length );
 
-    template < typename vertexType_t >
-    static void LoadAttribLayout( const Program& program );
+    template < typename vertex_type_t >
+    static void LoadAttribLayout( const shader_program_t& program );
 };
 
-//-------------------------------------------------------------------------------------------------
-struct loadBlend_t
+//---------------------------------------------------------------------
+// loadBlend_t: saves current blend state in place of a new one and restores
+// the original on destruction
+//---------------------------------------------------------------------
+struct load_blend_t
 {
 	GLenum prevSrcFactor, prevDstFactor;
 
-	loadBlend_t( GLenum srcFactor, GLenum dstFactor );
-   ~loadBlend_t( void );
+    load_blend_t( GLenum srcFactor, GLenum dstFactor );
+   ~load_blend_t( void );
 };
+
+//---------------------------------------------------------------------
+// rtt_t: Basic FBO wrapper used for rendering to a texture
 //---------------------------------------------------------------------
 struct rtt_t
 {
@@ -212,41 +234,31 @@ struct rtt_t
 	
 	void Release( void ) const;
 };
-//---------------------------------------------------------------------
-template< typename TRenderer >
-struct transformStash_t
-{
-	const TRenderer& renderer;
-	const glm::mat4& view;
-	const glm::mat4& proj;
-	
-	transformStash_t( const TRenderer& renderer_, const glm::mat4& view_, const glm::mat4& proj_ )
-		: renderer( renderer_ ), view( view_ ), proj( proj_ )
-	{
-	}
 
-	~transformStash_t( void )
-	{
-		renderer.LoadTransforms( view, proj ); 
-	}
-};
 //---------------------------------------------------------------------
-struct viewportStash_t
+// viewportStash_t: store current viewport data, replace with new parameters,
+// restore original on destruction
+//---------------------------------------------------------------------
+struct viewport_stash_t
 {
 	std::array< GLint, 4 > original; 
 
-	viewportStash_t( GLint originX, GLint originY, GLint width, GLint height );
-	~viewportStash_t( void );
+    viewport_stash_t( GLint originX, GLint originY, GLint width, GLint height );
+    ~viewport_stash_t( void );
 };
 
+//---------------------------------------------------------------------
+// attribLoader_t: helper functions for loading program attributes, given
+// an arbitrary vertex type
+//---------------------------------------------------------------------
 template < typename vertexType_t >
-struct attribLoader_t
+struct attrib_loader_t
 {
-    using loaderFuncMap_t = std::map< std::string, std::function< void( const Program& program ) > >;
-    static loaderFuncMap_t functions;
+    using loader_func_map_t = std::map< std::string, std::function< void( const shader_program_t& program ) > >;
+    static loader_func_map_t functions;
 };
 
-} // namespace glrend
+} // namespace rend
 
 #include "renderer.inl"
 

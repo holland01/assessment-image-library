@@ -8,28 +8,28 @@ namespace geom {
 //-------------------------------------------------------------------------------------------------------
 // AABB
 //-------------------------------------------------------------------------------------------------------
-AABB::AABB( void )
+aabb_t::aabb_t( void )
 {
     Empty();
 }
 
-AABB::AABB( const glm::vec3& max, const glm::vec3& min )
+aabb_t::aabb_t( const glm::vec3& max, const glm::vec3& min )
     : maxPoint( max ),
       minPoint( min )
 {
 }
 
-AABB::AABB( const AABB& toCopy )
+aabb_t::aabb_t( const aabb_t& toCopy )
     : maxPoint( toCopy.maxPoint ),
       minPoint( toCopy.minPoint )
 {
 }
 
-AABB::~AABB( void )
+aabb_t::~aabb_t( void )
 {
 }
 
-AABB& AABB::operator =( AABB toAssign )
+aabb_t& aabb_t::operator =( aabb_t toAssign )
 {
     maxPoint = toAssign.maxPoint;
     minPoint = toAssign.minPoint;
@@ -37,7 +37,7 @@ AABB& AABB::operator =( AABB toAssign )
     return *this;
 }
 
-void AABB::Add( const glm::vec3& p )
+void aabb_t::Add( const glm::vec3& p )
 {
     if ( p.x < minPoint.x ) minPoint.x = p.x;
     if ( p.y < minPoint.y ) minPoint.y = p.y;
@@ -48,7 +48,7 @@ void AABB::Add( const glm::vec3& p )
     if ( p.z > maxPoint.z ) maxPoint.z = p.z;
 }
 
-void AABB::Empty( void )
+void aabb_t::Empty( void )
 {
     const float pseudoInfinity = 1e37f;
 
@@ -61,7 +61,7 @@ void AABB::Empty( void )
 #endif
 }
 
-void AABB::TransformTo( const AABB& box, const glm::mat4& transform )
+void aabb_t::TransformTo( const aabb_t& box, const glm::mat4& transform )
 {
     maxPoint = minPoint = glm::vec3( transform[ 3 ] );
 
@@ -113,7 +113,7 @@ void AABB::TransformTo( const AABB& box, const glm::mat4& transform )
     }
 }
 
-glm::vec3 AABB::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
+glm::vec3 aabb_t::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
 {
     glm::vec3 p( minPoint.x, minPoint.y, minPoint.z );
 
@@ -129,7 +129,7 @@ glm::vec3 AABB::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
     return p;
 }
 
-glm::vec3 AABB::GetMinRelativeToNormal( const glm::vec3 &normal ) const
+glm::vec3 aabb_t::GetMinRelativeToNormal( const glm::vec3 &normal ) const
 {
     glm::vec3 n( maxPoint.x, maxPoint.y, maxPoint.z );
 
@@ -146,19 +146,19 @@ glm::vec3 AABB::GetMinRelativeToNormal( const glm::vec3 &normal ) const
 }
 
 
-glm::vec3 AABB::Center( void ) const
+glm::vec3 aabb_t::Center( void ) const
 {
     const glm::vec3& p = ( maxPoint + minPoint );
 
     return p / 2.0f;
 }
 
-glm::vec3 AABB::Size( void ) const
+glm::vec3 aabb_t::Size( void ) const
 {
     return maxPoint - minPoint;
 }
 
-glm::vec3 AABB::Radius( void ) const
+glm::vec3 aabb_t::Radius( void ) const
 {
     return maxPoint - Center();
 }
@@ -175,7 +175,7 @@ enum
     CORNER_MAX = 7
 };
 
-glm::vec3 AABB::Corner( int index ) const
+glm::vec3 aabb_t::Corner( int index ) const
 {
     assert( index >= 0 );
     assert( index <= 7 );
@@ -187,7 +187,7 @@ glm::vec3 AABB::Corner( int index ) const
     );
 }
 
-bool AABB::IsEmpty( void ) const
+bool aabb_t::IsEmpty( void ) const
 {
     // Check to see if any of our
     // axes are inverted
@@ -200,7 +200,7 @@ bool AABB::IsEmpty( void ) const
 #endif
 }
 
-bool AABB::InPointRange( float k ) const
+bool aabb_t::InPointRange( float k ) const
 {
     return ( maxPoint.x >= k && maxPoint.y >= k && maxPoint.z >= k )
         && ( minPoint.x <= k && minPoint.y <= k && minPoint.z <= k );
@@ -209,7 +209,7 @@ bool AABB::InPointRange( float k ) const
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
-float AABB::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const
+float aabb_t::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const
 {
     // Quick early out; 0 implies no scaling necessary
     if ( InXRange( origin ) && InYRange( origin ) && InZRange( origin ) )
@@ -307,7 +307,7 @@ float AABB::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) co
 }
 
 #define A_CalcEdge( e ) ( glm::normalize( e ) )
-void AABB::GetFacePlane( face_t face, plane_t& plane ) const
+void aabb_t::GetFacePlane( face_t face, plane_t& plane ) const
 {
 /*
 
@@ -353,27 +353,27 @@ Future reference for OBBs...
 
     switch ( face )
     {
-        case AABB::FACE_TOP:
+        case aabb_t::FACE_TOP:
             p  = maxPoint;
             plane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
-        case AABB::FACE_RIGHT:
+        case aabb_t::FACE_RIGHT:
             p  = maxPoint;
             plane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
-        case AABB::FACE_FRONT:
+        case aabb_t::FACE_FRONT:
             p  = Corner( CORNER_NEAR_UP_RIGHT );
             plane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
-        case AABB::FACE_LEFT:
+        case aabb_t::FACE_LEFT:
             p  = Corner( CORNER_NEAR_UP_LEFT );
             plane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
-        case AABB::FACE_BACK:
+        case aabb_t::FACE_BACK:
             p  = Corner( CORNER_FAR_UP_LEFT );
             plane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
-        case AABB::FACE_BOTTOM:
+        case aabb_t::FACE_BOTTOM:
             p = Corner( CORNER_NEAR_DOWN_RIGHT );
             plane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
@@ -385,7 +385,7 @@ Future reference for OBBs...
 
 static const float AABB_SIZE_FACTOR = 1.5f;
 
-void AABB::FromTransform( AABB &box, const glm::mat4 &transform )
+void aabb_t::FromTransform( aabb_t &box, const glm::mat4 &transform )
 {
     // Compute our AABB using -
 
@@ -412,7 +412,7 @@ void AABB::FromTransform( AABB &box, const glm::mat4 &transform )
     box.minPoint.z = tz - sz;
 }
 
-void AABB::FromPoints( AABB& box, const glm::vec3 v[], int32_t n )
+void aabb_t::FromPoints( aabb_t& box, const glm::vec3 v[], int32_t n )
 {
     for ( int32_t i = 0; i < n; ++i )
     {
@@ -425,7 +425,7 @@ void AABB::FromPoints( AABB& box, const glm::vec3 v[], int32_t n )
 //-------------------------------------------------------------------------------------------------------
 #define _DEBUG_FRUSTUM
 
-Frustum::Frustum( void )
+frustum_t::frustum_t( void )
     :	acceptCount( 0 ),
         rejectCount( 0 ),
         mvp( 1.0f )
@@ -433,11 +433,11 @@ Frustum::Frustum( void )
     memset( frustPlanes, 0, sizeof( plane_t ) * FRUST_NUM_PLANES );
 }
 
-Frustum::~Frustum( void )
+frustum_t::~frustum_t( void )
 {
 }
 
-glm::vec4 Frustum::CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin )
+glm::vec4 frustum_t::CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin )
 {
     glm::vec4 plane( 0.0f );
     plane.x = position.x;
@@ -451,7 +451,7 @@ glm::vec4 Frustum::CalcPlaneFromOrigin( const glm::vec4& position, const glm::ve
 
 #define F_CalcDist( plane ) ( ( plane ).d / glm::length( ( plane ).normal ) )
 #define F_CalcNormal( a, b ) ( glm::cross( a, b ) )
-void Frustum::Update( const view::params_t& view )
+void frustum_t::Update( const view::params_t& view )
 {
     float tanHalfFovy = glm::tan( view.fovy * 0.5f );
 
@@ -504,7 +504,7 @@ void Frustum::Update( const view::params_t& view )
 )
 #endif
 
-bool Frustum::IntersectsBox( const AABB& box ) const
+bool frustum_t::IntersectsBox( const aabb_t& box ) const
 {
 #define C(v) ( glm::vec3( ( v ) ) )
 

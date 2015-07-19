@@ -1,8 +1,6 @@
 #include "renderer.h"
 #include <stdlib.h>
 
-namespace glrend {
-
 //-----------------------------------------------------------
 // Shader Util Functions
 //-----------------------------------------------------------
@@ -127,13 +125,6 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
     return shaderId;
 }
 
-
-
-//-----------------------------------------------------------
-// Vertex Layout Utils
-//-----------------------------------------------------------
- 
-
 //-----------------------------------------------------------
 // Texture Utils
 //-----------------------------------------------------------
@@ -146,7 +137,9 @@ enum texFormat_t
 	TEX_INTERNAL_RGBA = GL_RGBA,	
 };
 
-void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const Program& program )
+namespace rend {
+
+void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program_t& program )
 {
 	GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
 	GL_CHECK( glBindTexture( target, handle ) );
@@ -154,16 +147,8 @@ void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::strin
 	program.LoadInt( uniform, offset );
 }
 
+// Saved until further notice
 /*
-static INLINE void SetPixel( byte* dest, const byte* src, int width, int height, int bpp, int srcX, int srcY, int destX, int destY )
-{
-	int destOfs = ( width * destY + destX ) * bpp;
-	int srcOfs = ( width * srcY + srcX ) * bpp;
-
-	for ( int k = 0; k < bpp; ++k )
-		dest[ destOfs + k ] = src[ srcOfs + k ];
-}
-
 static INLINE void FlipBytes( byte* out, const byte* src, int width, int height, int bpp )
 {
 	for ( int y = 0; y < height; ++y )
@@ -199,7 +184,7 @@ texture_t::~texture_t( void )
 	}
 }
 
-void texture_t::Bind( int offset, const std::string& unif, const Program& prog ) const
+void texture_t::Bind( int offset, const std::string& unif, const shader_program_t& prog ) const
 {
     BindTexture( GL_TEXTURE_2D, handle, offset, unif, prog );
 }
@@ -320,7 +305,12 @@ bool texture_t::DetermineFormats( void )
 //-------------------------------------------------------------------------------------------------
 // Program
 //-------------------------------------------------------------------------------------------------
-Program::Program( const std::string& vertexShader, const std::string& fragmentShader )
+shader_program_t::shader_program_t( void )
+    : program( 0 )
+{
+}
+
+shader_program_t::shader_program_t( const std::string& vertexShader, const std::string& fragmentShader )
 	: program( 0 )
 {
 	GLuint shaders[] = 
@@ -332,35 +322,55 @@ Program::Program( const std::string& vertexShader, const std::string& fragmentSh
 	program = LinkProgram( shaders, 2 );
 }
 
-Program::Program( const std::string& vertexShader, const std::string& fragmentShader, 
+shader_program_t::shader_program_t( const std::string& vertexShader, const std::string& fragmentShader,
     const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs )
-	: Program( vertexShader, fragmentShader )
+    : shader_program_t( vertexShader, fragmentShader )
 {
     GenData( uniforms, attribs );
 }
 
-Program::Program( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader, 
+shader_program_t::shader_program_t( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader,
         const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs )
-		: Program( std::string( &vertexShader[ 0 ], vertexShader.size() ), 
+        : shader_program_t( std::string( &vertexShader[ 0 ], vertexShader.size() ),
 				std::string( &fragmentShader[ 0 ], fragmentShader.size() ) )
 {
     GenData( uniforms, attribs );
 }
 
-Program::Program( const Program& copy )
+shader_program_t::shader_program_t( const shader_program_t& copy )
 	: program( copy.program ),
 	  uniforms( copy.uniforms ),
 	  attribs( copy.attribs )
 {
 }
 
-Program::~Program( void )
+shader_program_t::shader_program_t( shader_program_t&& original )
 {
-	Release();
-	GL_CHECK( glDeleteProgram( program ) );
+    *this = std::move( original );
 }
 
-void Program::GenData( const std::vector< std::string >& uniforms, 
+shader_program_t& shader_program_t::operator=( shader_program_t&& original )
+{
+    program = original.program;
+    uniforms = std::move( original.uniforms );
+    attribs = std::move( original.attribs );
+    disableAttribs = std::move( original.disableAttribs );
+
+    original.program = 0;
+
+    return *this;
+}
+
+shader_program_t::~shader_program_t( void )
+{
+    if ( program )
+    {
+        Release();
+        GL_CHECK( glDeleteProgram( program ) );
+    }
+}
+
+void shader_program_t::GenData( const std::vector< std::string >& uniforms,
     const std::vector< std::string >& attribs )
 {
 	uint32_t max = glm::max( attribs.size(), uniforms.size() );
@@ -378,7 +388,7 @@ void Program::GenData( const std::vector< std::string >& uniforms,
 	}
 }
 
-std::vector< std::string > Program::ArrayLocationNames( const std::string& name, int32_t length )
+std::vector< std::string > shader_program_t::ArrayLocationNames( const std::string& name, int32_t length )
 {
 	std::vector< std::string > names;
 	names.resize( length );
@@ -391,7 +401,9 @@ std::vector< std::string > Program::ArrayLocationNames( const std::string& name,
 }
 
 //-------------------------------------------------------------------------------------------------
-loadBlend_t::loadBlend_t( GLenum srcFactor, GLenum dstFactor )
+// loadBlend_t
+//-------------------------------------------------------------------------------------------------
+load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
 {
 	GL_CHECK( glGetIntegerv( GL_BLEND_SRC_RGB, ( GLint* ) &prevSrcFactor ) );
 	GL_CHECK( glGetIntegerv( GL_BLEND_DST_RGB, ( GLint* ) &prevDstFactor ) );
@@ -399,7 +411,7 @@ loadBlend_t::loadBlend_t( GLenum srcFactor, GLenum dstFactor )
 	GL_CHECK( glBlendFunc( srcFactor, dstFactor ) );
 }
 
-loadBlend_t::~loadBlend_t( void )
+load_blend_t::~load_blend_t( void )
 {
 	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
 }

@@ -11,7 +11,7 @@ namespace view {
 
 namespace geom {
 
-struct drawVertex_t
+struct draw_vertex_t
 {
     glm::vec3 position;
     glm::vec3 normal;
@@ -36,7 +36,7 @@ struct plane_t;
 // AABB
 //-------------------------------------------------------------------------------------------------------
 
-class AABB
+class aabb_t
 {
 public:
 
@@ -50,23 +50,23 @@ public:
         FACE_BOTTOM
     };
 
-    AABB( void ); // Calls Empty() on default init
+    aabb_t( void ); // Calls Empty() on default init
 
-    AABB( const glm::vec3& max, const glm::vec3& min );
+    aabb_t( const glm::vec3& max, const glm::vec3& min );
 
-    AABB( const AABB& toCopy );
+    aabb_t( const aabb_t& toCopy );
 
-    ~AABB( void );
+    ~aabb_t( void );
 
-    AABB&       operator =( AABB toAssign );
+    aabb_t&       operator =( aabb_t toAssign );
 
-    bool		Encloses( const AABB& box ) const;
+    bool		Encloses( const aabb_t& box ) const;
 
     void        Add( const glm::vec3& p );
 
     void        Empty( void ); // Sets maxPoint to -pseudoInfinity, and minPoint to pseudoInfinity
 
-    void        TransformTo( const AABB& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
+    void        TransformTo( const aabb_t& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
 
     glm::vec3       GetMaxRelativeToNormal( const glm::vec3& normal ) const;
 
@@ -96,19 +96,19 @@ public:
 
     void			GetFacePlane( face_t face, plane_t& plane ) const;
 
-    static void		FromTransform( AABB& box, const glm::mat4& transform );
+    static void		FromTransform( aabb_t& box, const glm::mat4& transform );
 
-    static void		FromPoints( AABB& box, const glm::vec3 p[], int32_t n );
+    static void		FromPoints( aabb_t& box, const glm::vec3 p[], int32_t n );
 
     glm::vec3 maxPoint, minPoint;
 };
 
-INLINE glm::vec4 AABB::Corner4( int32_t index ) const
+INLINE glm::vec4 aabb_t::Corner4( int32_t index ) const
 {
     return glm::vec4( Corner( index ), 1.0f );
 }
 
-INLINE bool	AABB::Encloses( const AABB& box ) const
+INLINE bool	aabb_t::Encloses( const aabb_t& box ) const
 {
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
 
@@ -127,17 +127,17 @@ INLINE bool	AABB::Encloses( const AABB& box ) const
 #endif
 }
 
-INLINE bool	AABB::InXRange( const glm::vec3& v ) const
+INLINE bool	aabb_t::InXRange( const glm::vec3& v ) const
 {
     return ( v.x <= maxPoint.x && v.x >= minPoint.x );
 }
 
-INLINE bool AABB::InYRange( const glm::vec3& v ) const
+INLINE bool aabb_t::InYRange( const glm::vec3& v ) const
 {
     return ( v.y <= maxPoint.y && v.y >= minPoint.y );
 }
 
-INLINE bool AABB::InZRange( const glm::vec3& v ) const
+INLINE bool aabb_t::InZRange( const glm::vec3& v ) const
 {
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
     return ( v.z >= maxPoint.z && v.z <= minPoint.z );
@@ -164,7 +164,7 @@ enum
     FRUST_FAR       = 5
 };
 
-class Frustum
+class frustum_t
 {
     plane_t     frustPlanes[ FRUST_NUM_PLANES ];
 
@@ -178,9 +178,9 @@ class Frustum
 
 public:
 
-    Frustum( void );
+    frustum_t( void );
 
-    ~Frustum( void );
+    ~frustum_t( void );
 
     void    Update( const view::params_t& params );
 
@@ -188,10 +188,10 @@ public:
 
     void	ResetMetrics( void ) const { rejectCount = 0; acceptCount = 0; }
 
-    bool    IntersectsBox( const AABB& box ) const;
+    bool    IntersectsBox( const aabb_t& box ) const;
 };
 
-INLINE void Frustum::PrintMetrics( void ) const
+INLINE void frustum_t::PrintMetrics( void ) const
 {
     printf( "Reject Count: %iu; Accept Count: %iu\r", rejectCount, acceptCount );
 }

@@ -1,4 +1,4 @@
-namespace glrend {
+namespace rend {
 
 //-------------------------------------------------------------------------------------------------------
 // Global
@@ -52,8 +52,8 @@ static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t bas
 	return glm::min( ( int32_t ) glm::log2( ( float ) baseWidth ), ( int32_t ) glm::log2( ( float ) baseHeight ) );
 }
 
-template< typename textureHelper_t >
-static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex, int32_t baseWidth, int32_t baseHeight, int32_t maxLevels )
+template< typename texture_helper_t >
+static INLINE uint32_t Texture_CalcMipLevels2D( const texture_helper_t& tex, int32_t baseWidth, int32_t baseHeight, int32_t maxLevels )
 {
 	if ( !maxLevels )
 	{
@@ -83,96 +83,96 @@ static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex, int3
 }
 
 //-------------------------------------------------------------------------------------------------------
-// Program
+// shader_program_t
 //-------------------------------------------------------------------------------------------------------
-INLINE void Program::AddUnif( const std::string& name ) 
+INLINE void shader_program_t::AddUnif( const std::string& name )
 {
-	GL_CHECK( uniforms[ name ] = glGetUniformLocation( program, name.c_str() ) ); 
+    GL_CHECK( uniforms[ name ] = glGetUniformLocation( program, name.c_str() ) );
 }
 
-INLINE void Program::AddAttrib( const std::string& name )
+INLINE void shader_program_t::AddAttrib( const std::string& name )
 {
-	GL_CHECK( attribs[ name ] = glGetAttribLocation( program, name.c_str() ) );
+    GL_CHECK( attribs[ name ] = glGetAttribLocation( program, name.c_str() ) );
 }
 
-INLINE void Program::Bind( void ) const
+INLINE void shader_program_t::Bind( void ) const
 {
-	GL_CHECK( glUseProgram( program ) );
+    GL_CHECK( glUseProgram( program ) );
 }
 
-INLINE void Program::Release( void ) const
+INLINE void shader_program_t::Release( void ) const
 {
-	GL_CHECK( glUseProgram( 0 ) );
+    GL_CHECK( glUseProgram( 0 ) );
 }
 
-INLINE void Program::LoadMat4( const std::string& name, const glm::mat4& t ) const
+INLINE void shader_program_t::LoadMat4( const std::string& name, const glm::mat4& t ) const
 {
 
 	GL_CHECK( glUniformMatrix4fv( uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 
-INLINE void Program::LoadMat2( const std::string& name, const glm::mat2& t ) const
+INLINE void shader_program_t::LoadMat2( const std::string& name, const glm::mat2& t ) const
 {
 	GL_CHECK( glUniformMatrix2fv( uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 
-INLINE void Program::LoadMat2( const std::string& name, const float* t ) const
+INLINE void shader_program_t::LoadMat2( const std::string& name, const float* t ) const
 {
 	GL_CHECK( glUniformMatrix2fv( uniforms.at( name ), 1, GL_FALSE, t ) );
 }
 
-INLINE void Program::LoadVec2( const std::string& name, const glm::vec2& v ) const
+INLINE void shader_program_t::LoadVec2( const std::string& name, const glm::vec2& v ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-INLINE void Program::LoadVec2( const std::string& name, const float* v ) const
+INLINE void shader_program_t::LoadVec2( const std::string& name, const float* v ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), 1, v ) );
 }
 
-INLINE void Program::LoadVec2Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void shader_program_t::LoadVec2Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform2fv( uniforms.at( name ), num, v ) );
 }
 
-INLINE void Program::LoadVec3( const std::string& name, const glm::vec3& v ) const
+INLINE void shader_program_t::LoadVec3( const std::string& name, const glm::vec3& v ) const
 {
 	GL_CHECK( glUniform3fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-INLINE void Program::LoadVec3Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void shader_program_t::LoadVec3Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform3fv( uniforms.at( name ), num, v ) );
 }
 
-INLINE void Program::LoadVec4( const std::string& name, const glm::vec4& v ) const
+INLINE void shader_program_t::LoadVec4( const std::string& name, const glm::vec4& v ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), 1, glm::value_ptr( v ) ) );
 }
 
-INLINE void Program::LoadVec4( const std::string& name, const float* v ) const
+INLINE void shader_program_t::LoadVec4( const std::string& name, const float* v ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), 1, v ) );
 }
 
-INLINE void Program::LoadVec4Array( const std::string& name, const float* v, int32_t num ) const
+INLINE void shader_program_t::LoadVec4Array( const std::string& name, const float* v, int32_t num ) const
 {
 	GL_CHECK( glUniform4fv( uniforms.at( name ), num, v ) );
 }
 
-INLINE void Program::LoadInt( const std::string& name, int v ) const
+INLINE void shader_program_t::LoadInt( const std::string& name, int v ) const
 {
 	GL_CHECK( glUniform1i( uniforms.at( name ), v ) );
 }
 
-INLINE void Program::LoadFloat( const std::string& name, float f ) const 
+INLINE void shader_program_t::LoadFloat( const std::string& name, float f ) const
 {
 	GL_CHECK( glUniform1f( uniforms.at( name ), f ) );
 }
 
-template < typename vertexType_t >
-INLINE void Program::LoadAttribLayout( const Program& program )
+template < typename vertex_type_t >
+INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program )
 {
     for ( const auto& attrib: program.attribs )
     {
@@ -189,7 +189,7 @@ INLINE void Program::LoadAttribLayout( const Program& program )
                 }
             }
 
-            attribLoader_t< vertexType_t >::functions[ attrib.first ]( program );
+            attrib_loader_t< vertex_type_t >::functions[ attrib.first ]( program );
         }
     }
 }
@@ -275,53 +275,53 @@ INLINE void rtt_t::Release( void ) const
 	GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
 }
 //-------------------------------------------------------------------------------------------------------
-// viewportStash_t
+// viewport_stash_t
 //-------------------------------------------------------------------------------------------------------
-INLINE viewportStash_t::viewportStash_t( GLint originX, GLint originY, GLint width, GLint height )
+INLINE viewport_stash_t::viewport_stash_t( GLint originX, GLint originY, GLint width, GLint height )
 {
 	GL_CHECK( glGetIntegerv( GL_VIEWPORT, &original[ 0 ] ) );
 	GL_CHECK( glViewport( originX, originY, width, height ) );
 }
 
-INLINE viewportStash_t::~viewportStash_t( void )
+INLINE viewport_stash_t::~viewport_stash_t( void )
 {
 	GL_CHECK( glViewport( original[ 0 ], original[ 1 ], original[ 2 ], original[ 3 ] ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
-// attribLoader_t: loads vertex attributes from an arbitrary vertex type
+// attrib_loader_t: loads vertex attributes from an arbitrary vertex type
 //-------------------------------------------------------------------------------------------------------
 
-#define LOADER_FUNC_NAME "attribLoader_t::functions::"
+#define LOADER_FUNC_NAME "attrib_loader_t::functions::"
 #define MAP_VEC_3( name, funcname )\
     do {\
         GLint location = program.attribs.at( #name );\
         GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), funcname );\
-        GL_CHECK_WITH_NAME( glVertexAttribPointer( location, \
-                3, GL_FLOAT, GL_FALSE, sizeof( vertexType_t ), ( void* ) offsetof( vertexType_t, name ) ), funcname );\
+        GL_CHECK_WITH_NAME( glVertexAttribPointer( location,\
+                3, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) offsetof( vertex_type_t, name ) ), funcname );\
     }\
     while( 0 )
 
-template < typename vertexType_t >
-typename attribLoader_t< vertexType_t >::loaderFuncMap_t attribLoader_t< vertexType_t >::functions =
+template < typename vertex_type_t >
+typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< vertex_type_t >::functions =
 {
     {
         "position",
-        []( const Program& program ) -> void
+        []( const shader_program_t& program ) -> void
         {
             MAP_VEC_3( position, LOADER_FUNC_NAME"position" );
         }
     },
     {
         "normal",
-        []( const Program& program ) -> void
+        []( const shader_program_t& program ) -> void
         {
             MAP_VEC_3( normal, LOADER_FUNC_NAME"normal" );
         }
     },
     {
         "color",
-        []( const Program& program ) -> void
+        []( const shader_program_t& program ) -> void
         {
             GLint location = program.attribs.at( "color" );
 
@@ -329,17 +329,17 @@ typename attribLoader_t< vertexType_t >::loaderFuncMap_t attribLoader_t< vertexT
                 "attribLoadFunctions" );
 
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
-                4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertexType_t ),
-                ( void* ) offsetof( vertexType_t, color ) ), LOADER_FUNC_NAME"color" );
+                4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertex_type_t ),
+                ( void* ) offsetof( vertex_type_t, color ) ), LOADER_FUNC_NAME"color" );
         }
     },
     {
         "texCoord",
-        []( const Program& program ) -> void
+        []( const shader_program_t& program ) -> void
         {
             GLint location = program.attribs.at( "texCoord" );
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
-                2, GL_FLOAT, GL_FALSE, sizeof( vertexType_t ), ( void* ) offsetof( vertexType_t, texCoord ) ), LOADER_FUNC_NAME"texCoord" );
+                2, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) offsetof( vertex_type_t, texCoord ) ), LOADER_FUNC_NAME"texCoord" );
         }
     }
 };
