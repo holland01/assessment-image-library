@@ -9,9 +9,13 @@
 #include <SDL2/SDL_main.h>
 
 #include "renderer.h"
+#include "geom.h"
+
 #include <unistd.h>
 #include <stdint.h>
 #include <array>
+
+using namespace glrend;
 
 static bool running = true;
 static SDL_Window* window = nullptr;
@@ -23,8 +27,6 @@ static void LoopIter( void )
 {
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
     GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 3 ) );
-
-    SDL_GL_SwapWindow( window );
 }
 
 static inline void RunLoop( void )
@@ -35,6 +37,8 @@ static inline void RunLoop( void )
     while ( running )
     {
         LoopIter();
+
+        SDL_GL_SwapWindow( window );
 
         SDL_Event e;
         while ( SDL_PollEvent( &e ) )
@@ -55,7 +59,11 @@ static inline void RunLoop( void )
 
 void FlagExit( void )
 {
+#ifdef EMSCRIPTEN
+    exit( 1 );
+#else
     running = false;
+#endif
 }
 
 int main( void ) 
@@ -81,14 +89,14 @@ int main( void )
 
     SDL_RenderPresent(renderer);
 
-    std::array< vertex_t, 3 > vertices =
+    std::array< drawVertex_t, 3 > vertices =
     {{
         VERT( glm::vec3( -1.0f, 0.0f, 0.0f ), glm::u8vec4( 255, 0, 0, 255 ) ),
         VERT( glm::vec3( 0.0f, 1.0f, 0.0f ), glm::u8vec4( 0, 255, 0, 255 ) ),
         VERT( glm::vec3( 1.0f, 0.0f, 0.0f ), glm::u8vec4( 0, 0, 255, 255 ) )
     }};
 
-    std::string vshader( GEN_SHADER(
+    std::string vshader( GEN_V_SHADER(
         attribute vec3 position;
         attribute vec4 color;
 
@@ -101,8 +109,7 @@ int main( void )
         }
     ) );
 
-    std::string fshader( GEN_SHADER(
-        //precision mediump float;
+    std::string fshader( GEN_F_SHADER(
         varying vec4 frag_Color;
         void main( void )
         {
@@ -118,7 +125,7 @@ int main( void )
     GL_CHECK( glBufferData( GL_ARRAY_BUFFER,
         sizeof( vertices[ 0 ] ) * 3, &vertices[ 0 ], GL_STATIC_DRAW ) );
 
-    prog.LoadAttribLayout();
+    Program::LoadAttribLayout< drawVertex_t >( prog );
 
     prog.Bind();
 

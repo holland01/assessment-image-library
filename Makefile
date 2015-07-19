@@ -45,7 +45,7 @@ endif
 CC = emcc
 CXX = em++ -v
 
-DEPFLAGS=-s USE_SDL=2
+DEPFLAGS=-s USE_SDL=2 -s ASSERTIONS=1
 
 -include Makefile.local
 

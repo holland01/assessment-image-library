@@ -1,13 +1,8 @@
+namespace glrend {
+
 //-------------------------------------------------------------------------------------------------------
 // Global
 //-------------------------------------------------------------------------------------------------------
-
-static INLINE void MapVec3( int32_t location, size_t offset )
-{
-	GL_CHECK( glEnableVertexAttribArray( location ) );
-	GL_CHECK( glVertexAttribPointer( location, 3, GL_FLOAT, GL_FALSE, sizeof( vertex_t ), ( void* ) offset ) );
-}
-
 template < typename T >
 static INLINE GLuint GenBufferObject( GLenum target, const std::vector< T >& data, GLenum usage )
 {
@@ -176,6 +171,29 @@ INLINE void Program::LoadFloat( const std::string& name, float f ) const
 	GL_CHECK( glUniform1f( uniforms.at( name ), f ) );
 }
 
+template < typename vertexType_t >
+INLINE void Program::LoadAttribLayout( const Program& program )
+{
+    for ( const auto& attrib: program.attribs )
+    {
+        if ( attrib.second != -1 )
+        {
+            if ( !program.disableAttribs.empty() )
+            {
+                auto it = std::find( program.disableAttribs.cbegin(), program.disableAttribs.cend(), attrib.first );
+
+                if ( it != program.disableAttribs.cend() )
+                {
+                    GL_CHECK( glDisableVertexAttribArray( attrib.second ) );
+                    continue;
+                }
+            }
+
+            attribLoader_t< vertexType_t >::functions[ attrib.first ]( program );
+        }
+    }
+}
+
 //-------------------------------------------------------------------------------------------------------
 // texture_t
 //-------------------------------------------------------------------------------------------------------
@@ -269,3 +287,58 @@ INLINE viewportStash_t::~viewportStash_t( void )
 {
 	GL_CHECK( glViewport( original[ 0 ], original[ 1 ], original[ 2 ], original[ 3 ] ) );
 }
+
+#define LOADER_FUNC_NAME "attribLoader_t::functions::"
+
+#define MAP_VEC_3( name, funcname )\
+    do {\
+        GLint location = program.attribs.at( #name );\
+        GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), funcname );\
+        GL_CHECK_WITH_NAME( glVertexAttribPointer( location, \
+                3, GL_FLOAT, GL_FALSE, sizeof( vertexType_t ), ( void* ) offsetof( vertexType_t, name ) ), funcname );\
+    }\
+    while( 0 )
+
+template < typename vertexType_t >
+typename attribLoader_t< vertexType_t >::loaderFuncMap_t attribLoader_t< vertexType_t >::functions =
+{
+    {
+        "position",
+        []( const Program& program ) -> void
+        {
+            MAP_VEC_3( position, LOADER_FUNC_NAME"position" );
+        }
+    },
+    {
+        "normal",
+        []( const Program& program ) -> void
+        {
+            MAP_VEC_3( normal, LOADER_FUNC_NAME"normal" );
+        }
+    },
+    {
+        "color",
+        []( const Program& program ) -> void
+        {
+            GLint location = program.attribs.at( "color" );
+
+            GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ),
+                "attribLoadFunctions" );
+
+            GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
+                4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertexType_t ),
+                ( void* ) offsetof( vertexType_t, color ) ), LOADER_FUNC_NAME"color" );
+        }
+    },
+    {
+        "texCoord",
+        []( const Program& program ) -> void
+        {
+            GLint location = program.attribs.at( "texCoord" );
+            GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
+                2, GL_FLOAT, GL_FALSE, sizeof( vertexType_t ), ( void* ) offsetof( vertexType_t, texCoord ) ), LOADER_FUNC_NAME"texCoord" );
+        }
+    }
+};
+
+} // namespace glrend

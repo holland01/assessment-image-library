@@ -10,6 +10,7 @@ Product {
         "../src/lib",
         qbs.getEnv("DEVLIB_ROOT") + "/sdl2/include"
     ]
+    cpp.defines: ["__DEBUG_RENDERER__"]
     cpp.treatWarningsAsErrors: true
     cpp.cxxFlags:[
         "-Wno-unused-function",
@@ -47,10 +48,12 @@ Product {
         "-lrt"
     ]
     files: [
+        "../Makefile",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
         "../src/def.h",
+        "../src/geom.h",
         "../src/lib/stb_image.c",
         "../src/main.cpp",
         "../src/renderer.cpp",

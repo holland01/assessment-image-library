@@ -8,6 +8,8 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <functional>
+#include <algorithm>
 
 #include <stdint.h>
 
@@ -20,61 +22,46 @@
 #define UBO_TRANSFORMS_BLOCK_BINDING 0
 #define ATTRIB_OFFSET( type, member )( ( void* ) offsetof( type, member ) ) 
 
-#define GEN_SHADER( data ) #data
+
 
 // Extensions
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 
-#if defined( _DEBUG_USE_GL_ASYNC_CALLBACK )
-#	define GL_CHECK( expr )\
-		do\
-		{\
-			( expr );\
-			glDebugSetCallInfo( std::string( #expr ), _FUNC_NAME_ );\
-		}\
-		while ( 0 )
-#elif defined( _DEBUG_USE_GL_GET_ERR )
-#	define GL_CHECK( expr )\
-		do\
-		{\
-			( expr );\
-			ExitOnGLError( _LINE_NUM_, #expr, _FUNC_NAME_ );\
-		}\
-		while ( 0 )
+#define GEN_V_SHADER( data ) #data
+
+#ifdef EMSCRIPTEN
+#   define GEN_F_SHADER( data ) "precision mediump float;\n"#data
 #else
-#	define GL_CHECK( expr ) ( expr )
-#endif // _DEBUG_USE_GL_ASYNC_CALLBACK
+#   define GEN_F_SHADER( data ) #data
+#endif // EMSCRIPTEN
 
-#define GL_CHECK_WITH_NAME( expr, funcname )\
-	do\
-	{\
-		( expr );\
-		ExitOnGLError( _LINE_NUM_, #expr, funcname );\
-	}\
-	while ( 0 )
+#ifdef __DEBUG_RENDERER__
+#   define GL_CHECK( expr )\
+        do\
+        {\
+            ( expr );\
+            ExitOnGLError( _LINE_NUM_, #expr, _FUNC_NAME_ );\
+        }\
+        while ( 0 )
+#   define GL_CHECK_WITH_NAME( expr, funcname )\
+        do\
+        {\
+            ( expr );\
+            ExitOnGLError( _LINE_NUM_, #expr, funcname );\
+        }\
+        while ( 0 )
+#else
+#   define GL_CHECK( expr ) ( expr )
+#   define GL_CHECK_WITH_NAME( expr, funcname ) ( expr )
+#endif // __DEBUG_RENDERER__
 
-class GLConfig
-{
-public:
-	// must match the same number used in main.frag
-	static const int32_t MAX_MIP_LEVELS = 16; 
-};
-
-struct vertex_t
-{
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 texCoord;
-	glm::u8vec4 color;
-};
+namespace glrend {
 
 class Program;
 
-GLuint GenSampler( bool mipmap, GLenum wrap );
-
-void BindTexture( GLenum target, GLuint handle, int32_t offset, 
-	int32_t sampler, const std::string& uniform, const Program& program );
+void BindTexture( GLenum target,
+                  GLuint handle, int32_t offset, const std::string& uniform, const Program& program );
 	
 static INLINE void MapVec3( int32_t location, size_t offset );
 
@@ -195,6 +182,9 @@ public:
 	void Release( void ) const;
 
 	static std::vector< std::string > ArrayLocationNames( const std::string& name, int32_t length );
+
+    template < typename vertexType_t >
+    static void LoadAttribLayout( const Program& program );
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -251,4 +241,15 @@ struct viewportStash_t
 	~viewportStash_t( void );
 };
 
+template < typename vertexType_t >
+struct attribLoader_t
+{
+    using loaderFuncMap_t = std::map< std::string, std::function< void( const Program& program ) > >;
+    static loaderFuncMap_t functions;
+};
+
+} // namespace glrend
+
 #include "renderer.inl"
+
+

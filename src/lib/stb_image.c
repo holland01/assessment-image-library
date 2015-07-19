@@ -1,4 +1,8 @@
-#include <stb_image.h>
+#ifdef EMSCRIPTEN
+#   include "stb_image.h"
+#else
+#   include <stb_image.h>
+#endif // EMSCRIPTEN
 
 #ifndef STBI_HEADER_FILE_ONLY
 

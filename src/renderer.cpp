@@ -1,7 +1,7 @@
 #include "renderer.h"
 #include <stdlib.h>
-#include <functional>
-#include <algorithm>
+
+namespace glrend {
 
 //-----------------------------------------------------------
 // Shader Util Functions
@@ -133,47 +133,6 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
 // Vertex Layout Utils
 //-----------------------------------------------------------
  
-static std::map< std::string, std::function< void( const Program& program ) > > attribLoadFunctions = 
-{
-	{
-		"position",
-		[]( const Program& program ) -> void
-		{
-			GLint location = program.attribs.at( "position" );
-			MapVec3( location, offsetof( vertex_t, position ) );
-		}
-	},
-	{
-		"normal",
-		[]( const Program& program ) -> void
-		{
-			GLint location = program.attribs.at( "normal" );
-			MapVec3( location, offsetof( vertex_t, normal ) );
-		}
-	},
-	{
-		"color",
-		[]( const Program& program ) -> void
-		{
-			GLint location = program.attribs.at( "color" );
-			
-			GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), 
-				"attribLoadFunctions" );
-				 
-			GL_CHECK_WITH_NAME( glVertexAttribPointer( location, 
-				4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertex_t ), 
-				( void* ) offsetof( vertex_t, color ) ), "attribLoadFunctions" );
-		}
-	},
-	{
-		"texCoord",
-		[]( const Program& program ) -> void
-		{
-			GLint location = program.attribs.at( "texCoord" );
-			MapVec3( location, offsetof( vertex_t, texCoord ) );
-		}
-	}
-};
 
 //-----------------------------------------------------------
 // Texture Utils
@@ -419,33 +378,6 @@ void Program::GenData( const std::vector< std::string >& uniforms,
 	}
 }
 
-void Program::LoadAttribLayout( void ) const
-{
-	for ( int i = 0; i < 5; ++i )
-	{
-		GL_CHECK( glDisableVertexAttribArray( i ) );
-	}
-
-	for ( const auto& attrib: attribs )
-	{
-		if ( attrib.second != -1 )
-		{
-			if ( !disableAttribs.empty() )
-			{
-				auto it = std::find( disableAttribs.begin(), disableAttribs.end(), attrib.first );
-
-				if ( it != disableAttribs.end() )
-				{
-					GL_CHECK( glDisableVertexAttribArray( attrib.second ) );
-					continue;
-				}
-			}
-			
-			attribLoadFunctions[ attrib.first ]( *this ); 
-		}
-	}
-}
-
 std::vector< std::string > Program::ArrayLocationNames( const std::string& name, int32_t length )
 {
 	std::vector< std::string > names;
@@ -474,3 +406,5 @@ loadBlend_t::~loadBlend_t( void )
 }
 
 //-------------------------------------------------------------------------------------------------
+
+} // namespace glrend
