@@ -82,10 +82,18 @@ camera_t::camera_t( float width, float height, const glm::mat4& view, const glm:
     viewParams.height = height;
 }
 
-void camera_t::EvalMouseMove( float x, float y )
+void camera_t::EvalMouseMove( float x, float y, bool calcRelative )
 {
-    currRot.x += ( y - lastMouse.y ) * MOUSE_SENSE;
-    currRot.y += ( x - lastMouse.x ) * MOUSE_SENSE;
+    if ( calcRelative )
+    {
+        currRot.x += ( y - lastMouse.y ) * MOUSE_SENSE;
+        currRot.y += ( x - lastMouse.x ) * MOUSE_SENSE;
+    }
+    else
+    {
+        currRot.x += y * MOUSE_SENSE;
+        currRot.y += x * MOUSE_SENSE;
+    }
 
     lastMouse.x = x;
     lastMouse.y = y;

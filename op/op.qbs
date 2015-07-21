@@ -69,5 +69,10 @@ Product {
         fileTagsFilter: product.type
         qbs.install: true
     }
+
+    Properties {
+        condition: cpp.compilerName == "emcc_gcc"
+        cpp.defines: outer.concat(["EMSCRIPTEN"])
+    }
 }
 

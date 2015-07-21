@@ -55,7 +55,7 @@ public:
 
     void    EvalKeyPress( input_key_t key );
     void    EvalKeyRelease( input_key_t key );
-    void    EvalMouseMove( float x, float y );
+    void    EvalMouseMove( float x, float y, bool calcRelative );
 
     void    Update( void );
 

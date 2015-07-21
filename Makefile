@@ -23,7 +23,7 @@ OFILES := $(OBJFILES:%=obj/%.$(LFORMAT))
 BINFILE = testbin.html
 
 COMMONFLAGS = -Wall -Wextra -pedantic -Werror\
- -Wno-unused-function -Wno-unused-variable -Wno-missing-field-initializers -Wno-self-assign\
+ -Wno-unused-function -Wno-unused-variable -Wno-missing-field-initializers -Wno-self-assign -Wno-unused-value\
  -Isrc/lib 
 
 LDFLAGS = --emrun 

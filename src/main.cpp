@@ -1,5 +1,11 @@
 //#include "def.h"
 
+/*
+#ifndef EMSCRIPTEN
+#   define EMSCRIPTEN
+#endif
+*/
+
 #include <iostream>
 #ifdef EMSCRIPTEN
 #   include <emscripten.h>
@@ -53,7 +59,7 @@ static rend::shader_program_t MakeProg( void )
 
 struct app_t
 {
-    bool running = false;
+    bool running = false, mouseShown = true;
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_GLContext context = nullptr;
@@ -130,8 +136,7 @@ app_t& app_t::GetInstance( void )
 namespace {
 
 #ifdef EMSCRIPTEN
-
-std::unordered_map< std::string, input_key_t > emKeyMap =
+const std::unordered_map< std::string, input_key_t > emKeyMap =
 {
     { "KeyW", input_key_t::W },
     { "KeyS", input_key_t::S },
@@ -140,10 +145,43 @@ std::unordered_map< std::string, input_key_t > emKeyMap =
     { "KeyE", input_key_t::E },
     { "KeyQ", input_key_t::Q },
     { "Escape", input_key_t::ESC },
-    { "Space", input_key_t::SPACE }
+    { "Space", input_key_t::SPACE },
+    { "ShiftLeft", input_key_t::LSHIFT }
 };
 
-EM_BOOL EM_KeyDown( int32_t eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData )
+INLINE std::string EmscriptenResultFromEnum( int32_t result )
+{
+    switch ( result )
+    {
+        case EMSCRIPTEN_RESULT_SUCCESS: return "EMSCRIPTEN_RESULT_SUCCESS";
+        case EMSCRIPTEN_RESULT_DEFERRED: return "EMSCRIPTEN_RESULT_DEFERRED";
+        case EMSCRIPTEN_RESULT_NOT_SUPPORTED: return "EMSCRIPTEN_RESULT_NOT_SUPPORTED";
+        case EMSCRIPTEN_RESULT_FAILED_NOT_DEFERRED: "EMSCRIPTEN_RESULT_FAILED_NOT_DEFERRED";
+        case EMSCRIPTEN_RESULT_INVALID_TARGET: return "EMSCRIPTEN_RESULT_INVALID_TARGET";
+        case EMSCRIPTEN_RESULT_UNKNOWN_TARGET: return "EMSCRIPTEN_RESULT_UNKNOWN_TARGET";
+        case EMSCRIPTEN_RESULT_INVALID_PARAM: return "EMSCRIPTEN_RESULT_INVALID_PARAM";
+        case EMSCRIPTEN_RESULT_FAILED: return "EMSCRIPTEN_RESULT_FAILED";
+        case EMSCRIPTEN_RESULT_NO_DATA: return "EMSCRIPTEN_RESULT_NO_DATA";
+    }
+
+    return "EMSCRIPTEN_RESULT_UNDEFINED";
+}
+
+#define SET_CALLBACK_RESULT( expr )\
+    do\
+    {\
+        ret = ( expr );\
+        if ( ret != EMSCRIPTEN_RESULT_SUCCESS )\
+        {\
+            MLOG_ERROR( "Error setting emscripten function. Result returned: %s, Call expression: %s", EmscriptenResultFromEnum( ret ).c_str(), #expr );\
+        }\
+    }\
+    while( 0 )
+
+typedef void ( view::camera_t::*camKeyFunc_t )( input_key_t key );
+
+template< camKeyFunc_t cameraKeyFunc >
+INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* keyEvent, void* userData )
 {
     UNUSEDPARAM( eventType );
     UNUSEDPARAM( userData );
@@ -152,27 +190,42 @@ EM_BOOL EM_KeyDown( int32_t eventType, const EmscriptenKeyboardEvent *keyEvent, 
 
     app_t& app = app_t::GetInstance();
 
-    if ( keyEvent->shiftKey )
+    auto entry = emKeyMap.find( keyEvent->code );
+
+    if ( entry == emKeyMap.end() )
     {
-        app.camera.EvalKeyPress( input_key_t::LSHIFT );
+        return 0;
+    }
+
+    if ( entry->second == input_key_t::ESC )
+    {
+        app.running = false;
     }
     else
     {
-        auto entry = emKeyMap.find( keyEvent->code );
+        CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
+    }
 
-        if ( entry == emKeyMap.end() )
-        {
-            return 0;
-        }
+    return 1;
+}
 
-        if ( entry->second == input_key_t::ESC )
-        {
-            app.running = false;
-        }
-        else
-        {
-            app.camera.EvalKeyPress( entry->second );
-        }
+EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent, void* userData )
+{
+    UNUSEDPARAM( eventType );
+    UNUSEDPARAM( userData );
+
+    printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
+
+    app_t& app = app_t::GetInstance();
+
+    EmscriptenPointerlockChangeEvent pl;
+    emscripten_get_pointerlock_status( &pl );
+
+    bool activePl = !!pl.isActive;
+
+    if ( activePl )
+    {
+        app.camera.EvalMouseMove( ( float ) mouseEvent->movementX, ( float ) mouseEvent->movementY, false );
     }
 
     return 1;
@@ -203,13 +256,10 @@ static uint32_t App_Exec( void )
     app_t& app = app_t::GetInstance();
 
 #ifdef EMSCRIPTEN
-    int32_t ret = emscripten_set_keypress_callback( nullptr, nullptr, 0, ( em_key_callback_func )&EM_KeyDown );
-    if ( ret != EMSCRIPTEN_RESULT_SUCCESS )
-    {
-        MLOG_ERROR( "Fuck shit balls" );
-    }
-
-    MLOG_WARNING( "Test" );
+    int32_t ret;
+    SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyPress > ) );
+    SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyRelease > ) );
+    SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
 
     emscripten_set_main_loop( ( em_callback_func )&App_Frame, 0, 1 );
 #else
@@ -217,7 +267,7 @@ static uint32_t App_Exec( void )
     {
         App_Frame();
 
-        SDL_GL_SwapWindow( window );
+        SDL_GL_SwapWindow( app.window );
 
         SDL_Event e;
         while ( SDL_PollEvent( &e ) )
@@ -225,14 +275,39 @@ static uint32_t App_Exec( void )
             switch ( e.type )
             {
                 case SDL_KEYDOWN:
-                    if ( e.key.keysym.sym == SDLK_ESCAPE )
+                    switch ( e.key.keysym.sym )
                     {
-                        running = false;
+                        case SDLK_ESCAPE:
+                            app.running = false;
+                            break;
+                        case SDLK_F1:
+                            app.mouseShown = !app.mouseShown;
+                            if ( app.mouseShown )
+                            {
+                                SDL_SetRelativeMouseMode( SDL_FALSE );
+                                //SDL_ShowCursor( SDL_ENABLE );
+                            }
+                            else
+                            {
+                                SDL_SetRelativeMouseMode( SDL_TRUE );
+                                //SDL_ShowCursor( SDL_DISABLE );
+                            }
+                            break;
+                        default:
+                            app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
+                            break;
                     }
-                    app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                     break;
                 case SDL_KEYUP:
                     app.camera.EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
+                    break;
+                case SDL_MOUSEMOTION:
+                    printf( "mouse { x: %i, y: %i }\n", e.motion.xrel, e.motion.yrel );
+
+                    if ( !app.mouseShown )
+                    {
+                        app.camera.EvalMouseMove( e.motion.xrel, e.motion.yrel, false );
+                    }
                     break;
             }
         }
