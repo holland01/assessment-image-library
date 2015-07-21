@@ -33,7 +33,7 @@ struct params_t
 // Camera
 //-------------------------------------------------------------------------------------------------------
 
-class Camera
+class camera_t
 {
     params_t    viewParams;
 
@@ -45,11 +45,11 @@ class Camera
 
 public:
 
-    Camera( void );
+    camera_t( void );
 
-    Camera( const params_t& viewParams, const glm::vec3& currRot );
+    camera_t( const params_t& viewParams, const glm::vec3& currRot );
 
-    Camera( float width, float height, const glm::mat4& viewParams, const glm::mat4& projection );
+    camera_t( float width, float height, const glm::mat4& viewParams, const glm::mat4& projection );
 
     float	moveStep;
 
@@ -78,46 +78,46 @@ public:
     friend class Test;
 };
 
-INLINE glm::vec3 Camera::Forward( void ) const
+INLINE glm::vec3 camera_t::Forward( void ) const
 {
     glm::vec4 forward = viewParams.inverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
 
     return glm::vec3( forward );
 }
 
-INLINE glm::vec3 Camera::Right( void ) const
+INLINE glm::vec3 camera_t::Right( void ) const
 {
     glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
 
     return glm::vec3( right );
 }
 
-INLINE glm::vec3 Camera::Up( void ) const
+INLINE glm::vec3 camera_t::Up( void ) const
 {
     glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
 
     return glm::vec3( up );
 }
 
-INLINE void Camera::Walk( float amount )
+INLINE void camera_t::Walk( float amount )
 {
     viewParams.forward = Forward() * amount;
     viewParams.origin += viewParams.forward;
 }
 
-INLINE void Camera::Strafe( float amount )
+INLINE void camera_t::Strafe( float amount )
 {
     viewParams.right = Right() * amount;
     viewParams.origin += viewParams.right;
 }
 
-INLINE void Camera::Raise( float amount )
+INLINE void camera_t::Raise( float amount )
 {
     viewParams.right = Up() * amount;
     viewParams.origin += viewParams.right;
 }
 
-INLINE void Camera::SetPerspective( float fovy, float width, float height, float zNear, float zFar )
+INLINE void camera_t::SetPerspective( float fovy, float width, float height, float zNear, float zFar )
 {
     fovy = glm::radians( fovy );
 
@@ -134,22 +134,22 @@ INLINE void Camera::SetPerspective( float fovy, float width, float height, float
     viewParams.height = height;
 }
 
-INLINE void Camera::SetClipTransform( const glm::mat4& proj )
+INLINE void camera_t::SetClipTransform( const glm::mat4& proj )
 {
     viewParams.clipTransform = proj;
 }
 
-INLINE void Camera::SetViewTransform( const glm::mat4& view )
+INLINE void camera_t::SetViewTransform( const glm::mat4& view )
 {
     viewParams.transform = view;
 }
 
-INLINE void Camera::SetViewOrigin( const glm::vec3& origin )
+INLINE void camera_t::SetViewOrigin( const glm::vec3& origin )
 {
     viewParams.origin = origin;
 }
 
-INLINE const params_t& Camera::GetViewParams( void ) const
+INLINE const params_t& camera_t::GetViewParams( void ) const
 {
     return viewParams;
 }

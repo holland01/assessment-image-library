@@ -509,7 +509,7 @@ bool frustum_t::IntersectsBox( const aabb_t& box ) const
 #define C(v) ( glm::vec3( ( v ) ) )
 
     std::array< glm::vec3, 8 > clipBounds =
-    {
+    {{
         C( box.Corner4( 0 ) ),
         C( box.Corner4( 1 ) ),
         C( box.Corner4( 2 ) ),
@@ -518,7 +518,7 @@ bool frustum_t::IntersectsBox( const aabb_t& box ) const
         C( box.Corner4( 5 ) ),
         C( box.Corner4( 6 ) ),
         C( box.Corner4( 7 ) )
-    };
+    }};
 #undef C
 
     // Test each corner against every plane normal

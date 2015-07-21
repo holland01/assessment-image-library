@@ -17,6 +17,10 @@
 
 #define INLINE inline
 
+#if defined( EMSCRIPTEN ) && defined( DEBUG )
+#   define __DEBUG_RENDERER__
+#endif // EMSCRIPTEN && DEBUG
+
 // Windows.h defines these for us already
 #if !defined( _WIN32 )
 #	define TRUE 1 
@@ -25,7 +29,7 @@ static void __nop( void )
 {}
 #endif // _WIN32
 
-#define UNUSEDPARAM(p) ( ( void )( p ) )
+#define UNUSEDPARAM( p ) ( ( void )( p ) )
 
 #define _DEBUG_USE_GL_GET_ERR
 #define AABB_MAX_Z_LESS_THAN_MIN_Z // quake 3 maps use this standard in their bounds computations/storage

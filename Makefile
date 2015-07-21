@@ -32,7 +32,7 @@ ifdef DEBUG
         COMMONFLAGS := $(COMMONFLAGS) -g
 endif
 CFLAGS = $(COMMONFLAGS) -std=c99
-CXXFLAGS = $(COMMONFLAGS) -std=c++11
+CXXFLAGS = $(COMMONFLAGS) -std=c++1y
 DEPDIR = deps
 all: $(BINFILE)
 ifeq ($(MAKECMDGOALS),)
@@ -44,6 +44,8 @@ endif
 
 CC = emcc
 CXX = em++ -v
+
+OP_LVL=-O2
 
 DEPFLAGS=-s USE_SDL=2 -s ASSERTIONS=1
 
@@ -59,7 +61,7 @@ obj/%.$(LFORMAT): src/%.c
 obj/%.$(LFORMAT): src/%.cpp
 	$(E)C++-compiling $<
 	$(Q)if [ ! -d `dirname $@` ]; then mkdir -p `dirname $@`; fi
-	$(Q)$(CXX) $(CXXFLAGS) $< $(DEPFLAGS) -o $@		
+	$(Q)$(CXX) $(CXXFLAGS) $(OP_LVL) $< $(DEPFLAGS) -o $@
 
 Makefile.dep: $(CFILES) $(CXXFILES)
 	#$(E)Depend
@@ -68,7 +70,7 @@ Makefile.dep: $(CFILES) $(CXXFILES)
         
 $(BINFILE): $(OFILES)
 	$(E)Linking $@
-	$(Q)$(CXX) $(LDFLAGS) $(OFILES) ~/.emscripten_cache/ports-builds/sdl2/libsdl2.bc -o $@ 
+	$(Q)$(CXX) $(LDFLAGS) $(OFILES) ~/.emscripten_cache/ports-builds/sdl2/libsdl2.bc -o $@
 clean:
 	$(E)Removing files
 	$(Q)rm -rf obj/ 

@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-extern void FlagExit( void ); // can be defined by the user in a different source file
+extern void FlagExit( void ); // should be defined by the user in a different source file
 
 bool File_GetPixels( const std::string& filepath, 
 	std::vector< uint8_t >& outBuffer, int32_t& outBpp, int32_t& outWidth, int32_t& outHeight );
@@ -36,6 +36,7 @@ void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc );
 		puts("======== ERROR ========");                    \
 		MyPrintf( ( _FUNC_NAME_ ), __VA_ARGS__ );                   \
 		puts("=======================");                    \
+        FlagExit();                                         \
 	}                                                       \
 	while( 0 )
 

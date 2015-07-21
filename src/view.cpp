@@ -2,7 +2,6 @@
 #include "base.h"
 
 static const float MOUSE_SENSE = 0.1f;
-static const float DEF_MOVE_STEP_SPEED = 10.0f;
 
 static INLINE void NormalizeRotation( glm::vec3& r )
 {
@@ -54,21 +53,21 @@ params_t::params_t( void )
 {
 }
 
-Camera::Camera( void )
-    : Camera( params_t(), glm::vec3( 0.0f ) )
+camera_t::camera_t( void )
+    : camera_t( params_t(), glm::vec3( 0.0f ) )
 {
 }
 
-Camera::Camera( const params_t& view, const glm::vec3& currRot )
+camera_t::camera_t( const params_t& view, const glm::vec3& currRot )
     : viewParams( view ),
       currRot( currRot ),
       lastMouse( 0.0f ),
-      moveStep( DEF_MOVE_STEP_SPEED )
+      moveStep( 0.01f )
 {
     keysPressed.fill( 0 );
 }
 
-Camera::Camera( float width, float height, const glm::mat4& view, const glm::mat4& projection )
+camera_t::camera_t( float width, float height, const glm::mat4& view, const glm::mat4& projection )
 {
     viewParams.origin = glm::vec3( -view[ 3 ] );
     viewParams.transform = view;
@@ -83,7 +82,7 @@ Camera::Camera( float width, float height, const glm::mat4& view, const glm::mat
     viewParams.height = height;
 }
 
-void Camera::EvalMouseMove( float x, float y )
+void camera_t::EvalMouseMove( float x, float y )
 {
     currRot.x += ( y - lastMouse.y ) * MOUSE_SENSE;
     currRot.y += ( x - lastMouse.x ) * MOUSE_SENSE;
@@ -92,7 +91,7 @@ void Camera::EvalMouseMove( float x, float y )
     lastMouse.y = y;
 }
 
-void Camera::EvalKeyPress( input_key_t key )
+void camera_t::EvalKeyPress( input_key_t key )
 {
     switch( key )
     {
@@ -125,10 +124,12 @@ void Camera::EvalKeyPress( input_key_t key )
         case input_key_t::Q:
             keysPressed[ KEY_OUT ] = KEY_PRESSED;
             break;
+        default:
+            break;
     }
 }
 
-void Camera::EvalKeyRelease( input_key_t key )
+void camera_t::EvalKeyRelease( input_key_t key )
 {
     switch( key )
     {
@@ -156,11 +157,13 @@ void Camera::EvalKeyRelease( input_key_t key )
         case input_key_t::Q:
             keysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
             break;
+        default:
+            break;
 
     }
 }
 
-void Camera::Update( void )
+void camera_t::Update( void )
 {
      NormalizeRotation( currRot );
 
