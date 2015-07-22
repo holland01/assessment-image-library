@@ -384,7 +384,7 @@ void aabb_t::SetDrawable( const glm::u8vec4& color )
 	}
 
 	std::array< rend::draw_vertex_t, 8 > vertexData =
-	{
+	{{
 		// Max-z dependent
 		rend::draw_vertex_t_Make( maxPoint, color ),
 		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, maxPoint.z ), color ),
@@ -396,7 +396,7 @@ void aabb_t::SetDrawable( const glm::u8vec4& color )
 		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, minPoint.y, minPoint.z ), color ),
 		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, maxPoint.y, minPoint.z ), color ),
 		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, minPoint.z ), color )
-	};
+	}};
 
 	drawBuffer.reset( new aabb_t::draw_t( vertexData, GL_STATIC_DRAW ) );
 }

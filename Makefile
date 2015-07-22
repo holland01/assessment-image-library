@@ -32,7 +32,7 @@ ifdef DEBUG
         COMMONFLAGS := $(COMMONFLAGS) -g
 endif
 CFLAGS = $(COMMONFLAGS) -std=c99
-CXXFLAGS = $(COMMONFLAGS) -std=c++1y
+CXXFLAGS = $(COMMONFLAGS) -std=c++14
 DEPDIR = deps
 all: $(BINFILE)
 ifeq ($(MAKECMDGOALS),)
@@ -42,7 +42,7 @@ ifneq ($(filter-out clean, $(MAKECMDGOALS)),)
 -include Makefile.dep
 endif
 
-CC = emcc
+CC = emcc -v
 CXX = em++ -v
 
 OP_LVL=-O2

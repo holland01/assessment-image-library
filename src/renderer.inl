@@ -101,10 +101,10 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 {
 	draw_vertex_t v =
 	{
-		.position = position,
-		.normal = glm::vec3( 0.0f ),
-		.texCoord = glm::vec2( 0.0f ),
-		.color = color
+		position,
+		glm::vec3( 0.0f ),
+		glm::vec2( 0.0f ),
+		color
 	};
 
 	return v;
