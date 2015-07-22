@@ -281,15 +281,16 @@ struct attrib_loader_t
 //---------------------------------------------------------------------
 // draw_buffer_t
 //---------------------------------------------------------------------
-template < size_t vertexCount >
+template < GLenum mode, GLenum usage >
 struct draw_buffer_t
 {
 	GLuint vbo;
+	size_t count;
 
-	draw_buffer_t( const std::array< draw_vertex_t, vertexCount >& vertexData, GLenum usage );
+	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData );
 	~draw_buffer_t( void );
 
-	void Render( GLenum mode, const shader_program_t& program, const glm::mat4& modelToView ) const;
+	void Render( const shader_program_t& program, const glm::mat4& modelToView ) const;
 };
 
 } // namespace rend

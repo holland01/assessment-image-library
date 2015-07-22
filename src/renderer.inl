@@ -378,14 +378,15 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 //---------------------------------------------------------------------
 // draw_buffer_t
 //---------------------------------------------------------------------
-template < size_t vertexCount >
-draw_buffer_t< vertexCount >::draw_buffer_t( const std::array< draw_vertex_t, vertexCount >& vertexData, GLenum usage )
-	: vbo( GenBufferObject< draw_vertex_t, vertexCount >( GL_ARRAY_BUFFER, vertexData, usage ) )
+template < GLenum mode, GLenum usage >
+draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+	  count( vertexData.size() )
 {
 }
 
-template < size_t vertexCount >
-draw_buffer_t< vertexCount >::~draw_buffer_t( void )
+template < GLenum mode, GLenum usage >
+draw_buffer_t< mode, usage >::~draw_buffer_t( void )
 {
 	if ( vbo )
 	{
@@ -394,15 +395,15 @@ draw_buffer_t< vertexCount >::~draw_buffer_t( void )
 	}
 }
 
-template < size_t vertexCount >
-void draw_buffer_t< vertexCount >::Render( GLenum mode, const shader_program_t& program, const glm::mat4& modelToView ) const
+template < GLenum mode, GLenum usage >
+void draw_buffer_t< mode, usage >::Render( const shader_program_t& program, const glm::mat4& modelToView ) const
 {
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
 	shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
 	program.Bind();
 	program.LoadMat4( "modelToView", modelToView );
-	GL_CHECK( glDrawArrays( mode, 0, vertexCount ) );
+	GL_CHECK( glDrawArrays( mode, 0, count ) );
 	program.Release();
 
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );

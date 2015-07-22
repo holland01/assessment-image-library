@@ -376,29 +376,29 @@ Future reference for OBBs...
 }
 #undef A_CalcEdge
 
-void aabb_t::SetDrawable( const glm::u8vec4& color )
+void aabb_t::SetDrawable( const glm::u8vec4& color, const glm::mat3& transform )
 {
 	if ( drawBuffer )
 	{
 		drawBuffer.release();
 	}
 
-	std::array< rend::draw_vertex_t, 8 > vertexData =
-	{{
+	std::vector< rend::draw_vertex_t > vertexData =
+	{
 		// Max-z dependent
-		rend::draw_vertex_t_Make( maxPoint, color ),
-		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, maxPoint.z ), color ),
-		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, minPoint.y, maxPoint.z ), color ),
-		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, minPoint.y, maxPoint.z ), color ),
+		rend::draw_vertex_t_Make( transform * maxPoint, color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, maxPoint.y, maxPoint.z ), color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, minPoint.y, maxPoint.z ), color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, minPoint.y, maxPoint.z ), color ),
 
 		// Min-z dependent
-		rend::draw_vertex_t_Make( minPoint, color ),
-		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, minPoint.y, minPoint.z ), color ),
-		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, maxPoint.y, minPoint.z ), color ),
-		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, minPoint.z ), color )
-	}};
+		rend::draw_vertex_t_Make( transform * minPoint, color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, minPoint.y, minPoint.z ), color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, maxPoint.y, minPoint.z ), color ),
+		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, maxPoint.y, minPoint.z ), color )
+	};
 
-	drawBuffer.reset( new aabb_t::draw_t( vertexData, GL_STATIC_DRAW ) );
+	drawBuffer.reset( new aabb_t::draw_t( vertexData ) );
 }
 
 static const float AABB_SIZE_FACTOR = 1.5f;

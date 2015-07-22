@@ -18,12 +18,15 @@
 #include "renderer.h"
 #include "geom.h"
 #include "view.h"
+#include "map.h"
 
 #include <unistd.h>
 #include <stdint.h>
 #include <array>
 #include <cstdlib>
 #include <unordered_map>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
@@ -67,13 +70,11 @@ struct app_t
 
     uint32_t width, height;
 
-	geom::aabb_t		   testBounds;
+	std::unique_ptr< map::area_t > testArea;
 
     rend::shader_program_t program;
 
     view::camera_t         camera;
-
-    GLuint vbo = 0;
 
     app_t( uint32_t width, uint32_t height );
    ~app_t( void );
@@ -83,8 +84,7 @@ struct app_t
 
 app_t::app_t( uint32_t width_ , uint32_t height_ )
     : width( width_ ),
-	  height( height_ ),
-	  testBounds( glm::vec3( 10.0f ), glm::vec3( -10.0f ) )
+	  height( height_ )
 {
     SDL_Init( SDL_INIT_VIDEO );
 
@@ -97,25 +97,13 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
     SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
     context = SDL_GL_CreateContext( window );
 
-    GL_CHECK( glClearColor( 1.0f, 0.0f, 0.0f, 1.0f ) );
+	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
     SDL_RenderPresent( renderer );
 
-	std::array< rend::draw_vertex_t, 3 > vertices =
-    {{
-        VERT( glm::vec3( -1.0f, 0.0f, 0.0f ), glm::u8vec4( 255, 0, 0, 255 ) ),
-        VERT( glm::vec3( 0.0f, 1.0f, 0.0f ), glm::u8vec4( 0, 255, 0, 255 ) ),
-        VERT( glm::vec3( 1.0f, 0.0f, 0.0f ), glm::u8vec4( 0, 0, 255, 255 ) )
-    }};
-
-    GL_CHECK( glGenBuffers( 1, &vbo ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER,
-        sizeof( vertices[ 0 ] ) * 3, &vertices[ 0 ], GL_STATIC_DRAW ) );
-
     program = MakeProg();
 
-	//rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
+	rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
     program.Bind();
 
@@ -125,7 +113,9 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	program.Release();
 
-	testBounds.SetDrawable( glm::u8vec4( 255 ) );
+	testArea.reset( new map::area_t( glm::vec3( 1.0f ),
+									 glm::mat3( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 1.0f, 1.0f, 0.0f ) ) ),
+									 glm::vec3( 0.0f ), 5 ) );
 
     running = true;
 }
@@ -255,13 +245,13 @@ void App_Frame( void )
     app.camera.Update();
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
-/*
-	app.program.Bind();
-	app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform );
-    GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 3 ) );
-	app.program.Release();
-*/
-	app.testBounds.drawBuffer->Render( GL_LINE_STRIP, app.program, app.camera.GetViewParams().transform );
+
+	for ( const geom::aabb_t& bounds: app.testArea->boundsList )
+	{
+		bounds.drawBuffer->Render( app.program, app.camera.GetViewParams().transform );
+	}
+
+	//app.testBounds.drawBuffer->Render( app.program, app.camera.GetViewParams().transform );
 }
 
 static uint32_t App_Exec( void )

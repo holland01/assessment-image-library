@@ -29,7 +29,7 @@ class aabb_t
 {
 public:
 
-	using draw_t = rend::draw_buffer_t< 8 >;
+	using draw_t = rend::draw_buffer_t< GL_LINE_STRIP, GL_STATIC_DRAW >;
 
 	std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
 
@@ -93,9 +93,9 @@ public:
 
     void			GetFacePlane( face_t face, plane_t& plane ) const;
 
-	void			SetDrawable( const glm::u8vec4& color );
+	void			SetDrawable( const glm::u8vec4& color , const glm::mat3& transform = glm::mat3( 1.0f ) );
 
-    static void		FromTransform( aabb_t& box, const glm::mat4& transform );
+	static void		FromTransform( aabb_t& box, const glm::mat4& transform );
 
     static void		FromPoints( aabb_t& box, const glm::vec3 p[], int32_t n );
 
