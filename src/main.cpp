@@ -34,10 +34,11 @@ static rend::shader_program_t MakeProg( void )
 {
     std::string vshader( GEN_V_SHADER(
         attribute vec3 position;
-        attribute vec4 color;
+        //attribute vec4 color;
 
         varying vec4 frag_Color;
 
+        uniform vec4 color;
         uniform mat4 modelToView;
         uniform mat4 viewToClip;
 
@@ -57,7 +58,7 @@ static rend::shader_program_t MakeProg( void )
         }
     ) );
 
-    rend::shader_program_t prog( vshader, fshader, { "modelToView", "viewToClip" }, { "position", "color" } );
+    rend::shader_program_t prog( vshader, fshader, { "color", "modelToView", "viewToClip" }, { "position" } );
     return std::move( prog );
 }
 
@@ -248,19 +249,25 @@ void App_Frame( void )
 
 	const view::params_t& vp = app.camera.GetViewParams();
 
+    app.program.Bind();
+    app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform );
+
 	for ( geom::bounding_box_t& bounds: app.testArea->boundsList )
 	{
 		if ( bounds.CalcIntersection( vp.forward, vp.origin ) != FLT_MAX )
 		{
-			bounds.SetDrawable( glm::u8vec4( 255 ) );
+            bounds.SetDrawable( glm::vec4( 1.0f ) );
 		}
 		else
 		{
-			bounds.SetDrawable( glm::u8vec4( 128, 0, 255, 255 ) );
+            bounds.SetDrawable( glm::vec4( 0.5f, 0, 1.0f, 1.0f ) );
 		}
 
-		bounds.drawBuffer->Render( app.program, app.camera.GetViewParams().transform );
+        app.program.LoadVec4( "color", bounds.color );
+        bounds.drawBuffer->Render( app.program );
 	}
+
+    app.program.Release();
 }
 
 static uint32_t App_Exec( void )

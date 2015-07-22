@@ -110,6 +110,19 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 	return v;
 }
 
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position )
+{
+    draw_vertex_t v =
+    {
+        position,
+        glm::vec3( 0.0f ),
+        glm::vec2( 0.0f ),
+        glm::u8vec4( 255 )
+    };
+
+    return v;
+}
+
 //-------------------------------------------------------------------------------------------------------
 // shader_program_t
 //-------------------------------------------------------------------------------------------------------
@@ -396,15 +409,12 @@ draw_buffer_t< mode, usage >::~draw_buffer_t( void )
 }
 
 template < GLenum mode, GLenum usage >
-void draw_buffer_t< mode, usage >::Render( const shader_program_t& program, const glm::mat4& modelToView ) const
+void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) const
 {
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
 	shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
-	program.Bind();
-	program.LoadMat4( "modelToView", modelToView );
 	GL_CHECK( glDrawArrays( mode, 0, count ) );
-	program.Release();
 
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }

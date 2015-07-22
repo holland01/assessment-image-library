@@ -96,6 +96,7 @@ struct draw_vertex_t
 };
 
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color );
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position );
 
 struct triangle_t
 {
@@ -290,7 +291,7 @@ struct draw_buffer_t
 	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData );
 	~draw_buffer_t( void );
 
-	void Render( const shader_program_t& program, const glm::mat4& modelToView ) const;
+    void Render( const shader_program_t& program ) const;
 };
 
 } // namespace rend

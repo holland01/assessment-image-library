@@ -17,7 +17,8 @@ bounding_box_t::bounding_box_t( const glm::vec3& max, const glm::vec3& min, cons
 	: transform( transform_ ),
 	  oriented( oriented_ ),
       maxPoint( transform * max ),
-      minPoint( transform * min )
+      minPoint( transform * min ),
+      color( glm::vec4( 1.0f ) )
 {
 }
 
@@ -333,18 +334,24 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
 
 	if ( oriented )
 	{
-        p = transform * p;
+        if ( p != maxPoint )
+        {
+            p = transform * p;
+        }
+
         plane.normal = glm::normalize( transform * plane.normal );
 	}
 
     plane.d = glm::dot( p, plane.normal );
 }
 
-void bounding_box_t::SetDrawable( const glm::u8vec4& color )
+void bounding_box_t::SetDrawable( const glm::vec4& color_ )
 {
+    color = color_;
+
 	if ( drawBuffer )
 	{
-		drawBuffer.release();
+        return;
 	}
 
     glm::mat3 invT( glm::inverse( transform ) );
@@ -355,16 +362,16 @@ void bounding_box_t::SetDrawable( const glm::u8vec4& color )
 	std::vector< rend::draw_vertex_t > vertexData =
 	{
 		// Max-z dependent
-        rend::draw_vertex_t_Make( drawMax, color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ), color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ), color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ), color ),
+        rend::draw_vertex_t_Make( drawMax ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ) ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ) ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ) ),
 
 		// Min-z dependent
-		rend::draw_vertex_t_Make( minPoint, color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ), color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ), color ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ), color )
+        rend::draw_vertex_t_Make( minPoint ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ) ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ) ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ) )
 	};
 
 	if ( oriented )

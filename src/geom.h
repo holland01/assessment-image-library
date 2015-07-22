@@ -35,6 +35,7 @@ public:
 	glm::mat3 transform;
 	bool oriented;
 	glm::vec3 maxPoint, minPoint;
+    glm::vec4 color;
 
     enum face_t
     {
@@ -71,15 +72,15 @@ public:
 
     glm::vec3       GetMinRelativeToNormal( const glm::vec3 &normal ) const;
 
-    glm::vec3        Center( void ) const;
+    glm::vec3       Center( void ) const;
 
-    glm::vec3        Size( void ) const;
+    glm::vec3       Size( void ) const;
 
-    glm::vec3        Radius( void ) const;
+    glm::vec3       Radius( void ) const;
 
-    glm::vec3        Corner( int index ) const;
+    glm::vec3       Corner( int index ) const;
 
-    glm::vec4		Corner4( int index ) const;
+    glm::vec4       Corner4( int index ) const;
 
     bool			InXRange( const glm::vec3& v ) const;
 
@@ -95,7 +96,7 @@ public:
 
     void			GetFacePlane( face_t face, plane_t& plane ) const;
 
-	void			SetDrawable( const glm::u8vec4& color );
+    void			SetDrawable( const glm::vec4& color );
 
 	static void		FromTransform( bounding_box_t& box, const glm::mat4& transform );
 
