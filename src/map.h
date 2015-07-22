@@ -10,7 +10,7 @@ struct area_t
 {
 	glm::mat3 transform;
 	glm::vec3 origin;
-	std::vector< geom::aabb_t > boundsList;
+	std::vector< geom::bounding_box_t > boundsList;
 
 	area_t( const glm::vec3& dims, const glm::mat3& transform, const glm::vec3& origin, uint32_t count );
 };

@@ -25,13 +25,16 @@ struct plane_t;
 // AABB
 //-------------------------------------------------------------------------------------------------------
 
-class aabb_t
+class bounding_box_t
 {
 public:
 
 	using draw_t = rend::draw_buffer_t< GL_LINE_STRIP, GL_STATIC_DRAW >;
-
 	std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
+
+	glm::mat3 transform;
+	bool oriented;
+	glm::vec3 maxPoint, minPoint;
 
     enum face_t
     {
@@ -43,27 +46,26 @@ public:
         FACE_BOTTOM
     };
 
-    aabb_t( void ); // Calls Empty() on default init
+	bounding_box_t( void ); // Calls Empty() on default init
 
-    aabb_t( const glm::vec3& max, const glm::vec3& min );
+	bounding_box_t( const glm::vec3& max,
+					const glm::vec3& min,
+					const glm::mat3& transform = glm::mat3( 1.0f ),
+					bool oriented = false );
 
-	aabb_t( aabb_t&& toMove );
-
-    ~aabb_t( void );
+	bounding_box_t( bounding_box_t&& m );
 
 	// We make this movable only because of the drawBuffer member
-	aabb_t( const aabb_t& toCopy ) = delete;
-	aabb_t&      operator =( aabb_t toAssign ) = delete;
+	bounding_box_t( const bounding_box_t& toCopy ) = delete;
+	bounding_box_t& operator =( bounding_box_t toAssign ) = delete;
 
-	aabb_t&		 operator =( aabb_t&& toMove );
-
-    bool		Encloses( const aabb_t& box ) const;
+	bool		Encloses( const bounding_box_t& box ) const;
 
     void        Add( const glm::vec3& p );
 
     void        Empty( void ); // Sets maxPoint to -pseudoInfinity, and minPoint to pseudoInfinity
 
-    void        TransformTo( const aabb_t& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
+	void        TransformTo( const bounding_box_t& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
 
     glm::vec3       GetMaxRelativeToNormal( const glm::vec3& normal ) const;
 
@@ -93,30 +95,19 @@ public:
 
     void			GetFacePlane( face_t face, plane_t& plane ) const;
 
-	void			SetDrawable( const glm::u8vec4& color , const glm::mat3& transform = glm::mat3( 1.0f ) );
+	void			SetDrawable( const glm::u8vec4& color );
 
-	static void		FromTransform( aabb_t& box, const glm::mat4& transform );
+	static void		FromTransform( bounding_box_t& box, const glm::mat4& transform );
 
-    static void		FromPoints( aabb_t& box, const glm::vec3 p[], int32_t n );
-
-    glm::vec3 maxPoint, minPoint;
+	static void		FromPoints( bounding_box_t& box, const glm::vec3 p[], int32_t n );
 };
 
-INLINE aabb_t& aabb_t::operator= ( aabb_t&& toMove )
-{
-	maxPoint = std::move( toMove.maxPoint );
-	minPoint = std::move( toMove.minPoint );
-	drawBuffer = std::move( toMove.drawBuffer );
-
-	return *this;
-}
-
-INLINE glm::vec4 aabb_t::Corner4( int32_t index ) const
+INLINE glm::vec4 bounding_box_t::Corner4( int32_t index ) const
 {
     return glm::vec4( Corner( index ), 1.0f );
 }
 
-INLINE bool	aabb_t::Encloses( const aabb_t& box ) const
+INLINE bool	bounding_box_t::Encloses( const bounding_box_t& box ) const
 {
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
 
@@ -135,17 +126,17 @@ INLINE bool	aabb_t::Encloses( const aabb_t& box ) const
 #endif
 }
 
-INLINE bool	aabb_t::InXRange( const glm::vec3& v ) const
+INLINE bool	bounding_box_t::InXRange( const glm::vec3& v ) const
 {
     return ( v.x <= maxPoint.x && v.x >= minPoint.x );
 }
 
-INLINE bool aabb_t::InYRange( const glm::vec3& v ) const
+INLINE bool bounding_box_t::InYRange( const glm::vec3& v ) const
 {
     return ( v.y <= maxPoint.y && v.y >= minPoint.y );
 }
 
-INLINE bool aabb_t::InZRange( const glm::vec3& v ) const
+INLINE bool bounding_box_t::InZRange( const glm::vec3& v ) const
 {
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
     return ( v.z >= maxPoint.z && v.z <= minPoint.z );
@@ -196,7 +187,7 @@ public:
 
     void	ResetMetrics( void ) const { rejectCount = 0; acceptCount = 0; }
 
-    bool    IntersectsBox( const aabb_t& box ) const;
+	bool    IntersectsBox( const bounding_box_t& box ) const;
 };
 
 INLINE void frustum_t::PrintMetrics( void ) const

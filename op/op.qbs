@@ -60,7 +60,6 @@ Product {
         "../src/main.cpp",
         "../src/map.cpp",
         "../src/map.h",
-        "../src/map.h",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",

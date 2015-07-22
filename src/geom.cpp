@@ -8,29 +8,29 @@ namespace geom {
 //-------------------------------------------------------------------------------------------------------
 // AABB
 //-------------------------------------------------------------------------------------------------------
-aabb_t::aabb_t( void )
+bounding_box_t::bounding_box_t( void )
 {
     Empty();
 }
 
-aabb_t::aabb_t( const glm::vec3& max, const glm::vec3& min )
-    : maxPoint( max ),
-      minPoint( min )
+bounding_box_t::bounding_box_t( const glm::vec3& max, const glm::vec3& min, const glm::mat3& transform_, bool oriented_ )
+	: transform( transform_ ),
+	  oriented( oriented_ ),
+      maxPoint( transform * max ),
+      minPoint( transform * min )
 {
 }
 
-aabb_t::aabb_t( aabb_t&& toMove )
-	: drawBuffer( std::move( toMove.drawBuffer ) ),
-	  maxPoint( std::move( toMove.maxPoint ) ),
-	  minPoint( std::move( toMove.minPoint ) )
+bounding_box_t::bounding_box_t( bounding_box_t&& m )
+	: drawBuffer( std::move( m.drawBuffer ) ),
+	  transform( std::move( m.transform ) ),
+	  oriented( m.oriented ),
+	  maxPoint( std::move( m.maxPoint ) ),
+	  minPoint( std::move( m.minPoint ) )
 {
 }
 
-aabb_t::~aabb_t( void )
-{
-}
-
-void aabb_t::Add( const glm::vec3& p )
+void bounding_box_t::Add( const glm::vec3& p )
 {
     if ( p.x < minPoint.x ) minPoint.x = p.x;
     if ( p.y < minPoint.y ) minPoint.y = p.y;
@@ -41,7 +41,7 @@ void aabb_t::Add( const glm::vec3& p )
     if ( p.z > maxPoint.z ) maxPoint.z = p.z;
 }
 
-void aabb_t::Empty( void )
+void bounding_box_t::Empty( void )
 {
     const float pseudoInfinity = 1e37f;
 
@@ -54,7 +54,7 @@ void aabb_t::Empty( void )
 #endif
 }
 
-void aabb_t::TransformTo( const aabb_t& box, const glm::mat4& transform )
+void bounding_box_t::TransformTo( const bounding_box_t& box, const glm::mat4& transform )
 {
     maxPoint = minPoint = glm::vec3( transform[ 3 ] );
 
@@ -106,7 +106,7 @@ void aabb_t::TransformTo( const aabb_t& box, const glm::mat4& transform )
     }
 }
 
-glm::vec3 aabb_t::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
+glm::vec3 bounding_box_t::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
 {
     glm::vec3 p( minPoint.x, minPoint.y, minPoint.z );
 
@@ -122,7 +122,7 @@ glm::vec3 aabb_t::GetMaxRelativeToNormal( const glm::vec3 &normal ) const
     return p;
 }
 
-glm::vec3 aabb_t::GetMinRelativeToNormal( const glm::vec3 &normal ) const
+glm::vec3 bounding_box_t::GetMinRelativeToNormal( const glm::vec3 &normal ) const
 {
     glm::vec3 n( maxPoint.x, maxPoint.y, maxPoint.z );
 
@@ -139,19 +139,19 @@ glm::vec3 aabb_t::GetMinRelativeToNormal( const glm::vec3 &normal ) const
 }
 
 
-glm::vec3 aabb_t::Center( void ) const
+glm::vec3 bounding_box_t::Center( void ) const
 {
     const glm::vec3& p = ( maxPoint + minPoint );
 
     return p / 2.0f;
 }
 
-glm::vec3 aabb_t::Size( void ) const
+glm::vec3 bounding_box_t::Size( void ) const
 {
     return maxPoint - minPoint;
 }
 
-glm::vec3 aabb_t::Radius( void ) const
+glm::vec3 bounding_box_t::Radius( void ) const
 {
     return maxPoint - Center();
 }
@@ -168,7 +168,7 @@ enum
     CORNER_MAX = 7
 };
 
-glm::vec3 aabb_t::Corner( int index ) const
+glm::vec3 bounding_box_t::Corner( int index ) const
 {
     assert( index >= 0 );
     assert( index <= 7 );
@@ -180,7 +180,7 @@ glm::vec3 aabb_t::Corner( int index ) const
     );
 }
 
-bool aabb_t::IsEmpty( void ) const
+bool bounding_box_t::IsEmpty( void ) const
 {
     // Check to see if any of our
     // axes are inverted
@@ -193,7 +193,7 @@ bool aabb_t::IsEmpty( void ) const
 #endif
 }
 
-bool aabb_t::InPointRange( float k ) const
+bool bounding_box_t::InPointRange( float k ) const
 {
     return ( maxPoint.x >= k && maxPoint.y >= k && maxPoint.z >= k )
         && ( minPoint.x <= k && minPoint.y <= k && minPoint.z <= k );
@@ -202,7 +202,7 @@ bool aabb_t::InPointRange( float k ) const
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
-float aabb_t::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const
+float bounding_box_t::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const
 {
     // Quick early out; 0 implies no scaling necessary
     if ( InXRange( origin ) && InYRange( origin ) && InZRange( origin ) )
@@ -299,110 +299,87 @@ float aabb_t::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) 
     return t0;
 }
 
-#define A_CalcEdge( e ) ( glm::normalize( e ) )
-void aabb_t::GetFacePlane( face_t face, plane_t& plane ) const
+void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
 {
-/*
-
-Future reference for OBBs...
-
-    glm::vec3 e0, e1, p;
-
-    switch ( face )
-    {
-    case AABB::FACE_TOP:
-        p  = maxPoint;
-        e0 = A_CalcEdge( p - Corner( CORNER_NEAR_UP_RIGHT ) );
-        e1 = A_CalcEdge(  Corner( CORNER_FAR_UP_LEFT ) - p );
-        break;
-    case AABB::FACE_RIGHT:
-        p  = maxPoint;
-        e0 = p - Corner( CORNER_FAR_DOWN_RIGHT );
-        e1 = Corner( CORNER_NEAR_UP_RIGHT ) - p;
-        break;
-    case AABB::FACE_FRONT:
-        p  = Corner( CORNER_NEAR_UP_RIGHT );
-        e0 = A_CalcEdge( p - Corner( CORNER_NEAR_DOWN_RIGHT ) );
-        e1 = A_CalcEdge( Corner( CORNER_NEAR_UP_LEFT ) - p );
-        break;
-    case AABB::FACE_LEFT:
-        p  = Corner( CORNER_NEAR_UP_LEFT );
-        e0 = A_CalcEdge( p - Corner( CORNER_MIN ) );
-        e1 = A_CalcEdge( Corner( CORNER_FAR_UP_LEFT ) - p );
-        break;
-    case AABB::FACE_BACK:
-        p  = Corner( CORNER_FAR_UP_LEFT );
-        e0 = A_CalcEdge( p - Corner( CORNER_FAR_DOWN_LEFT ) );
-        e1 = A_CalcEdge( Corner( CORNER_MAX ) - p );
-        break;
-    case AABB::FACE_BOTTOM:
-        p = Corner( CORNER_NEAR_DOWN_RIGHT );
-        e0 = A_CalcEdge( p - Corner( CORNER_FAR_DOWN_RIGHT ) );
-        e1 = A_CalcEdge( Corner( CORNER_MIN ) - p );
-        break;
-    }
-*/
     glm::vec3 p;
 
     switch ( face )
     {
-        case aabb_t::FACE_TOP:
-            p  = maxPoint;
+		case bounding_box_t::FACE_TOP:
+			p = maxPoint;
             plane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
-        case aabb_t::FACE_RIGHT:
-            p  = maxPoint;
+		case bounding_box_t::FACE_RIGHT:
+			p = maxPoint;
             plane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
-        case aabb_t::FACE_FRONT:
-            p  = Corner( CORNER_NEAR_UP_RIGHT );
+		case bounding_box_t::FACE_FRONT:
+			p = Corner( CORNER_NEAR_UP_RIGHT );
             plane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
-        case aabb_t::FACE_LEFT:
-            p  = Corner( CORNER_NEAR_UP_LEFT );
+		case bounding_box_t::FACE_LEFT:
+			p = Corner( CORNER_NEAR_UP_LEFT );
             plane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
-        case aabb_t::FACE_BACK:
-            p  = Corner( CORNER_FAR_UP_LEFT );
+		case bounding_box_t::FACE_BACK:
+			p = Corner( CORNER_FAR_UP_LEFT );
             plane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
-        case aabb_t::FACE_BOTTOM:
+		case bounding_box_t::FACE_BOTTOM:
             p = Corner( CORNER_NEAR_DOWN_RIGHT );
             plane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
     }
 
+	if ( oriented )
+	{
+        p = transform * p;
+        plane.normal = glm::normalize( transform * plane.normal );
+	}
+
     plane.d = glm::dot( p, plane.normal );
 }
-#undef A_CalcEdge
 
-void aabb_t::SetDrawable( const glm::u8vec4& color, const glm::mat3& transform )
+void bounding_box_t::SetDrawable( const glm::u8vec4& color )
 {
 	if ( drawBuffer )
 	{
 		drawBuffer.release();
 	}
 
+    glm::mat3 invT( glm::inverse( transform ) );
+
+    glm::vec3 drawMax( invT * maxPoint );
+    glm::vec3 drawMin( invT * minPoint );
+
 	std::vector< rend::draw_vertex_t > vertexData =
 	{
 		// Max-z dependent
-		rend::draw_vertex_t_Make( transform * maxPoint, color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, maxPoint.y, maxPoint.z ), color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, minPoint.y, maxPoint.z ), color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, minPoint.y, maxPoint.z ), color ),
+        rend::draw_vertex_t_Make( drawMax, color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ), color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ), color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ), color ),
 
 		// Min-z dependent
-		rend::draw_vertex_t_Make( transform * minPoint, color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, minPoint.y, minPoint.z ), color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( maxPoint.x, maxPoint.y, minPoint.z ), color ),
-		rend::draw_vertex_t_Make( transform * glm::vec3( minPoint.x, maxPoint.y, minPoint.z ), color )
+		rend::draw_vertex_t_Make( minPoint, color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ), color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ), color ),
+        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ), color )
 	};
 
-	drawBuffer.reset( new aabb_t::draw_t( vertexData ) );
+	if ( oriented )
+	{
+		for ( rend::draw_vertex_t& v: vertexData )
+		{
+            v.position = transform * v.position;
+		}
+	}
+
+	drawBuffer.reset( new bounding_box_t::draw_t( vertexData ) );
 }
 
 static const float AABB_SIZE_FACTOR = 1.5f;
-void aabb_t::FromTransform( aabb_t &box, const glm::mat4 &transform )
+void bounding_box_t::FromTransform( bounding_box_t &box, const glm::mat4 &transform )
 {
     // Compute our AABB using -
 
@@ -429,7 +406,7 @@ void aabb_t::FromTransform( aabb_t &box, const glm::mat4 &transform )
     box.minPoint.z = tz - sz;
 }
 
-void aabb_t::FromPoints( aabb_t& box, const glm::vec3 v[], int32_t n )
+void bounding_box_t::FromPoints( bounding_box_t& box, const glm::vec3 v[], int32_t n )
 {
     for ( int32_t i = 0; i < n; ++i )
     {
@@ -521,7 +498,7 @@ void frustum_t::Update( const view::params_t& view )
 )
 #endif
 
-bool frustum_t::IntersectsBox( const aabb_t& box ) const
+bool frustum_t::IntersectsBox( const bounding_box_t& box ) const
 {
 #define C(v) ( glm::vec3( ( v ) ) )
 

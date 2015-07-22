@@ -113,7 +113,7 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	program.Release();
 
-	testArea.reset( new map::area_t( glm::vec3( 1.0f ),
+    testArea.reset( new map::area_t( glm::vec3( 10.0f ),
 									 glm::mat3( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 1.0f, 1.0f, 0.0f ) ) ),
 									 glm::vec3( 0.0f ), 5 ) );
 
@@ -246,12 +246,21 @@ void App_Frame( void )
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
 
-	for ( const geom::aabb_t& bounds: app.testArea->boundsList )
+	const view::params_t& vp = app.camera.GetViewParams();
+
+	for ( geom::bounding_box_t& bounds: app.testArea->boundsList )
 	{
+		if ( bounds.CalcIntersection( vp.forward, vp.origin ) != FLT_MAX )
+		{
+			bounds.SetDrawable( glm::u8vec4( 255 ) );
+		}
+		else
+		{
+			bounds.SetDrawable( glm::u8vec4( 128, 0, 255, 255 ) );
+		}
+
 		bounds.drawBuffer->Render( app.program, app.camera.GetViewParams().transform );
 	}
-
-	//app.testBounds.drawBuffer->Render( app.program, app.camera.GetViewParams().transform );
 }
 
 static uint32_t App_Exec( void )
