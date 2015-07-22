@@ -70,6 +70,9 @@ static INLINE void MapVec3( int32_t location, size_t offset );
 template < typename T >
 static INLINE GLuint GenBufferObject( GLenum target, const std::vector< T >& data, GLenum usage );
 
+template < typename T, size_t count >
+static INLINE GLuint GenBufferObject( GLenum target, const std::array< T, count >& data, GLenum usage );
+
 template < typename T >
 static INLINE void UpdateBufferObject( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
 
@@ -81,6 +84,23 @@ static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t bas
 template< typename textureHelper_t >
 static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex,
                                                 int32_t baseWidth, int32_t baseHeight, int32_t maxLevels );
+//---------------------------------------------------------------------
+// POD types
+//---------------------------------------------------------------------
+struct draw_vertex_t
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 texCoord;
+	glm::u8vec4 color;
+};
+
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color );
+
+struct triangle_t
+{
+	uint32_t vertices[ 3 ]; // indices which map to vertices within an arbitrary buffer
+};
 
 //---------------------------------------------------------------------
 // texture_t
@@ -256,6 +276,20 @@ struct attrib_loader_t
 {
     using loader_func_map_t = std::map< std::string, std::function< void( const shader_program_t& program ) > >;
     static loader_func_map_t functions;
+};
+
+//---------------------------------------------------------------------
+// draw_buffer_t
+//---------------------------------------------------------------------
+template < size_t vertexCount >
+struct draw_buffer_t
+{
+	GLuint vbo;
+
+	draw_buffer_t( const std::array< draw_vertex_t, vertexCount >& vertexData, GLenum usage );
+	~draw_buffer_t( void );
+
+	void Render( GLenum mode, const shader_program_t& program, const glm::mat4& modelToView ) const;
 };
 
 } // namespace rend

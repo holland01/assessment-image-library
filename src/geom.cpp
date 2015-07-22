@@ -19,22 +19,15 @@ aabb_t::aabb_t( const glm::vec3& max, const glm::vec3& min )
 {
 }
 
-aabb_t::aabb_t( const aabb_t& toCopy )
-    : maxPoint( toCopy.maxPoint ),
-      minPoint( toCopy.minPoint )
+aabb_t::aabb_t( aabb_t&& toMove )
+	: drawBuffer( std::move( toMove.drawBuffer ) ),
+	  maxPoint( std::move( toMove.maxPoint ) ),
+	  minPoint( std::move( toMove.minPoint ) )
 {
 }
 
 aabb_t::~aabb_t( void )
 {
-}
-
-aabb_t& aabb_t::operator =( aabb_t toAssign )
-{
-    maxPoint = toAssign.maxPoint;
-    minPoint = toAssign.minPoint;
-
-    return *this;
 }
 
 void aabb_t::Add( const glm::vec3& p )
@@ -383,8 +376,32 @@ Future reference for OBBs...
 }
 #undef A_CalcEdge
 
-static const float AABB_SIZE_FACTOR = 1.5f;
+void aabb_t::SetDrawable( const glm::u8vec4& color )
+{
+	if ( drawBuffer )
+	{
+		drawBuffer.release();
+	}
 
+	std::array< rend::draw_vertex_t, 8 > vertexData =
+	{
+		// Max-z dependent
+		rend::draw_vertex_t_Make( maxPoint, color ),
+		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, maxPoint.z ), color ),
+		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, minPoint.y, maxPoint.z ), color ),
+		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, minPoint.y, maxPoint.z ), color ),
+
+		// Min-z dependent
+		rend::draw_vertex_t_Make( minPoint, color ),
+		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, minPoint.y, minPoint.z ), color ),
+		rend::draw_vertex_t_Make( glm::vec3( maxPoint.x, maxPoint.y, minPoint.z ), color ),
+		rend::draw_vertex_t_Make( glm::vec3( minPoint.x, maxPoint.y, minPoint.z ), color )
+	};
+
+	drawBuffer.reset( new aabb_t::draw_t( vertexData, GL_STATIC_DRAW ) );
+}
+
+static const float AABB_SIZE_FACTOR = 1.5f;
 void aabb_t::FromTransform( aabb_t &box, const glm::mat4 &transform )
 {
     // Compute our AABB using -

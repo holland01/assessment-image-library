@@ -34,5 +34,5 @@ static void __nop( void )
 #define CALL_MEM_FNPTR( obj, ptrMemFn )( ( obj ).*( ptrMemFn ) )
 
 #define _DEBUG_USE_GL_GET_ERR
-#define AABB_MAX_Z_LESS_THAN_MIN_Z // quake 3 maps use this standard in their bounds computations/storage
+//#define AABB_MAX_Z_LESS_THAN_MIN_Z // quake 3 maps use this standard in their bounds computations/storage
 	

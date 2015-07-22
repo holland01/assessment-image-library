@@ -416,6 +416,4 @@ load_blend_t::~load_blend_t( void )
 	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
 }
 
-//-------------------------------------------------------------------------------------------------
-
 } // namespace glrend

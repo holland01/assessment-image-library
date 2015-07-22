@@ -58,6 +58,7 @@ Product {
         "../src/input.h",
         "../src/lib/stb_image.c",
         "../src/main.cpp",
+        "../src/mapgen.h",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",

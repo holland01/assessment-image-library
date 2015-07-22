@@ -14,6 +14,17 @@ static INLINE GLuint GenBufferObject( GLenum target, const std::vector< T >& dat
 	return obj;
 }
 
+template < typename T, size_t count >
+static INLINE GLuint GenBufferObject( GLenum target, const std::array< T, count >& data, GLenum usage )
+{
+	GLuint obj;
+	GL_CHECK( glGenBuffers( 1, &obj ) );
+	GL_CHECK( glBindBuffer( target, obj ) );
+	GL_CHECK( glBufferData( target, data.size() * sizeof( T ), &data[ 0 ], usage ) );
+	GL_CHECK( glBindBuffer( target, 0 ) );
+	return obj;
+}
+
 template < typename T >
 static INLINE void UpdateBufferObject( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind ) 
 {
@@ -80,6 +91,23 @@ static INLINE uint32_t Texture_CalcMipLevels2D( const texture_helper_t& tex, int
 	}
 
 	return mip;
+}
+
+//-------------------------------------------------------------------------------------------------------
+// POD types
+//-------------------------------------------------------------------------------------------------------
+
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color )
+{
+	draw_vertex_t v =
+	{
+		.position = position,
+		.normal = glm::vec3( 0.0f ),
+		.texCoord = glm::vec2( 0.0f ),
+		.color = color
+	};
+
+	return v;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -346,5 +374,39 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 
 #undef LOADER_FUNC_NAME
 #undef MAP_VEC_3
+
+//---------------------------------------------------------------------
+// draw_buffer_t
+//---------------------------------------------------------------------
+template < size_t vertexCount >
+draw_buffer_t< vertexCount >::draw_buffer_t( const std::array< draw_vertex_t, vertexCount >& vertexData, GLenum usage )
+	: vbo( GenBufferObject< draw_vertex_t, vertexCount >( GL_ARRAY_BUFFER, vertexData, usage ) )
+{
+}
+
+template < size_t vertexCount >
+draw_buffer_t< vertexCount >::~draw_buffer_t( void )
+{
+	if ( vbo )
+	{
+		GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+		GL_CHECK( glDeleteBuffers( 1, &vbo ) );
+	}
+}
+
+template < size_t vertexCount >
+void draw_buffer_t< vertexCount >::Render( GLenum mode, const shader_program_t& program, const glm::mat4& modelToView ) const
+{
+	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+	shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
+
+	program.Bind();
+	program.LoadMat4( "modelToView", modelToView );
+	GL_CHECK( glDrawArrays( mode, 0, vertexCount ) );
+	program.Release();
+
+	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
 
 } // namespace glrend

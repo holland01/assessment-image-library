@@ -40,6 +40,7 @@ static rend::shader_program_t MakeProg( void )
 
         void main( void )
         {
+			gl_PointSize = 50.0;
             gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
             frag_Color = color;
         }
@@ -66,6 +67,8 @@ struct app_t
 
     uint32_t width, height;
 
+	geom::aabb_t		   testBounds;
+
     rend::shader_program_t program;
 
     view::camera_t         camera;
@@ -80,7 +83,8 @@ struct app_t
 
 app_t::app_t( uint32_t width_ , uint32_t height_ )
     : width( width_ ),
-      height( height_ )
+	  height( height_ ),
+	  testBounds( glm::vec3( 10.0f ), glm::vec3( -10.0f ) )
 {
     SDL_Init( SDL_INIT_VIDEO );
 
@@ -97,7 +101,7 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
     SDL_RenderPresent( renderer );
 
-    std::array< geom::draw_vertex_t, 3 > vertices =
+	std::array< rend::draw_vertex_t, 3 > vertices =
     {{
         VERT( glm::vec3( -1.0f, 0.0f, 0.0f ), glm::u8vec4( 255, 0, 0, 255 ) ),
         VERT( glm::vec3( 0.0f, 1.0f, 0.0f ), glm::u8vec4( 0, 255, 0, 255 ) ),
@@ -111,13 +115,17 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
     program = MakeProg();
 
-    rend::shader_program_t::LoadAttribLayout< geom::draw_vertex_t >( program );
+	//rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
     program.Bind();
 
     camera.SetViewOrigin( glm::vec3( 0.0f, 0.0f, 5.0f ) );
     camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 100.0f );
     program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
+
+	program.Release();
+
+	testBounds.SetDrawable( glm::u8vec4( 255 ) );
 
     running = true;
 }
@@ -245,10 +253,15 @@ void App_Frame( void )
 #endif
 
     app.camera.Update();
-    app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform );
 
-    GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+/*
+	app.program.Bind();
+	app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform );
     GL_CHECK( glDrawArrays( GL_TRIANGLES, 0, 3 ) );
+	app.program.Release();
+*/
+	app.testBounds.drawBuffer->Render( GL_LINE_STRIP, app.program, app.camera.GetViewParams().transform );
 }
 
 static uint32_t App_Exec( void )

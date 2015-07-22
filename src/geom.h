@@ -1,28 +1,17 @@
 #pragma once
 
 #include "def.h"
+#include "renderer.h"
 #include <glm/glm.hpp>
 #include <stdint.h>
 #include <stdio.h>
+#include <memory>
 
 namespace view {
     struct params_t;
 }
 
 namespace geom {
-
-struct draw_vertex_t
-{
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 texCoord;
-    glm::u8vec4 color;
-};
-
-struct triangle_t
-{
-    uint32_t vertices[ 3 ]; // indices which map to vertices within an arbitrary buffer
-};
 
 struct plane_t
 {
@@ -40,6 +29,10 @@ class aabb_t
 {
 public:
 
+	using draw_t = rend::draw_buffer_t< 8 >;
+
+	std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
+
     enum face_t
     {
         FACE_TOP = 0,
@@ -54,11 +47,15 @@ public:
 
     aabb_t( const glm::vec3& max, const glm::vec3& min );
 
-    aabb_t( const aabb_t& toCopy );
+	aabb_t( aabb_t&& toMove );
 
     ~aabb_t( void );
 
-    aabb_t&       operator =( aabb_t toAssign );
+	// We make this movable only because of the drawBuffer member
+	aabb_t( const aabb_t& toCopy ) = delete;
+	aabb_t&      operator =( aabb_t toAssign ) = delete;
+
+	aabb_t&		 operator =( aabb_t&& toMove );
 
     bool		Encloses( const aabb_t& box ) const;
 
@@ -96,12 +93,23 @@ public:
 
     void			GetFacePlane( face_t face, plane_t& plane ) const;
 
+	void			SetDrawable( const glm::u8vec4& color );
+
     static void		FromTransform( aabb_t& box, const glm::mat4& transform );
 
     static void		FromPoints( aabb_t& box, const glm::vec3 p[], int32_t n );
 
     glm::vec3 maxPoint, minPoint;
 };
+
+INLINE aabb_t& aabb_t::operator= ( aabb_t&& toMove )
+{
+	maxPoint = std::move( toMove.maxPoint );
+	minPoint = std::move( toMove.minPoint );
+	drawBuffer = std::move( toMove.drawBuffer );
+
+	return *this;
+}
 
 INLINE glm::vec4 aabb_t::Corner4( int32_t index ) const
 {
