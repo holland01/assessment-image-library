@@ -80,23 +80,23 @@ public:
 
 INLINE glm::vec3 camera_t::Forward( void ) const
 {
-    glm::vec4 forward = viewParams.inverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
+	glm::vec4 forward = viewParams.inverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
 
-    return glm::vec3( forward );
+	return glm::normalize( glm::vec3( forward ) );
 }
 
 INLINE glm::vec3 camera_t::Right( void ) const
 {
     glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
 
-    return glm::vec3( right );
+	return glm::normalize( glm::vec3( right ) );
 }
 
 INLINE glm::vec3 camera_t::Up( void ) const
 {
     glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
 
-    return glm::vec3( up );
+	return glm::normalize( glm::vec3( up ) );
 }
 
 INLINE void camera_t::Walk( float amount )

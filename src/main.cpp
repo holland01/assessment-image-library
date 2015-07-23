@@ -113,7 +113,7 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
     program.Bind();
 
     camera.SetViewOrigin( glm::vec3( 0.0f, 0.0f, 5.0f ) );
-    camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 100.0f );
+	camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
     program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
 
 	program.Release();

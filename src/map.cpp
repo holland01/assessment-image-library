@@ -18,7 +18,7 @@ area_t::area_t( const glm::vec3 &dims, const glm::mat4 &transform_, const glm::v
 
 		glm::mat4 t( glm::scale( transform * glm::translate( glm::mat4( 1.0f ), center ), halfDims ) );
 
-		geom::bounding_box_t bounds( halfDims, -halfDims, t, true );
+		geom::bounding_box_t bounds( glm::vec3( 1.0f ), glm::vec3( -1.0f ), t, true );
 		bounds.SetDrawable( glm::u8vec4( 128, 0, 255, 255 ) );
 		boundsList.push_back( std::move( bounds ) );
 	}
