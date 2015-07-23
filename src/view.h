@@ -101,20 +101,20 @@ INLINE glm::vec3 camera_t::Up( void ) const
 
 INLINE void camera_t::Walk( float amount )
 {
-    viewParams.forward = Forward() * amount;
-    viewParams.origin += viewParams.forward;
+	//viewParams.forward = Forward() * amount;
+	viewParams.origin += viewParams.forward * amount;
 }
 
 INLINE void camera_t::Strafe( float amount )
 {
-    viewParams.right = Right() * amount;
-    viewParams.origin += viewParams.right;
+	///viewParams.right = Right() * amount;
+	viewParams.origin += viewParams.right * amount;
 }
 
 INLINE void camera_t::Raise( float amount )
 {
-    viewParams.right = Up() * amount;
-    viewParams.origin += viewParams.right;
+	//viewParams.right = Up() * amount;
+	viewParams.origin += viewParams.up * amount;
 }
 
 INLINE void camera_t::SetPerspective( float fovy, float width, float height, float zNear, float zFar )

@@ -13,11 +13,11 @@ bounding_box_t::bounding_box_t( void )
     Empty();
 }
 
-bounding_box_t::bounding_box_t( const glm::vec3& max, const glm::vec3& min, const glm::mat3& transform_, bool oriented_ )
-	: transform( transform_ ),
+bounding_box_t::bounding_box_t( const glm::vec3& max, const glm::vec3& min, const glm::mat4& transform_, bool oriented_ )
+	: transform( transform_),
 	  oriented( oriented_ ),
-      maxPoint( transform * max ),
-      minPoint( transform * min ),
+	  maxPoint( transform_ * glm::vec4( max, 1.0f ) ),
+	  minPoint( transform_ * glm::vec4( min, 1.0f ) ),
       color( glm::vec4( 1.0f ) )
 {
 }
@@ -174,11 +174,18 @@ glm::vec3 bounding_box_t::Corner( int index ) const
     assert( index >= 0 );
     assert( index <= 7 );
 
-    return glm::vec3(
+	glm::vec3 c(
         ( index & 1 ) ? maxPoint.x : minPoint.x,
         ( index & 2 ) ? maxPoint.y : minPoint.y,
         ( index & 4 ) ? maxPoint.z : minPoint.z
     );
+
+	if ( oriented && c != maxPoint && c != minPoint )
+	{
+		return glm::mat3( transform ) * c;
+	}
+
+	return c;
 }
 
 bool bounding_box_t::IsEmpty( void ) const
@@ -334,12 +341,7 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
 
 	if ( oriented )
 	{
-        if ( p != maxPoint )
-        {
-            p = transform * p;
-        }
-
-        plane.normal = glm::normalize( transform * plane.normal );
+		plane.normal = glm::normalize( glm::mat3( transform ) * plane.normal );
 	}
 
     plane.d = glm::dot( p, plane.normal );
@@ -354,35 +356,53 @@ void bounding_box_t::SetDrawable( const glm::vec4& color_ )
         return;
 	}
 
-    glm::mat3 invT( glm::inverse( transform ) );
+	glm::mat4 invT( glm::inverse( transform ) );
 
-    glm::vec3 drawMax( invT * maxPoint );
-    glm::vec3 drawMin( invT * minPoint );
+	glm::vec3 halfSize( ( invT * glm::vec4( maxPoint, 1.0f ) ) - ( invT * glm::vec4( minPoint, 1.0f ) ) );
+	halfSize *= 0.5f;
+
+	glm::vec3 drawMax( halfSize );
+	glm::vec3 drawMin( -drawMax );
 
 	std::vector< rend::draw_vertex_t > vertexData =
 	{
-		// Max-z dependent
-        rend::draw_vertex_t_Make( drawMax ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ) ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ) ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ) ),
+		// Max-z dependent ( back )
+		rend::draw_vertex_t_Make( drawMax ),										// 0
+		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ) ),	// 1
+		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ) ),	// 2
+		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ) ),	// 3
 
-		// Min-z dependent
-        rend::draw_vertex_t_Make( minPoint ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ) ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ) ),
-        rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ) )
+		// Min-z dependent ( front )
+		rend::draw_vertex_t_Make( minPoint ),										// 4
+		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ) ),	// 5
+		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ) ),	// 6
+		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ) )	// 7
 	};
 
-	if ( oriented )
+	// Draw order:
+	// back face, right face, front face, bottom face, left face, top face
+	std::vector< GLuint > indexData =
 	{
-		for ( rend::draw_vertex_t& v: vertexData )
-		{
-            v.position = transform * v.position;
-		}
-	}
+		0x00000002u, 0x00000003u, 0x00000000u,
+		0x00000000u, 0x00000001u, 0x00000002u,
 
-	drawBuffer.reset( new bounding_box_t::draw_t( vertexData ) );
+		0x00000003u, 0x00000005u, 0x00000006u,
+		0x00000006u, 0x00000000u, 0x00000003u,
+
+		0x00000005u, 0x00000004u, 0x00000007u,
+		0x00000007u, 0x00000006u, 0x00000005u,
+
+		0x00000003u, 0x00000002u, 0x00000004u,
+		0x00000004u, 0x00000005u, 0x00000003u,
+
+		0x00000002u, 0x00000001u, 0x00000007u,
+		0x00000007u, 0x00000004u, 0x00000002u,
+
+		0x00000001u, 0x00000000u, 0x00000006u,
+		0x00000006u, 0x00000007u, 0x00000001u
+	};
+
+	drawBuffer.reset( new bounding_box_t::draw_t( vertexData, indexData ) );
 }
 
 static const float AABB_SIZE_FACTOR = 1.5f;

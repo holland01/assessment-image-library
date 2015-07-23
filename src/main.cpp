@@ -27,6 +27,7 @@
 #include <unordered_map>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
 
 #define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
@@ -114,9 +115,22 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	program.Release();
 
-    testArea.reset( new map::area_t( glm::vec3( 10.0f ),
-									 glm::mat3( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 1.0f, 1.0f, 0.0f ) ) ),
+	//glm::mat4 rot( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
+	glm::mat4 rot( 1.0f );
+
+	testArea.reset( new map::area_t( glm::vec3( 1.0f ),
+									 rot,
 									 glm::vec3( 0.0f ), 5 ) );
+
+	GL_CHECK( glDisable( GL_CULL_FACE ) );
+	//GL_CHECK( glEnable( GL_CULL_FACE ) );
+	//GL_CHECK( glCullFace( GL_BACK ) );
+	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
+	GL_CHECK( glDepthFunc( GL_LESS ) );
+	GL_CHECK( glClearDepthf( 1.0f ) );
+
+	//GL_CHECK( glEnable( GL_BLEND ) );
+	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
     running = true;
 }
@@ -245,25 +259,25 @@ void App_Frame( void )
 
     app.camera.Update();
 
-	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
+	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
 	const view::params_t& vp = app.camera.GetViewParams();
 
     app.program.Bind();
-    app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform );
 
 	for ( geom::bounding_box_t& bounds: app.testArea->boundsList )
 	{
 		if ( bounds.CalcIntersection( vp.forward, vp.origin ) != FLT_MAX )
 		{
-            bounds.SetDrawable( glm::vec4( 1.0f ) );
+			bounds.SetDrawable( glm::vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
 		}
 		else
 		{
-            bounds.SetDrawable( glm::vec4( 0.5f, 0, 1.0f, 1.0f ) );
+			bounds.SetDrawable( glm::vec4( 0.5f, 0.0f, 1.0f, 1.0f ) );
 		}
 
         app.program.LoadVec4( "color", bounds.color );
+		app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform * bounds.transform );
         bounds.drawBuffer->Render( app.program );
 	}
 

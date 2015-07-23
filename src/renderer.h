@@ -87,13 +87,17 @@ static INLINE uint32_t Texture_CalcMipLevels2D( const textureHelper_t& tex,
 //---------------------------------------------------------------------
 // POD types
 //---------------------------------------------------------------------
-struct draw_vertex_t
+
+template < typename pos_type_t, typename normal_type_t, typename tex_coord_type_t, typename color_type_t >
+struct vertex_t
 {
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 texCoord;
-	glm::u8vec4 color;
+	pos_type_t position;
+	normal_type_t normal;
+	tex_coord_type_t texCoord;
+	color_type_t color;
 };
+
+using draw_vertex_t = vertex_t< float[ 3 ], float[ 3 ], float[ 2 ], uint8_t[ 4 ] >;
 
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color );
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position );
@@ -285,10 +289,11 @@ struct attrib_loader_t
 template < GLenum mode, GLenum usage >
 struct draw_buffer_t
 {
-	GLuint vbo;
+	GLuint vbo, ibo;
 	size_t count;
 
 	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData );
+	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData );
 	~draw_buffer_t( void );
 
     void Render( const shader_program_t& program ) const;

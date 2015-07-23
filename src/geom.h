@@ -29,10 +29,10 @@ class bounding_box_t
 {
 public:
 
-	using draw_t = rend::draw_buffer_t< GL_LINE_STRIP, GL_STATIC_DRAW >;
+	using draw_t = rend::draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW >;
 	std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
 
-	glm::mat3 transform;
+	glm::mat4 transform;
 	bool oriented;
 	glm::vec3 maxPoint, minPoint;
     glm::vec4 color;
@@ -51,7 +51,7 @@ public:
 
 	bounding_box_t( const glm::vec3& max,
 					const glm::vec3& min,
-					const glm::mat3& transform = glm::mat3( 1.0f ),
+					const glm::mat4& transform = glm::mat4( 1.0f ),
 					bool oriented = false );
 
 	bounding_box_t( bounding_box_t&& m );

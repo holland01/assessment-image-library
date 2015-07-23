@@ -101,10 +101,10 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 {
 	draw_vertex_t v =
 	{
-		position,
-		glm::vec3( 0.0f ),
-		glm::vec2( 0.0f ),
-		color
+		{ position.x, position.y, position.z },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f },
+		{ color.r, color.g, color.b, color.a }
 	};
 
 	return v;
@@ -112,15 +112,7 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position )
 {
-    draw_vertex_t v =
-    {
-        position,
-        glm::vec3( 0.0f ),
-        glm::vec2( 0.0f ),
-        glm::u8vec4( 255 )
-    };
-
-    return v;
+	return draw_vertex_t_Make( position, glm::u8vec4( 255 ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -394,7 +386,16 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 template < GLenum mode, GLenum usage >
 draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData )
 	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+	  ibo( 0 ),
 	  count( vertexData.size() )
+{
+}
+
+template < GLenum mode, GLenum usage >
+draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
+	  count( indexData.size() )
 {
 }
 
@@ -414,8 +415,16 @@ void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) con
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
 	shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
-	GL_CHECK( glDrawArrays( mode, 0, count ) );
-
+	if ( ibo )
+	{
+		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
+		GL_CHECK( glDrawElements( mode, count, GL_UNSIGNED_INT, 0 ) );
+		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
+	}
+	else
+	{
+		GL_CHECK( glDrawArrays( mode, 0, count ) );
+	}
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 

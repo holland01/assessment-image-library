@@ -62,7 +62,7 @@ camera_t::camera_t( const params_t& view, const glm::vec3& currRot )
     : viewParams( view ),
       currRot( currRot ),
       lastMouse( 0.0f ),
-      moveStep( 0.01f )
+	  moveStep( 0.1f )
 {
     keysPressed.fill( 0 );
 }
@@ -176,6 +176,10 @@ void camera_t::Update( void )
      NormalizeRotation( currRot );
 
      lastRot = currRot;
+
+	 viewParams.forward = Forward();
+	 viewParams.right = Right();
+	 viewParams.up = Up();
 
     if ( keysPressed[ KEY_FORWARD ] ) Walk( moveStep );
     if ( keysPressed[ KEY_BACKWARD ] ) Walk( -moveStep );
