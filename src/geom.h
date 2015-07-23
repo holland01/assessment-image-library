@@ -30,7 +30,7 @@ class bounding_box_t
 public:
 
 	using draw_t = rend::draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW >;
-	std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
+	static std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
 
 	glm::mat4 transform;
 	bool oriented;

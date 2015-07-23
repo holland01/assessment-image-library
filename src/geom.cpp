@@ -6,8 +6,11 @@
 namespace geom {
 
 //-------------------------------------------------------------------------------------------------------
-// AABB
+// bounding_box_t
 //-------------------------------------------------------------------------------------------------------
+
+std::unique_ptr< bounding_box_t::draw_t > bounding_box_t::drawBuffer( nullptr );
+
 bounding_box_t::bounding_box_t( void )
 {
     Empty();
@@ -23,8 +26,7 @@ bounding_box_t::bounding_box_t( const glm::vec3& max, const glm::vec3& min, cons
 }
 
 bounding_box_t::bounding_box_t( bounding_box_t&& m )
-	: drawBuffer( std::move( m.drawBuffer ) ),
-	  transform( std::move( m.transform ) ),
+	: transform( std::move( m.transform ) ),
 	  oriented( m.oriented ),
 	  maxPoint( std::move( m.maxPoint ) ),
 	  minPoint( std::move( m.minPoint ) )
@@ -174,18 +176,23 @@ glm::vec3 bounding_box_t::Corner( int index ) const
     assert( index >= 0 );
     assert( index <= 7 );
 
-	glm::vec3 c(
-        ( index & 1 ) ? maxPoint.x : minPoint.x,
-        ( index & 2 ) ? maxPoint.y : minPoint.y,
-        ( index & 4 ) ? maxPoint.z : minPoint.z
-    );
-
-	if ( oriented && c != maxPoint && c != minPoint )
+	if ( oriented  )
 	{
-		return glm::mat3( transform ) * c;
+		glm::vec4 cornerP(
+			( index & 1 ) ? 1.0f : -1.0f,
+			( index & 2 ) ? 1.0f : -1.0f,
+			( index & 4 ) ? 1.0f : -1.0f,
+							1.0f
+		);
+
+		return glm::vec3( transform * cornerP );
 	}
 
-	return c;
+	return glm::vec3(
+		( index & 1 ) ? maxPoint.x : minPoint.x,
+		( index & 2 ) ? maxPoint.y : minPoint.y,
+		( index & 4 ) ? maxPoint.z : minPoint.z
+	);;
 }
 
 bool bounding_box_t::IsEmpty( void ) const
@@ -356,27 +363,19 @@ void bounding_box_t::SetDrawable( const glm::vec4& color_ )
         return;
 	}
 
-	glm::mat4 invT( glm::inverse( transform ) );
-
-	glm::vec3 halfSize( ( invT * glm::vec4( maxPoint, 1.0f ) ) - ( invT * glm::vec4( minPoint, 1.0f ) ) );
-	halfSize *= 0.5f;
-
-	glm::vec3 drawMax( halfSize );
-	glm::vec3 drawMin( -drawMax );
-
 	std::vector< rend::draw_vertex_t > vertexData =
 	{
 		// Max-z dependent ( back )
-		rend::draw_vertex_t_Make( drawMax ),										// 0
-		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMax.z ) ),	// 1
-		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMin.y, drawMax.z ) ),	// 2
-		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMax.z ) ),	// 3
+		rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
 
 		// Min-z dependent ( front )
-		rend::draw_vertex_t_Make( minPoint ),										// 4
-		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMin.y, drawMin.z ) ),	// 5
-		rend::draw_vertex_t_Make( glm::vec3( drawMax.x, drawMax.y, drawMin.z ) ),	// 6
-		rend::draw_vertex_t_Make( glm::vec3( drawMin.x, drawMax.y, drawMin.z ) )	// 7
+		rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+		rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
 	};
 
 	// Draw order:
@@ -403,42 +402,6 @@ void bounding_box_t::SetDrawable( const glm::vec4& color_ )
 	};
 
 	drawBuffer.reset( new bounding_box_t::draw_t( vertexData, indexData ) );
-}
-
-static const float AABB_SIZE_FACTOR = 1.5f;
-void bounding_box_t::FromTransform( bounding_box_t &box, const glm::mat4 &transform )
-{
-    // Compute our AABB using -
-
-    // iter->world's scaling:
-    float sx, sy, sz;
-
-    sx = transform[ 0 ][ 0 ] * AABB_SIZE_FACTOR; // ensure our AABB is just *slightly* larger than our object.
-    sy = transform[ 1 ][ 1 ] * AABB_SIZE_FACTOR;
-    sz = transform[ 2 ][ 2 ] * AABB_SIZE_FACTOR;
-
-    // and iter->world's translation:
-    float tx, ty, tz;
-
-    tx = transform[ 3 ][ 0 ];
-    ty = transform[ 3 ][ 1 ];
-    tz = transform[ 3 ][ 2 ];
-
-    box.maxPoint.x = tx + sx;
-    box.maxPoint.y = ty + sy;
-    box.maxPoint.z = tz + sz;
-
-    box.minPoint.x = tx - sx;
-    box.minPoint.y = ty - sy;
-    box.minPoint.z = tz - sz;
-}
-
-void bounding_box_t::FromPoints( bounding_box_t& box, const glm::vec3 v[], int32_t n )
-{
-    for ( int32_t i = 0; i < n; ++i )
-    {
-        box.Add( v[ i ] );
-    }
 }
 
 //-------------------------------------------------------------------------------------------------------

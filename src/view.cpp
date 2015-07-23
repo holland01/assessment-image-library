@@ -3,6 +3,12 @@
 
 static const float MOUSE_SENSE = 0.1f;
 
+#ifdef EMSCRIPTEN
+#	define DEFAULT_MOVE_STEP 0.1f
+#else
+#	define DEFAULT_MOVE_STEP 0.01f
+#endif
+
 static INLINE void NormalizeRotation( glm::vec3& r )
 {
     if ( r.x > 89.9f )
@@ -62,7 +68,7 @@ camera_t::camera_t( const params_t& view, const glm::vec3& currRot )
     : viewParams( view ),
       currRot( currRot ),
       lastMouse( 0.0f ),
-	  moveStep( 0.1f )
+	  moveStep( DEFAULT_MOVE_STEP )
 {
     keysPressed.fill( 0 );
 }

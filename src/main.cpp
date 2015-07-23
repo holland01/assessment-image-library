@@ -92,12 +92,15 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
     SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
 
     SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
     context = SDL_GL_CreateContext( window );
+
+	SDL_RendererInfo info;
+	SDL_GetRendererInfo( renderer, &info );
 
 	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
@@ -115,22 +118,17 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	program.Release();
 
-	//glm::mat4 rot( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-	glm::mat4 rot( 1.0f );
+	glm::mat4 rot( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 1.0f, 1.0f, 0.0f ) ) );
+	//glm::mat4 rot( 1.0f );
 
-	testArea.reset( new map::area_t( glm::vec3( 1.0f ),
+	testArea.reset( new map::area_t( glm::vec3( 10.0f ),
 									 rot,
 									 glm::vec3( 0.0f ), 5 ) );
 
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
-	//GL_CHECK( glEnable( GL_CULL_FACE ) );
-	//GL_CHECK( glCullFace( GL_BACK ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
 	GL_CHECK( glDepthFunc( GL_LESS ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
-
-	//GL_CHECK( glEnable( GL_BLEND ) );
-	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
     running = true;
 }
