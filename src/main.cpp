@@ -31,7 +31,11 @@
 
 #define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
-static rend::shader_program_t MakeProg( void )
+bool Predicate( geom::bounding_box_t& bounds );
+
+namespace {
+
+rend::shader_program_t MakeProg( void )
 {
     std::string vshader( GEN_V_SHADER(
         attribute vec3 position;
@@ -63,6 +67,8 @@ static rend::shader_program_t MakeProg( void )
     return std::move( prog );
 }
 
+using test_debug_draw_t = rend::debug_split_draw< geom::bounding_box_t, geom::bounding_box_t::draw_t >;
+
 struct app_t
 {
     bool running = false, mouseShown = true;
@@ -72,79 +78,21 @@ struct app_t
 
     uint32_t width, height;
 
-	std::unique_ptr< map::area_t > testArea;
+	std::unique_ptr< map::generator_t > gen;
+	std::unique_ptr< test_debug_draw_t > debugDraw;
 
     rend::shader_program_t program;
 
     view::camera_t         camera;
+	view::frustum_t		   frustum;
+
+	glm::mat4			   viewModOrientation;
 
     app_t( uint32_t width, uint32_t height );
    ~app_t( void );
 
     static app_t& GetInstance( void );
 };
-
-app_t::app_t( uint32_t width_ , uint32_t height_ )
-    : width( width_ ),
-	  height( height_ )
-{
-    SDL_Init( SDL_INIT_VIDEO );
-
-    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
-
-    SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
-    context = SDL_GL_CreateContext( window );
-
-	SDL_RendererInfo info;
-	SDL_GetRendererInfo( renderer, &info );
-
-	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
-
-    SDL_RenderPresent( renderer );
-
-    program = MakeProg();
-
-	rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
-
-    program.Bind();
-
-    camera.SetViewOrigin( glm::vec3( 0.0f, 0.0f, 5.0f ) );
-	camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
-    program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
-
-	program.Release();
-
-	glm::mat4 rot( glm::rotate( glm::mat4( 1.0f ), glm::radians( 45.0f ), glm::vec3( 1.0f, 1.0f, 0.0f ) ) );
-	//glm::mat4 rot( 1.0f );
-
-	testArea.reset( new map::area_t( glm::vec3( 10.0f ),
-									 rot,
-									 glm::vec3( 0.0f ), 5 ) );
-
-	GL_CHECK( glDisable( GL_CULL_FACE ) );
-	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
-	GL_CHECK( glDepthFunc( GL_LESS ) );
-	GL_CHECK( glClearDepthf( 1.0f ) );
-
-    running = true;
-}
-
-app_t::~app_t( void )
-{
-    SDL_Quit();
-}
-
-app_t& app_t::GetInstance( void )
-{
-    static app_t app( 800, 600 );
-    return app;
-}
-
-namespace {
 
 #ifdef EMSCRIPTEN
 const std::unordered_map< std::string, input_key_t > emKeyMap =
@@ -243,6 +191,66 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 }
 #endif // EMSCRIPTEN
 
+app_t::app_t( uint32_t width_ , uint32_t height_ )
+	: width( width_ ),
+	  height( height_ ),
+	  viewModOrientation( 1.0f )
+{
+	SDL_Init( SDL_INIT_VIDEO );
+
+	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+
+	SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
+	context = SDL_GL_CreateContext( window );
+
+	SDL_RendererInfo info;
+	SDL_GetRendererInfo( renderer, &info );
+
+	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
+
+	SDL_RenderPresent( renderer );
+
+	program = MakeProg();
+
+	rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
+
+	program.Bind();
+
+	camera.SetViewOrigin( glm::vec3( 0.0f, 0.0f, 5.0f ) );
+	camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
+	program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
+
+	program.Release();
+
+	//debugDraw.reset( new test_debug_draw_t( &Predicate, glm::ivec2( width, height ) ) );
+	gen.reset( new map::generator_t() );
+
+	GL_CHECK( glDisable( GL_CULL_FACE ) );
+	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
+	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
+	GL_CHECK( glClearDepthf( 1.0f ) );
+
+	//GL_CHECK( glEnable( GL_BLEND ) );
+	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+
+	running = true;
+}
+
+app_t::~app_t( void )
+{
+	SDL_Quit();
+}
+
+app_t& app_t::GetInstance( void )
+{
+	static app_t app( 1366, 768 );
+	return app;
+}
+
 void App_Frame( void )
 {
     app_t& app = app_t::GetInstance();
@@ -257,32 +265,44 @@ void App_Frame( void )
 
     app.camera.Update();
 
-	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
-
 	const view::params_t& vp = app.camera.GetViewParams();
+
+	app.frustum.Update( vp );
+
+	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
     app.program.Bind();
 
-	for ( geom::bounding_box_t& bounds: app.testArea->boundsList )
-	{
-		if ( bounds.CalcIntersection( vp.forward, vp.origin ) != FLT_MAX )
-		{
-			bounds.SetDrawable( glm::vec4( 1.0f, 1.0f, 1.0f, 1.0f ) );
-		}
-		else
-		{
-			bounds.SetDrawable( glm::vec4( 0.5f, 0.0f, 1.0f, 1.0f ) );
-		}
+	glm::mat4 view( app.camera.GetViewParams().transform );
+	//view[ 3 ].z -= 50.0f;
 
-        app.program.LoadVec4( "color", bounds.color );
-		app.program.LoadMat4( "modelToView", app.camera.GetViewParams().transform * bounds.transform );
-        bounds.drawBuffer->Render( app.program );
+	//const test_debug_draw_t& draw = *( app.debugDraw );
+
+	for ( map::area_t& area: app.gen->areas )
+	{
+		for ( geom::bounding_box_t& bounds: area.boundsList )
+		{
+			app.program.LoadVec4( "color", bounds.color );
+			app.program.LoadMat4( "modelToView", view * bounds.transform );
+			bounds.drawBuffer->Render( app.program );
+
+			/*
+			draw
+			(
+				bounds,
+				*( bounds.drawBuffer ),
+				app.program,
+				app.viewModOrientation * view * bounds.transform,
+				app.camera.GetViewParams().transform * bounds.transform
+			);
+			*/
+		}
 	}
 
     app.program.Release();
 }
 
-static uint32_t App_Exec( void )
+uint32_t App_Exec( void )
 {   
     app_t& app = app_t::GetInstance();
 
@@ -309,6 +329,7 @@ static uint32_t App_Exec( void )
                     switch ( e.key.keysym.sym )
                     {
                         case SDLK_ESCAPE:
+							SDL_SetRelativeMouseMode( SDL_FALSE );
                             app.running = false;
                             break;
                         case SDLK_F1:
@@ -316,14 +337,28 @@ static uint32_t App_Exec( void )
                             if ( app.mouseShown )
                             {
                                 SDL_SetRelativeMouseMode( SDL_FALSE );
-                                //SDL_ShowCursor( SDL_ENABLE );
                             }
                             else
                             {
                                 SDL_SetRelativeMouseMode( SDL_TRUE );
-                                //SDL_ShowCursor( SDL_DISABLE );
                             }
                             break;
+						case SDLK_UP:
+							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( 1.0f ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+							break;
+
+						case SDLK_DOWN:
+							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( -1.0f ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+							break;
+
+						case SDLK_RIGHT:
+							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( -1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+							break;
+
+						case SDLK_LEFT:
+							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+							break;
+
                         default:
                             app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                             break;
@@ -353,6 +388,25 @@ static uint32_t App_Exec( void )
 void FlagExit( void )
 {
     app_t::GetInstance().running = false;
+}
+
+bool Predicate( geom::bounding_box_t& bounds )
+{
+	app_t& app = app_t::GetInstance();
+
+	bool intersects = app.frustum.IntersectsBox( bounds );
+	if ( intersects )
+	{
+		bounds.SetDrawable( glm::vec4( 1.0f, 1.0f, 1.0f, 0.1f ) );
+	}
+	else
+	{
+		bounds.SetDrawable( glm::vec4( 0.5f, 0.0f, 1.0f, 0.1f ) );
+	}
+
+	app.program.LoadVec4( "color", bounds.color );
+
+	return intersects;
 }
 
 int main( void ) 

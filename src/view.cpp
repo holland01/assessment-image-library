@@ -1,12 +1,13 @@
 #include "view.h"
 #include "base.h"
+#include "geom.h"
 
 static const float MOUSE_SENSE = 0.1f;
 
 #ifdef EMSCRIPTEN
 #	define DEFAULT_MOVE_STEP 0.1f
 #else
-#	define DEFAULT_MOVE_STEP 0.01f
+#	define DEFAULT_MOVE_STEP 0.1f
 #endif
 
 static INLINE void NormalizeRotation( glm::vec3& r )
@@ -204,5 +205,153 @@ void camera_t::Update( void )
 
     viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
 }
+
+//-------------------------------------------------------------------------------------------------------
+// Frustum
+//-------------------------------------------------------------------------------------------------------
+#define _DEBUG_FRUSTUM
+
+frustum_t::frustum_t( void )
+	:	acceptCount( 0 ),
+		rejectCount( 0 ),
+		mvp( 1.0f )
+{
+	memset( frustPlanes, 0, sizeof( geom::plane_t ) * FRUST_NUM_PLANES );
+}
+
+frustum_t::~frustum_t( void )
+{
+}
+
+glm::vec4 frustum_t::CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin )
+{
+	glm::vec4 plane( 0.0f );
+	plane.x = position.x;
+	plane.y = position.y;
+	plane.z = position.z;
+	plane	= glm::normalize( plane );
+	plane.w = glm::dot( glm::vec3( origin ), glm::vec3( position ) );
+
+	return plane;
+}
+
+#define F_CalcDist( plane ) ( ( plane ).d / glm::length( ( plane ).normal ) )
+#define F_CalcNormal( a, b ) ( glm::normalize( glm::cross( a, b ) ) )
+
+// Update the frustum by computing the world-relative frustum of the camera.
+// We calculaute the top, bottom, left, and right planes
+// by taking the basis vectors of the camera's world-relative orientation
+void frustum_t::Update( const view::params_t& view )
+{
+	glm::mat4 inverseOrient(
+		glm::normalize( view.inverseOrient[ 0 ] ),
+		glm::normalize( view.inverseOrient[ 1 ] ),
+		glm::normalize( view.inverseOrient[ 2 ] ),
+		glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f )
+	);
+
+	float tanHalfFovy = glm::tan( view.fovy * 0.5f );
+
+	// We compute the reference angle since we want to base the sin/cosine on the angle from the x-axis;
+	// without we have an angle from the z. // 0.75
+	float fov = glm::atan( view.aspect * 0.75f * tanHalfFovy );
+
+	float fovDeg = glm::degrees( fov );
+	UNUSEDPARAM( fovDeg );
+
+	glm::vec3 u( inverseOrient[ 0 ] * glm::cos( fov ) );
+	glm::vec3 v( inverseOrient[ 2 ] * -glm::sin( fov ) );
+	glm::vec3 w( inverseOrient[ 1 ] );
+
+	glm::vec3 planeLine( u + v );
+
+	// add twice the view's origin to the line so that the camera's origin (which is represented with respect to the world)
+	// is taken into account. This is effectively the same as
+	// ( u + view.origin ) + ( v + view.origin ) = u + v + 2view.origin
+	// Removing this addition is good for determining what is in view, but not for where the camera actually is.
+
+	//planeLine += 2.0f * view.origin;
+
+	frustPlanes[ FRUST_RIGHT ].normal = F_CalcNormal( planeLine, -w );
+	frustPlanes[ FRUST_RIGHT ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_RIGHT ].normal );
+
+	planeLine = -u + v;
+
+	//planeLine += 2.0f * view.origin;
+
+	frustPlanes[ FRUST_LEFT  ].normal = F_CalcNormal( planeLine, w );
+	frustPlanes[ FRUST_LEFT  ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_LEFT ].normal );
+
+	// Z is the initial axis for the horizontal planes
+	fov = glm::atan( tanHalfFovy );
+
+	u = -glm::vec3( inverseOrient[ 2 ] * glm::cos( fov ) );
+	v = glm::vec3( inverseOrient[ 1 ] * -glm::sin( fov ) );
+	w = glm::vec3( inverseOrient[ 0 ] );
+
+	planeLine = -u + v;
+	frustPlanes[ FRUST_TOP ].normal = F_CalcNormal( w, planeLine );
+	frustPlanes[ FRUST_TOP ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_TOP ].normal );
+
+	planeLine = u + v;
+	frustPlanes[ FRUST_BOTTOM ].normal = F_CalcNormal( w, planeLine );
+	frustPlanes[ FRUST_BOTTOM ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_BOTTOM ].normal );
+}
+#undef F_CalcNormal
+
+// Adding plane[ 3 ] ( which is the distance from the plane to the origin ) offsets the plane so we can ensure that the point is in front of the plane normal
+
+#ifdef _DEBUG_FRUSTUM
+	static float F_PlaneSide( const glm::vec3& point, const geom::plane_t& plane )
+	{
+		float x = glm::dot( point, plane.normal ) - plane.d;
+
+		return x;
+	}
+#else
+#	define F_PlaneSide( point, plane ) ( glm::dot( ( point ), ( plane ).normal ) - ( plane ).d )
+)
+#endif
+
+bool frustum_t::IntersectsBox( const geom::bounding_box_t& box ) const
+{
+#define C(v) ( glm::vec3( ( v ) ) )
+
+	std::array< glm::vec3, 8 > clipBounds =
+	{{
+		C( box.Corner4( 0 ) ),
+		C( box.Corner4( 1 ) ),
+		C( box.Corner4( 2 ) ),
+		C( box.Corner4( 3 ) ),
+		C( box.Corner4( 4 ) ),
+		C( box.Corner4( 5 ) ),
+		C( box.Corner4( 6 ) ),
+		C( box.Corner4( 7 ) )
+	}};
+#undef C
+
+	// Test each corner against every plane normal
+	for ( int i = 0; i < 4; ++i )
+	{
+		if ( F_PlaneSide( clipBounds[ 0 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 1 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 2 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 3 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 4 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 5 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 6 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( F_PlaneSide( clipBounds[ 7 ], frustPlanes[ i ] ) >= 0 ) continue;
+
+		rejectCount++;
+		return false;
+	}
+
+	acceptCount++;
+	return true;
+}
+
+#ifdef F_PlaneSide
+#	undef F_PlaneSide
+#endif
 
 } // namespace view

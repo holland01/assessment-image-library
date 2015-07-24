@@ -299,6 +299,36 @@ struct draw_buffer_t
     void Render( const shader_program_t& program ) const;
 };
 
+template< typename T >
+using tmpl_predicate_t = std::function< bool( T& ) >;
+
+//---------------------------------------------------------------------
+// debug_split_draw_t: draws to view transforms
+// in split-screen viewport. The right viewport will only be
+// drawn if an arbitrary predicate is met.
+//---------------------------------------------------------------------
+
+// renderable_t must have a public member function of the form "void Render( const shader_program_t& program ) const"
+template < typename predicate_type_t, typename renderable_t >
+struct debug_split_draw
+{
+	using predicate_fn_t = tmpl_predicate_t< predicate_type_t >;
+	predicate_fn_t rightDraw;
+
+	viewport_stash_t originalVp;
+	glm::ivec2 splitDims;
+
+	 debug_split_draw( predicate_fn_t predicate, const glm::ivec2& dims );
+	~debug_split_draw( void );
+
+	 void operator()(
+					  predicate_type_t& predobj,
+					  const renderable_t& draw,
+					  const shader_program_t& program,
+					  const glm::mat4& leftView,
+					  const glm::mat4& rightView ) const;
+};
+
 } // namespace rend
 
 #include "renderer.inl"

@@ -428,5 +428,43 @@ void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) con
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
+//---------------------------------------------------------------------
+// debug_split_draw
+//---------------------------------------------------------------------
+
+template < typename predicate_type_t, typename renderable_t >
+debug_split_draw< predicate_type_t, renderable_t >::debug_split_draw(
+		debug_split_draw< predicate_type_t, renderable_t >::predicate_fn_t predicate_,
+		const glm::ivec2& dims_ )
+	: rightDraw( predicate_ ),
+	  originalVp( 0, 0, dims_.x, dims_.y ),
+	  splitDims( dims_.x / 2, dims_.y )
+{
+}
+
+template < typename predicate_type_t, typename renderable_t >
+debug_split_draw< predicate_type_t, renderable_t >::~debug_split_draw( void )
+{
+}
+
+template < typename predicate_type_t, typename renderable_t >
+void debug_split_draw< predicate_type_t, renderable_t >::operator()(
+		predicate_type_t& predobj,
+		const renderable_t& draw,
+		const shader_program_t& program,
+		const glm::mat4& leftView,
+		const glm::mat4& rightView ) const
+{
+	GL_CHECK( glViewport( 0, 0, splitDims.x, splitDims.y ) );
+	program.LoadMat4( "modelToView", leftView );
+	draw.Render( program );
+
+	if ( rightDraw( predobj ) )
+	{
+		GL_CHECK( glViewport( splitDims.x, 0, splitDims.x, splitDims.y ) );
+		program.LoadMat4( "modelToView", rightView );
+		draw.Render( program );
+	}
+}
 
 } // namespace glrend
