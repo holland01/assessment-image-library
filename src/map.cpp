@@ -16,7 +16,7 @@ namespace {
 						  1.0f );
 	}
 
-	const uint32_t GRID_SIZE = 50;
+	const uint32_t GRID_SIZE = 100;
 
 	std::array< std::function< bool( uint32_t ) >, 5 > predicates =
 	{
