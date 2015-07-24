@@ -1,3 +1,5 @@
+#define ATTRIB_OFFSET_VBO -1
+
 namespace rend {
 
 //-------------------------------------------------------------------------------------------------------
@@ -205,7 +207,7 @@ INLINE void shader_program_t::LoadFloat( const std::string& name, float f ) cons
 }
 
 template < typename vertex_type_t >
-INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program )
+INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program, bool clientArray )
 {
     for ( const auto& attrib: program.attribs )
     {
@@ -222,7 +224,18 @@ INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program 
                 }
             }
 
-            attrib_loader_t< vertex_type_t >::functions[ attrib.first ]( program );
+			intptr_t offset;
+
+			if ( clientArray )
+			{
+				offset = program.attribPointerOffsets.at( attrib.first );
+			}
+			else
+			{
+				offset = ATTRIB_OFFSET_VBO;
+			}
+
+			attrib_loader_t< vertex_type_t >::functions[ attrib.first ]( program, offset );
         }
     }
 }
@@ -328,10 +341,14 @@ INLINE viewport_stash_t::~viewport_stash_t( void )
 #define LOADER_FUNC_NAME "attrib_loader_t::functions::"
 #define MAP_VEC_3( name, funcname )\
     do {\
+		if ( attribOffset == ATTRIB_OFFSET_VBO )\
+		{\
+			attribOffset = offsetof( vertex_type_t, name );\
+		}\
         GLint location = program.attribs.at( #name );\
         GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), funcname );\
         GL_CHECK_WITH_NAME( glVertexAttribPointer( location,\
-                3, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) offsetof( vertex_type_t, name ) ), funcname );\
+				3, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) attribOffset ), funcname );\
     }\
     while( 0 )
 
@@ -340,39 +357,49 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 {
     {
         "position",
-        []( const shader_program_t& program ) -> void
+		[]( const shader_program_t& program, intptr_t attribOffset ) -> void
         {
             MAP_VEC_3( position, LOADER_FUNC_NAME"position" );
         }
     },
     {
         "normal",
-        []( const shader_program_t& program ) -> void
+		[]( const shader_program_t& program, intptr_t attribOffset ) -> void
         {
             MAP_VEC_3( normal, LOADER_FUNC_NAME"normal" );
         }
     },
     {
         "color",
-        []( const shader_program_t& program ) -> void
+		[]( const shader_program_t& program, intptr_t attribOffset ) -> void
         {
             GLint location = program.attribs.at( "color" );
+
+			if ( attribOffset == ATTRIB_OFFSET_VBO )
+			{
+				attribOffset = offsetof( vertex_type_t, color );
+			}
 
             GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ),
                 "attribLoadFunctions" );
 
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
                 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertex_type_t ),
-                ( void* ) offsetof( vertex_type_t, color ) ), LOADER_FUNC_NAME"color" );
+				( void* ) attribOffset ), LOADER_FUNC_NAME"color" );
         }
     },
     {
         "texCoord",
-        []( const shader_program_t& program ) -> void
+		[]( const shader_program_t& program, intptr_t attribOffset ) -> void
         {
+			if ( attribOffset == ATTRIB_OFFSET_VBO )
+			{
+				attribOffset = offsetof( vertex_type_t, texCoord );
+			}
+
             GLint location = program.attribs.at( "texCoord" );
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
-                2, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) offsetof( vertex_type_t, texCoord ) ), LOADER_FUNC_NAME"texCoord" );
+				2, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) attribOffset ), LOADER_FUNC_NAME"texCoord" );
         }
     }
 };
@@ -468,3 +495,5 @@ void debug_split_draw< predicate_type_t, renderable_t >::operator()(
 }
 
 } // namespace glrend
+
+#undef ATTRIB_OFFSET_VBO

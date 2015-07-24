@@ -159,18 +159,6 @@ glm::vec3 bounding_box_t::Radius( void ) const
     return maxPoint - Center();
 }
 
-enum
-{
-    CORNER_MIN = 0,
-    CORNER_NEAR_DOWN_RIGHT,
-    CORNER_NEAR_UP_LEFT,
-    CORNER_NEAR_UP_RIGHT,
-    CORNER_FAR_DOWN_LEFT,
-    CORNER_FAR_DOWN_RIGHT,
-    CORNER_FAR_UP_LEFT,
-    CORNER_MAX = 7
-};
-
 glm::vec3 bounding_box_t::Corner( int index ) const
 {
     assert( index >= 0 );

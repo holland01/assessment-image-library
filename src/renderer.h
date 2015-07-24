@@ -7,6 +7,7 @@
 #include <tuple>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <functional>
 #include <algorithm>
@@ -169,6 +170,7 @@ private:
 public:
 	std::map< std::string, GLint > uniforms; 
 	std::map< std::string, GLint > attribs;
+	std::unordered_map< std::string, intptr_t > attribPointerOffsets;
 
 	std::vector< std::string > disableAttribs; // Cleared on each invocation of LoadAttribLayout
 
@@ -192,8 +194,6 @@ public:
 
 	void AddUnif( const std::string& name );
 	void AddAttrib( const std::string& name );
-
-	void LoadAttribLayout( void ) const;
 
 	void LoadMat4( const std::string& name, const glm::mat4& t ) const;
 	
@@ -223,7 +223,7 @@ public:
 	static std::vector< std::string > ArrayLocationNames( const std::string& name, int32_t length );
 
     template < typename vertex_type_t >
-    static void LoadAttribLayout( const shader_program_t& program );
+	static void LoadAttribLayout( const shader_program_t& program, bool clientArray = false );
 };
 
 //---------------------------------------------------------------------
@@ -279,7 +279,7 @@ struct viewport_stash_t
 template < typename vertexType_t >
 struct attrib_loader_t
 {
-    using loader_func_map_t = std::map< std::string, std::function< void( const shader_program_t& program ) > >;
+	using loader_func_map_t = std::map< std::string, std::function< void( const shader_program_t& program, intptr_t attribOffset ) > >;
     static loader_func_map_t functions;
 };
 
@@ -327,6 +327,11 @@ struct debug_split_draw
 					  const shader_program_t& program,
 					  const glm::mat4& leftView,
 					  const glm::mat4& rightView ) const;
+};
+
+struct imm_draw
+{
+	imm_draw( void );
 };
 
 } // namespace rend

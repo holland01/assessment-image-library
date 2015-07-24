@@ -274,28 +274,13 @@ void App_Frame( void )
     app.program.Bind();
 
 	glm::mat4 view( app.camera.GetViewParams().transform );
-	//view[ 3 ].z -= 50.0f;
-
-	//const test_debug_draw_t& draw = *( app.debugDraw );
-
-	for ( map::area_t& area: app.gen->areas )
+	for ( map::tile_t& tile: app.gen->tiles )
 	{
-		for ( geom::bounding_box_t& bounds: area.boundsList )
+		if ( tile.bounds )
 		{
-			app.program.LoadVec4( "color", bounds.color );
-			app.program.LoadMat4( "modelToView", view * bounds.transform );
-			bounds.drawBuffer->Render( app.program );
-
-			/*
-			draw
-			(
-				bounds,
-				*( bounds.drawBuffer ),
-				app.program,
-				app.viewModOrientation * view * bounds.transform,
-				app.camera.GetViewParams().transform * bounds.transform
-			);
-			*/
+			app.program.LoadVec4( "color", tile.bounds->color );
+			app.program.LoadMat4( "modelToView", view * tile.bounds->transform );
+			tile.bounds->drawBuffer->Render( app.program );
 		}
 	}
 
@@ -359,9 +344,14 @@ uint32_t App_Exec( void )
 							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 							break;
 
+						case SDLK_r:
+							app.gen.reset( new map::generator_t() );
+							break;
+
                         default:
                             app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                             break;
+
                     }
                     break;
                 case SDL_KEYUP:

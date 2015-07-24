@@ -21,7 +21,7 @@ struct plane_t
 
 struct bounding_box_t
 {
-	using draw_t = rend::draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW >;
+	using draw_t = rend::draw_buffer_t< GL_LINE_STRIP, GL_STATIC_DRAW >;
 	static std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
 
 	glm::mat4 transform;
@@ -38,6 +38,18 @@ struct bounding_box_t
         FACE_BACK,
         FACE_BOTTOM
     };
+
+	enum
+	{
+		CORNER_MIN = 0,
+		CORNER_NEAR_DOWN_RIGHT,
+		CORNER_NEAR_UP_LEFT,
+		CORNER_NEAR_UP_RIGHT,
+		CORNER_FAR_DOWN_LEFT,
+		CORNER_FAR_DOWN_RIGHT,
+		CORNER_FAR_UP_LEFT,
+		CORNER_MAX = 7
+	};
 
 	bounding_box_t( void ); // Calls Empty() on default init
 

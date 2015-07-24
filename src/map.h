@@ -6,25 +6,24 @@
 
 namespace map {
 
-struct area_t
+struct tile_t
 {
-	glm::mat4 model, world;
-	std::vector< geom::bounding_box_t > boundsList;
+	std::unique_ptr< geom::bounding_box_t > bounds;
 
-	area_t( const glm::vec3& dims,
-			const glm::mat4& model,
-			const glm::mat4& world,
-			const glm::vec3& origin,
-			uint32_t count );
-
-	area_t( area_t&& m );
+	tile_t( void );
 };
 
 struct generator_t
 {
-	std::vector< area_t > areas;
+	std::vector< tile_t > tiles;
 
 	generator_t( void );
+
+	void SetTile( uint32_t pass, uint32_t x, uint32_t z );
+
+	uint32_t RangeCount( uint32_t x, uint32_t z, uint32_t offsetEnd );
+
+	uint32_t Mod( uint32_t x, uint32_t z );
 };
 
 } // namespace mapgen
