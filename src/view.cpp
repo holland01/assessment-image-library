@@ -197,13 +197,13 @@ void camera_t::Update( void )
     if ( keysPressed[ KEY_IN ] ) currRot.z += moveStep;
     if ( keysPressed[ KEY_OUT ] ) currRot.z -= moveStep;
 
-    viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-    viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
     viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( currRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
 
     viewParams.inverseOrient = glm::inverse( viewParams.orientation );
 
-    viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
+	viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
 }
 
 //-------------------------------------------------------------------------------------------------------

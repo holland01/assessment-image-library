@@ -99,13 +99,13 @@ static INLINE uint32_t Texture_CalcMipLevels2D( const texture_helper_t& tex, int
 // POD types
 //-------------------------------------------------------------------------------------------------------
 
-static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color )
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color )
 {
 	draw_vertex_t v =
 	{
 		{ position.x, position.y, position.z },
 		{ 0.0f, 0.0f, 0.0f },
-		{ 0.0f, 0.0f },
+		{ texCoord.s, texCoord.t },
 		{ color.r, color.g, color.b, color.a }
 	};
 
@@ -114,7 +114,7 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position )
 {
-	return draw_vertex_t_Make( position, glm::u8vec4( 255 ) );
+	return draw_vertex_t_Make( position, glm::vec2( 0.0f ), glm::u8vec4( 255 ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -154,6 +154,11 @@ INLINE void shader_program_t::LoadMat2( const std::string& name, const glm::mat2
 INLINE void shader_program_t::LoadMat2( const std::string& name, const float* t ) const
 {
 	GL_CHECK( glUniformMatrix2fv( uniforms.at( name ), 1, GL_FALSE, t ) );
+}
+
+INLINE void shader_program_t::LoadMat3( const std::string& name, const glm::mat3& t ) const
+{
+	GL_CHECK( glUniformMatrix3fv( uniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 
 INLINE void shader_program_t::LoadVec2( const std::string& name, const glm::vec2& v ) const

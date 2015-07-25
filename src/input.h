@@ -14,7 +14,8 @@ enum class input_key_t : uint32_t
     SPACE = 32,
     LSHIFT = 16,
     E = 69,
-    Q = 81
+	Q = 81,
+	R = 82
 #else
     ESC = SDLK_ESCAPE,
     W = SDLK_w,
@@ -24,7 +25,8 @@ enum class input_key_t : uint32_t
     SPACE = SDLK_SPACE,
     LSHIFT = SDLK_LSHIFT,
     E = SDLK_e,
-    Q = SDLK_q
+	Q = SDLK_q,
+	R = SDLK_r
 #endif
 };
 

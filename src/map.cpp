@@ -18,8 +18,8 @@ namespace {
 
 	const uint32_t GRID_SIZE = 100;
 
-	std::array< std::function< bool( uint32_t ) >, 5 > predicates =
-	{
+	std::array< std::function< bool( uint32_t ) >, 4 > predicates =
+	{{
 		[]( uint32_t c )
 		{
 			return c <= 1;
@@ -37,13 +37,8 @@ namespace {
 		{
 			UNUSEDPARAM( c );
 			return false;
-		},
-		[]( uint32_t c )
-		{
-			UNUSEDPARAM( c );
-			return false;
 		}
-	};
+	}};
 }
 
 namespace map {
@@ -55,6 +50,9 @@ tile_t::tile_t( void )
 
 generator_t::generator_t( void )
 {
+	billTexture.LoadFromFile( "asset/mooninite.png" );
+	billTexture.Load2D();
+
 	tiles.resize( GRID_SIZE * GRID_SIZE );
 
 	for ( uint32_t pass = 0; pass < 5; ++pass )
@@ -81,7 +79,7 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 		x = 0;
 	}
 
-	if  ( ( int32_t )z < 0  )
+	if ( ( int32_t )z < 0  )
 	{
 		z = 0;
 	}
@@ -118,8 +116,11 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 	}
 	else
 	{
-		isWall = RangeCount( x - 1, z - 1, 3 ) >= 5 || predicates[ pass ]( RangeCount( x - 2, z - 2, 5 ) );
+		isWall = RangeCount( x - 1, z - 1, 3 ) >= 5 || predicates[ pass - 1 ]( RangeCount( x - 2, z - 2, 5 ) );
 	}
+
+	tiles[ center ].bounds.reset( nullptr );
+	tiles[ center ].billboard.reset( nullptr );
 
 	if ( isWall )
 	{
@@ -134,7 +135,12 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 	}
 	else
 	{
-		tiles[ center ].bounds.reset( nullptr );
+		bool isSprite = wallDet( randEngine ) <= 5u;
+		if ( isSprite )
+		{
+			tiles[ center ].billboard.reset( new rend::billboard_t( glm::vec3( x * 2.0f, 0.0f, z * 2.0f ),
+																	billTexture ) );
+		}
 	}
 }
 

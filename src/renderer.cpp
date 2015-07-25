@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "view.h"
 #include <stdlib.h>
 
 //-----------------------------------------------------------
@@ -165,9 +166,9 @@ static INLINE void FlipBytes( byte* out, const byte* src, int width, int height,
 // texture_t
 //-------------------------------------------------------------------------------------------------
 texture_t::texture_t( void )
-	: srgb( true ), mipmap( false ),
+	: srgb( false ), mipmap( false ),
       handle( 0 ),
-	  wrap( GL_REPEAT ), minFilter( GL_LINEAR ), magFilter( GL_LINEAR ), 
+	  wrap( GL_REPEAT ), minFilter( GL_LINEAR ), magFilter( GL_LINEAR ),
 	  format( 0 ), internalFormat( 0 ), target( GL_TEXTURE_2D ), maxMip( 0 ),
 	  width( 0 ),
 	  height( 0 ),
@@ -225,25 +226,29 @@ void texture_t::Load2D( void )
 	}
 	Release();
 
-	LoadSettings();
+	//LoadSettings();
 }
 
 void texture_t::LoadSettings( void )
 {
-	GL_CHECK( glBindTexture( target, handle ) );
-	
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, mipmap? GL_LINEAR_MIPMAP_LINEAR: GL_LINEAR ) );
+	Bind();
+	// For some reason setting this through SDL's GL ES context on the desktop (in Linux) causes really bad texture sampling to happen,
+	// regardless of the value passed. WTF?!
+//#if defined( EMSCRIPTEN ) || defined( _WIN32 )
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR ) );
+//#endif
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, wrap ) );
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap ) );
 	
-	GL_CHECK( glBindTexture( target, 0 ) );
+	Release();
 }
 
 bool texture_t::LoadFromFile( const char* texPath )
 {
 	std::vector< uint8_t > tmp;
 	File_GetPixels( texPath, tmp, bpp, width, height );
+
 
 	if ( bpp == 3 )
 	{
@@ -255,6 +260,7 @@ bool texture_t::LoadFromFile( const char* texPath )
 	{
 		pixels = std::move( tmp );
 	}
+
 
 	if ( !DetermineFormats() )
 	{
@@ -414,6 +420,91 @@ load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
 load_blend_t::~load_blend_t( void )
 {
 	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
+}
+
+std::unique_ptr< billboard_t::draw_t > billboard_t::drawBuffer( nullptr );
+std::unique_ptr< shader_program_t > billboard_t::program( nullptr );
+
+billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
+	: origin( origin_ ),
+	  image( image_ )
+{
+	if ( !drawBuffer )
+	{
+		std::vector< draw_vertex_t > v =
+		{
+			draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
+		};
+
+		drawBuffer.reset( new draw_t( v ) );
+	}
+
+	if ( !program )
+	{
+		std::string vshader( GEN_V_SHADER(
+			attribute vec3 position;
+			attribute vec2 texCoord;
+			attribute vec4 color;
+
+			uniform vec3 origin;
+			//uniform mat3 viewOrient;
+			uniform mat4 modelToView;
+			uniform mat4 viewToClip;
+
+			varying vec4 frag_Color;
+			varying vec2 frag_TexCoord;
+
+			void main( void )
+			{
+				//mat3 orient = viewOrient;
+				//orient[ 2 ] = -viewOrient[ 2 ];
+
+				gl_Position = viewToClip * modelToView * vec4( origin + position, 1.0 );
+				frag_Color = color;
+				frag_TexCoord = texCoord;
+			}
+		) );
+
+		std::string fshader( GEN_F_SHADER(
+			varying vec4 frag_Color;
+			varying vec2 frag_TexCoord;
+			uniform sampler2D image;
+
+			void main( void )
+			{
+				vec4 tex = texture2D( image, frag_TexCoord );
+				gl_FragColor = frag_Color * tex;
+			}
+		) );
+
+		program.reset( new shader_program_t( vshader,
+											 fshader,
+											{ "origin", "viewOrient", "modelToView", "viewToClip", "image" },
+											{ "position", "texCoord", "color" } ) );
+	}
+}
+
+billboard_t::~billboard_t( void )
+{
+}
+
+void billboard_t::Render( const view::params_t& params )
+{
+	program->Bind();
+
+	program->LoadMat4( "modelToView", params.transform );
+	program->LoadMat4( "viewToClip", params.clipTransform );
+	program->LoadVec3( "origin", origin );
+	//program->LoadMat3( "viewOrient", glm::mat3( params.inverseOrient ) );
+
+	image.Bind( 0, "image", *program );
+	drawBuffer->Render( *program );
+	image.Release();
+
+	program->Release();
 }
 
 } // namespace glrend

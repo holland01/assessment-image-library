@@ -49,6 +49,7 @@ Product {
     ]
     files: [
         "../Makefile",
+       // "../asset/mooninite.png",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
@@ -69,6 +70,12 @@ Product {
 
     Group {     // Properties for the produced executable
         fileTagsFilter: product.type
+        qbs.install: true
+    }
+
+    Group {
+        files: [ "../asset/*" ]
+        qbs.installDir: "asset"
         qbs.install: true
     }
 

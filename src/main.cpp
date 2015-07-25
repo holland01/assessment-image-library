@@ -91,6 +91,8 @@ struct app_t
     app_t( uint32_t width, uint32_t height );
    ~app_t( void );
 
+	void ResetMap( void );
+
     static app_t& GetInstance( void );
 };
 
@@ -103,6 +105,7 @@ const std::unordered_map< std::string, input_key_t > emKeyMap =
     { "KeyD", input_key_t::D },
     { "KeyE", input_key_t::E },
     { "KeyQ", input_key_t::Q },
+	{ "KeyR", input_key_t::R },
     { "Escape", input_key_t::ESC },
     { "Space", input_key_t::SPACE },
     { "ShiftLeft", input_key_t::LSHIFT }
@@ -142,7 +145,6 @@ typedef void ( view::camera_t::*camKeyFunc_t )( input_key_t key );
 template< camKeyFunc_t cameraKeyFunc >
 INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* keyEvent, void* userData )
 {
-    UNUSEDPARAM( eventType );
     UNUSEDPARAM( userData );
 
     printf( "EMCode: %s, EMKey: %s\n", keyEvent->code, keyEvent->key );
@@ -156,14 +158,21 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
         return 0;
     }
 
-    if ( entry->second == input_key_t::ESC )
-    {
-        app.running = false;
-    }
-    else
-    {
-        CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
-    }
+	switch ( entry->second )
+	{
+		case input_key_t::ESC:
+			app.running = false;
+			break;
+		case input_key_t::R:
+			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
+			{
+				app.ResetMap();
+			}
+			break;
+		default:
+			CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
+			break;
+	}
 
     return 1;
 }
@@ -198,11 +207,11 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 
-	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+	//SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+	//SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
+	//SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
 
 	SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
 	context = SDL_GL_CreateContext( window );
@@ -229,13 +238,15 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	//debugDraw.reset( new test_debug_draw_t( &Predicate, glm::ivec2( width, height ) ) );
 	gen.reset( new map::generator_t() );
 
+	//GL_CHECK( glEnable( GL_TEXTURE_2D ) );
+
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
 	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
 
-	//GL_CHECK( glEnable( GL_BLEND ) );
-	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+	GL_CHECK( glEnable( GL_BLEND ) );
+	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 	running = true;
 }
@@ -249,6 +260,11 @@ app_t& app_t::GetInstance( void )
 {
 	static app_t app( 1366, 768 );
 	return app;
+}
+
+void app_t::ResetMap( void )
+{
+	gen.reset( new map::generator_t() );
 }
 
 void App_Frame( void )
@@ -271,25 +287,34 @@ void App_Frame( void )
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
-    app.program.Bind();
-
 	glm::mat4 view( app.camera.GetViewParams().transform );
 	for ( map::tile_t& tile: app.gen->tiles )
 	{
 		if ( tile.bounds )
 		{
+			app.program.Bind();
 			app.program.LoadVec4( "color", tile.bounds->color );
 			app.program.LoadMat4( "modelToView", view * tile.bounds->transform );
 			tile.bounds->drawBuffer->Render( app.program );
+			app.program.Release();
+		}
+		else if ( tile.billboard )
+		{
+			tile.billboard->Render( vp );
 		}
 	}
 
-    app.program.Release();
+
 }
+
+// temporary hack to get around the fact that querying for an app
+// instance if an error is happening causes problems; we use this flag the exit.
+static bool* runningPtr = nullptr;
 
 uint32_t App_Exec( void )
 {   
     app_t& app = app_t::GetInstance();
+	runningPtr = &app.running;
 
 #ifdef EMSCRIPTEN
     int32_t ret;
@@ -328,24 +353,8 @@ uint32_t App_Exec( void )
                                 SDL_SetRelativeMouseMode( SDL_TRUE );
                             }
                             break;
-						case SDLK_UP:
-							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( 1.0f ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-							break;
-
-						case SDLK_DOWN:
-							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( -1.0f ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-							break;
-
-						case SDLK_RIGHT:
-							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( -1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-							break;
-
-						case SDLK_LEFT:
-							app.viewModOrientation = glm::rotate( app.viewModOrientation, glm::radians( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-							break;
-
 						case SDLK_r:
-							app.gen.reset( new map::generator_t() );
+							app.ResetMap();
 							break;
 
                         default:
@@ -377,7 +386,7 @@ uint32_t App_Exec( void )
 
 void FlagExit( void )
 {
-    app_t::GetInstance().running = false;
+	*runningPtr = false;
 }
 
 bool Predicate( geom::bounding_box_t& bounds )

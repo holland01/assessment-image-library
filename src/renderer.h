@@ -11,6 +11,7 @@
 #include <string>
 #include <functional>
 #include <algorithm>
+#include <memory>
 
 #include <stdint.h>
 
@@ -27,12 +28,12 @@
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 
-#define GEN_V_SHADER( data ) #data
+#define GEN_V_SHADER( data ) "precision mediump float;\n"#data
 
 #ifdef EMSCRIPTEN
 #   define GEN_F_SHADER( data ) "precision mediump float;\n"#data
 #else
-#   define GEN_F_SHADER( data ) #data
+#   define GEN_F_SHADER( data ) "precision mediump float;\n"#data
 #endif // EMSCRIPTEN
 
 #ifdef __DEBUG_RENDERER__
@@ -54,6 +55,10 @@
 #   define GL_CHECK( expr ) ( expr )
 #   define GL_CHECK_WITH_NAME( expr, funcname ) ( expr )
 #endif // __DEBUG_RENDERER__
+
+namespace view {
+	struct params_t;
+}
 
 namespace rend {
 
@@ -100,7 +105,7 @@ struct vertex_t
 
 using draw_vertex_t = vertex_t< float[ 3 ], float[ 3 ], float[ 2 ], uint8_t[ 4 ] >;
 
-static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color );
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color );
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position );
 
 struct triangle_t
@@ -168,8 +173,8 @@ private:
     void GenData( const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
 
 public:
-	std::map< std::string, GLint > uniforms; 
-	std::map< std::string, GLint > attribs;
+	std::unordered_map< std::string, GLint > uniforms;
+	std::unordered_map< std::string, GLint > attribs;
 	std::unordered_map< std::string, intptr_t > attribPointerOffsets;
 
 	std::vector< std::string > disableAttribs; // Cleared on each invocation of LoadAttribLayout
@@ -199,6 +204,8 @@ public:
 	
 	void LoadMat2( const std::string& name, const glm::mat2& t ) const;
 	void LoadMat2( const std::string& name, const float* t ) const;
+
+	void LoadMat3( const std::string& name, const glm::mat3& t ) const;
 
 	void LoadVec2( const std::string& name, const glm::vec2& v ) const;
 	void LoadVec2( const std::string& name, const float* v ) const;
@@ -279,7 +286,7 @@ struct viewport_stash_t
 template < typename vertexType_t >
 struct attrib_loader_t
 {
-	using loader_func_map_t = std::map< std::string, std::function< void( const shader_program_t& program, intptr_t attribOffset ) > >;
+	using loader_func_map_t = std::unordered_map< std::string, std::function< void( const shader_program_t& program, intptr_t attribOffset ) > >;
     static loader_func_map_t functions;
 };
 
@@ -296,7 +303,7 @@ struct draw_buffer_t
 	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData );
 	~draw_buffer_t( void );
 
-    void Render( const shader_program_t& program ) const;
+	void Render( const shader_program_t& program ) const;
 };
 
 template< typename T >
@@ -329,9 +336,20 @@ struct debug_split_draw
 					  const glm::mat4& rightView ) const;
 };
 
-struct imm_draw
+struct billboard_t
 {
-	imm_draw( void );
+	using draw_t = draw_buffer_t< GL_TRIANGLE_STRIP, GL_STATIC_DRAW >;
+
+	static std::unique_ptr< draw_t > drawBuffer;
+	static std::unique_ptr< shader_program_t > program;
+
+	glm::vec3 origin;
+	const texture_t& image;
+
+	 billboard_t( const glm::vec3& origin, const texture_t& image );
+	~billboard_t( void );
+
+	 void Render( const view::params_t& camera );
 };
 
 } // namespace rend

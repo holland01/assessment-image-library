@@ -88,14 +88,14 @@ INLINE glm::vec3 camera_t::Forward( void ) const
 
 INLINE glm::vec3 camera_t::Right( void ) const
 {
-    glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
+	glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
 
 	return glm::normalize( glm::vec3( right ) );
 }
 
 INLINE glm::vec3 camera_t::Up( void ) const
 {
-    glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
+	glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
 
 	return glm::normalize( glm::vec3( up ) );
 }

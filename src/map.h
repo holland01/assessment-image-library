@@ -9,6 +9,7 @@ namespace map {
 struct tile_t
 {
 	std::unique_ptr< geom::bounding_box_t > bounds;
+	std::unique_ptr< rend::billboard_t > billboard;
 
 	tile_t( void );
 };
@@ -16,6 +17,8 @@ struct tile_t
 struct generator_t
 {
 	std::vector< tile_t > tiles;
+
+	rend::texture_t billTexture;
 
 	generator_t( void );
 
