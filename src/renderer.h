@@ -2,6 +2,7 @@
 
 #include "def.h"
 #include "base.h"
+#include "opengl.h"
 
 #include <array>
 #include <tuple>
@@ -18,9 +19,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include OPENGL_API_H
-#include OPENGL_API_EXT_H
-
 #define UBO_TRANSFORMS_BLOCK_BINDING 0
 #define ATTRIB_OFFSET( type, member )( ( void* ) offsetof( type, member ) ) 
 
@@ -28,12 +26,10 @@
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 
-#define GEN_V_SHADER( data ) "precision mediump float;\n"#data
-
-#ifdef EMSCRIPTEN
-#   define GEN_F_SHADER( data ) "precision mediump float;\n"#data
+#ifdef OP_GL_USE_ES
+#	define GEN_SHADER( data ) "precision mediump float;\n"#data
 #else
-#   define GEN_F_SHADER( data ) "precision mediump float;\n"#data
+#   define GEN_SHADER( data ) "#version 330 core\n"#data
 #endif // EMSCRIPTEN
 
 #ifdef __DEBUG_RENDERER__
@@ -338,7 +334,7 @@ struct debug_split_draw
 
 struct billboard_t
 {
-	using draw_t = draw_buffer_t< GL_TRIANGLE_STRIP, GL_STATIC_DRAW >;
+	using draw_t = draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW >;
 
 	static std::unique_ptr< draw_t > drawBuffer;
 	static std::unique_ptr< shader_program_t > program;

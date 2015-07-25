@@ -1,15 +1,14 @@
 
 #include "base.h"
 #include "def.h"
+#include "opengl.h"
+
 #include <stb_image.h>
 
 #include <time.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include OPENGL_API_H
-#include OPENGL_API_EXT_H
 
 void MyPrintf( const char* header, const char* fmt, ... )
 {
@@ -63,7 +62,7 @@ bool File_GetPixels( const std::string& filepath,
 {
 	// Load image
 	// Need to also flip the image, since stbi loads pointer to upper left rather than lower left (what OpenGL expects)
-	uint8_t* imagePixels = stbi_load( filepath.c_str(), &outWidth, &outHeight, &outBpp, STBI_default );
+    uint8_t* imagePixels = stbi_load( filepath.c_str(), &outWidth, &outHeight, &outBpp, STBI_default );
 
 	if ( !imagePixels )
 	{
@@ -71,15 +70,8 @@ bool File_GetPixels( const std::string& filepath,
 		return false;
 	}
 	
-	outBuffer.resize( outWidth * outHeight * outBpp );
+    outBuffer.resize( outWidth * outHeight * outBpp, 255 );
 	memcpy( &outBuffer[ 0 ], imagePixels, outBuffer.size() ); 
-
-	/*
-	for ( int32_t i = 0; i < outWidth * outHeight * outBpp; ++i )
-	{
-		outBuffer[ i ] = imagePixels[ i ];
-	}
-	*/
 
 	stbi_image_free( imagePixels );
 

@@ -9,7 +9,7 @@
 static GLuint CompileShaderSource( const char* src, const int length, GLenum type )
 {
 	GLuint shaderId;
-	GL_CHECK(shaderId = glCreateShader(type));
+    GL_CHECK(shaderId = glCreateShader(type));
 	if (0 != shaderId)
     {
         if ( length > 0 )
@@ -224,9 +224,10 @@ void texture_t::Load2D( void )
 		GL_CHECK( glTexImage2D( target, 
 			0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, &pixels[ 0 ] ) );
 	}
+
 	Release();
 
-	//LoadSettings();
+	LoadSettings();
 }
 
 void texture_t::LoadSettings( void )
@@ -234,22 +235,20 @@ void texture_t::LoadSettings( void )
 	Bind();
 	// For some reason setting this through SDL's GL ES context on the desktop (in Linux) causes really bad texture sampling to happen,
 	// regardless of the value passed. WTF?!
-//#if defined( EMSCRIPTEN ) || defined( _WIN32 )
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR ) );
-//#endif
+
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, GL_LINEAR ) );
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, wrap ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, GL_REPEAT ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, GL_REPEAT ) );
 	
 	Release();
 }
 
 bool texture_t::LoadFromFile( const char* texPath )
 {
-	std::vector< uint8_t > tmp;
-	File_GetPixels( texPath, tmp, bpp, width, height );
+	File_GetPixels( texPath, pixels, bpp, width, height );
 
-
+	/*
 	if ( bpp == 3 )
 	{
 		pixels.resize( width * height * 4, 255 ); 
@@ -258,13 +257,11 @@ bool texture_t::LoadFromFile( const char* texPath )
 	}
 	else
 	{
-		pixels = std::move( tmp );
-	}
-
+	}*/
 
 	if ( !DetermineFormats() )
 	{
-		MLOG_WARNING( "Unsupported bits per pixel of %i specified; this needs to be fixed. For image file \'%s\'", 
+		MLOG_ERROR( "Unsupported bits per pixel of %i specified; this needs to be fixed. For image file \'%s\'",
 			bpp, texPath );
 		return false;
 	}
@@ -272,7 +269,7 @@ bool texture_t::LoadFromFile( const char* texPath )
 	return true;
 }
 
-bool texture_t::SetBufferSize( int width0, int height0, int bpp0, uint8_t fill )
+bool texture_t::SetBufferSize( int32_t width0, int32_t height0, int32_t bpp0, uint8_t fill )
 {
 	width = width0;
 	height = height0;
@@ -287,18 +284,18 @@ bool texture_t::DetermineFormats( void )
 	switch( bpp )
 	{
 	case 1:
-		format = TEX_EXTERNAL_R;
-		internalFormat = TEX_INTERNAL_R;
+		format = GL_ALPHA;
+		internalFormat = GL_ALPHA8;
 		break;
 
 	case 3:
 		format = GL_RGB;
-		internalFormat = TEX_INTERNAL_RGB;
+		internalFormat = GL_RGB8;
 		break;
 
 	case 4:
 		format = GL_RGBA;
-		internalFormat = TEX_INTERNAL_RGBA;
+		internalFormat = GL_RGBA8;
 		break;
 	default:
 		return false;
@@ -436,7 +433,10 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 			draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
+
+			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) )
 		};
 
 		drawBuffer.reset( new draw_t( v ) );
@@ -444,7 +444,8 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 
 	if ( !program )
 	{
-		std::string vshader( GEN_V_SHADER(
+#ifdef OP_GL_USE_ES
+        std::string vshader( GEN_SHADER(
 			attribute vec3 position;
 			attribute vec2 texCoord;
 			attribute vec4 color;
@@ -463,12 +464,12 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 				//orient[ 2 ] = -viewOrient[ 2 ];
 
 				gl_Position = viewToClip * modelToView * vec4( origin + position, 1.0 );
-				frag_Color = color;
+                frag_Color = color;
 				frag_TexCoord = texCoord;
 			}
 		) );
 
-		std::string fshader( GEN_F_SHADER(
+        std::string fshader( GEN_SHADER(
 			varying vec4 frag_Color;
 			varying vec2 frag_TexCoord;
 			uniform sampler2D image;
@@ -478,7 +479,45 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 				vec4 tex = texture2D( image, frag_TexCoord );
 				gl_FragColor = frag_Color * tex;
 			}
+        ) );
+#else
+		std::string vshader( GEN_SHADER(
+			in vec3 position;
+			in vec2 texCoord;
+			in vec4 color;
+
+			uniform vec3 origin;
+			//uniform mat3 viewOrient;
+			uniform mat4 modelToView;
+			uniform mat4 viewToClip;
+
+			smooth out vec4 frag_Color;
+			noperspective out vec2 frag_TexCoord;
+
+			void main( void )
+			{
+				//mat3 orient = viewOrient;
+				//orient[ 2 ] = -viewOrient[ 2 ];
+
+				gl_Position = viewToClip * modelToView * vec4( origin + position, 1.0 );
+				frag_Color = color;
+				frag_TexCoord = texCoord;
+			}
 		) );
+
+		std::string fshader( GEN_SHADER(
+			smooth in vec4 frag_Color;
+			noperspective in vec2 frag_TexCoord;
+			uniform sampler2D image;
+			out vec4 fragment;
+			void main( void )
+			{
+				vec4 tex = texture( image, frag_TexCoord );
+				fragment = frag_Color * tex;
+			}
+		) );
+#endif
+
 
 		program.reset( new shader_program_t( vshader,
 											 fshader,
@@ -502,7 +541,7 @@ void billboard_t::Render( const view::params_t& params )
 
 	image.Bind( 0, "image", *program );
 	drawBuffer->Render( *program );
-	image.Release();
+	image.Release( 0 );
 
 	program->Release();
 }

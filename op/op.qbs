@@ -19,7 +19,9 @@ Product {
     ]
     cpp.linkerFlags: [
         "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
-        "-lGLESv2",
+        "-lGL",
+        "-lGLU",
+        "-lGLEW",
         "-L/usr/lib/x86_64-linux-gnu",
         "-lSDL2",
         "-lpthread",
@@ -49,7 +51,6 @@ Product {
     ]
     files: [
         "../Makefile",
-       // "../asset/mooninite.png",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
@@ -61,6 +62,7 @@ Product {
         "../src/main.cpp",
         "../src/map.cpp",
         "../src/map.h",
+        "../src/opengl.h",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",

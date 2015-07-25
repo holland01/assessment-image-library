@@ -12,13 +12,13 @@
 #   include <html5.h>
 #endif
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_main.h>
-
 #include "renderer.h"
 #include "geom.h"
 #include "view.h"
 #include "map.h"
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_main.h>
 
 #include <unistd.h>
 #include <stdint.h>
@@ -37,7 +37,8 @@ namespace {
 
 rend::shader_program_t MakeProg( void )
 {
-    std::string vshader( GEN_V_SHADER(
+#ifdef OP_GL_USE_ES
+	std::string vshader( GEN_SHADER(
         attribute vec3 position;
         //attribute vec4 color;
 
@@ -55,13 +56,39 @@ rend::shader_program_t MakeProg( void )
         }
     ) );
 
-    std::string fshader( GEN_F_SHADER(
+	std::string fshader( GEN_SHADER(
         varying vec4 frag_Color;
         void main( void )
         {
             gl_FragColor = frag_Color;
         }
     ) );
+#else
+	std::string vshader( GEN_SHADER(
+		in vec3 position;
+
+		out vec4 frag_Color;
+
+		uniform vec4 color;
+		uniform mat4 modelToView;
+		uniform mat4 viewToClip;
+
+		void main( void )
+		{
+			gl_PointSize = 50.0;
+			gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
+			frag_Color = color;
+		}
+	) );
+
+	std::string fshader( GEN_SHADER(
+		in vec4 frag_Color;
+		void main( void )
+		{
+			gl_FragColor = frag_Color;
+		}
+	) );
+#endif //
 
     rend::shader_program_t prog( vshader, fshader, { "color", "modelToView", "viewToClip" }, { "position" } );
     return std::move( prog );
@@ -206,15 +233,24 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	  viewModOrientation( 1.0f )
 {
 	SDL_Init( SDL_INIT_VIDEO );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
 
-	//SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 2 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
-	//SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES );
-	//SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+#ifndef OP_GL_USE_ES
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+#endif
 
-	SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL, &window, &renderer );
+	SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN, &window, &renderer );
 	context = SDL_GL_CreateContext( window );
+
+#ifndef OP_GL_USE_ES
+	glewExperimental = true;
+	GLenum glewSuccess = glewInit();
+	if ( glewSuccess != GLEW_OK )
+	{
+		MLOG_ERROR( "Could not initialize GLEW: %s", ( const char* ) glewGetErrorString( glewSuccess ) );
+	}
+#endif
 
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo( renderer, &info );
@@ -236,17 +272,20 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	program.Release();
 
 	//debugDraw.reset( new test_debug_draw_t( &Predicate, glm::ivec2( width, height ) ) );
-	gen.reset( new map::generator_t() );
 
 	//GL_CHECK( glEnable( GL_TEXTURE_2D ) );
 
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
-	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
+	GL_CHECK( glDepthFunc( GL_LESS ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
 
-	GL_CHECK( glEnable( GL_BLEND ) );
-	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+//	GL_CHECK( glEnable( GL_BLEND ) );
+//	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+
+	//GL_CHECK( glShadeModel( GL_SMOOTH ) );
+
+	gen.reset( new map::generator_t() );
 
 	running = true;
 }

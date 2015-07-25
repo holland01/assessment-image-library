@@ -105,7 +105,7 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 	{
 		{ position.x, position.y, position.z },
 		{ 0.0f, 0.0f, 0.0f },
-		{ texCoord.s, texCoord.t },
+        { texCoord.x, texCoord.y },
 		{ color.r, color.g, color.b, color.a }
 	};
 

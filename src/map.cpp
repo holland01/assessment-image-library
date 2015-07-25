@@ -6,6 +6,7 @@ namespace {
 	std::random_device randDevice;
 	std::mt19937 randEngine( randDevice() );
 	std::uniform_int_distribution< uint32_t > wallDet( 0, 100 );
+	std::uniform_int_distribution< uint8_t > randByte( 0, 255 );
 
 	glm::vec4 RandomColor( void )
 	{
@@ -50,7 +51,24 @@ tile_t::tile_t( void )
 
 generator_t::generator_t( void )
 {
-	billTexture.LoadFromFile( "asset/mooninite.png" );
+	//billTexture.LoadFromFile( "asset/mooninite.jpg" );
+
+	billTexture.SetBufferSize( 256, 256, 4, 255 );
+
+	std::array< uint8_t, 64 > blackWhite;
+	for ( int32_t i = 0; i < 32; ++i )
+	{
+		blackWhite[ i ] = 0x0;
+		blackWhite[ i + 32 ] = 0xFF;
+	}
+
+	for ( size_t i = 0; i < billTexture.pixels.size(); i += 4  )
+	{
+		billTexture.pixels[ i + 0 ] = blackWhite[ ( i + 0 ) % blackWhite.size() ]; //randByte( randEngine );
+		billTexture.pixels[ i + 1 ] = blackWhite[ ( i + 1 ) % blackWhite.size() ]; //randByte( randEngine );;
+		billTexture.pixels[ i + 2 ] = blackWhite[ ( i + 2 ) % blackWhite.size() ]; //randByte( randEngine );;
+		billTexture.pixels[ i + 3 ] = blackWhite[ ( i + 3 ) % blackWhite.size() ]; //128;
+	}
 	billTexture.Load2D();
 
 	tiles.resize( GRID_SIZE * GRID_SIZE );

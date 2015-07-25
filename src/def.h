@@ -1,7 +1,4 @@
 #pragma once
-
-#define OPENGL_API_H <GLES2/gl2.h>
-#define OPENGL_API_EXT_H <GLES2/gl2ext.h> 
 	
 #if defined( _WIN32 )
 #	include <Windows.h> // This needs to be before GLFW includes to prevent APIENTRY macro redef error
