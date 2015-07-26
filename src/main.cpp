@@ -20,7 +20,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
 
-#include <unistd.h>
+#ifdef OP_UNIX
+	#include <unistd.h>
+#endif
+
 #include <stdint.h>
 #include <array>
 #include <cstdlib>
@@ -35,65 +38,6 @@ bool Predicate( geom::bounding_box_t& bounds );
 
 namespace {
 
-rend::shader_program_t MakeProg( void )
-{
-#ifdef OP_GL_USE_ES
-	std::string vshader( GEN_SHADER(
-        attribute vec3 position;
-        //attribute vec4 color;
-
-        varying vec4 frag_Color;
-
-        uniform vec4 color;
-        uniform mat4 modelToView;
-        uniform mat4 viewToClip;
-
-        void main( void )
-        {
-			gl_PointSize = 50.0;
-            gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
-            frag_Color = color;
-        }
-    ) );
-
-	std::string fshader( GEN_SHADER(
-        varying vec4 frag_Color;
-        void main( void )
-        {
-            gl_FragColor = frag_Color;
-        }
-    ) );
-#else
-	std::string vshader( GEN_SHADER(
-		in vec3 position;
-
-		out vec4 frag_Color;
-
-		uniform vec4 color;
-		uniform mat4 modelToView;
-		uniform mat4 viewToClip;
-
-		void main( void )
-		{
-			gl_PointSize = 50.0;
-			gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
-			frag_Color = color;
-		}
-	) );
-
-	std::string fshader( GEN_SHADER(
-		in vec4 frag_Color;
-		void main( void )
-		{
-			gl_FragColor = frag_Color;
-		}
-	) );
-#endif //
-
-    rend::shader_program_t prog( vshader, fshader, { "color", "modelToView", "viewToClip" }, { "position" } );
-    return std::move( prog );
-}
-
 using test_debug_draw_t = rend::debug_split_draw< geom::bounding_box_t, geom::bounding_box_t::draw_t >;
 
 struct app_t
@@ -107,8 +51,12 @@ struct app_t
 
 	std::unique_ptr< map::generator_t > gen;
 	std::unique_ptr< test_debug_draw_t > debugDraw;
+	std::unique_ptr< rend::draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW > > triangle;
+
+	GLuint globalVao;
 
     rend::shader_program_t program;
+	rend::shader_program_t vertexPassThrough;	
 
     view::camera_t         camera;
 	view::frustum_t		   frustum;
@@ -230,11 +178,18 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 app_t::app_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
 	  height( height_ ),
-	  viewModOrientation( 1.0f )
+	  viewModOrientation( 1.0f ),
+	  globalVao( 0 )
 {
 	SDL_Init( SDL_INIT_VIDEO );
+	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 24 );
+	SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
+	SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
+	SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
+	SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8 );
 
 #ifndef OP_GL_USE_ES
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
@@ -242,6 +197,12 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	SDL_CreateWindowAndRenderer( width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN, &window, &renderer );
 	context = SDL_GL_CreateContext( window );
+
+	if ( !context )
+	{
+		MLOG_ERROR( "SDL_Error: %s", SDL_GetError() );
+		return;
+	}
 
 #ifndef OP_GL_USE_ES
 	glewExperimental = true;
@@ -255,11 +216,68 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo( renderer, &info );
 
+	GL_CHECK( glGenVertexArrays( 1, &globalVao ) );
+	GL_CHECK( glBindVertexArray( globalVao ) );
+
 	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
 	SDL_RenderPresent( renderer );
 
-	program = MakeProg();
+	{
+#ifdef OP_GL_USE_ES
+		std::string vshader( GEN_SHADER(
+			attribute vec3 position;
+			//attribute vec4 color;
+
+			varying vec4 frag_Color;
+
+			uniform vec4 color;
+			uniform mat4 modelToView;
+			uniform mat4 viewToClip;
+
+			void main( void )
+			{
+				gl_PointSize = 50.0;
+				gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
+				frag_Color = color;
+			}
+		) );
+
+		std::string fshader( GEN_SHADER(
+			varying vec4 frag_Color;
+			void main( void )
+			{
+				gl_FragColor = frag_Color;
+			}
+		) );
+#else
+		std::string vshader( GEN_SHADER(
+			in vec3 position;
+
+			smooth out vec4 frag_Color;
+
+			uniform vec4 color;
+			uniform mat4 modelToView;
+			uniform mat4 viewToClip;
+
+			void main( void )
+			{
+				gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
+				frag_Color = color;
+			}
+		) );
+
+		std::string fshader( GEN_SHADER(
+			smooth in vec4 frag_Color;
+			out vec4 fragment;
+			void main( void )
+			{
+				fragment = frag_Color;
+			}
+		) );
+#endif //
+		program = std::move( rend::shader_program_t( vshader, fshader, { "color", "modelToView", "viewToClip" }, { "position" } ) );
+	}
 
 	rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
 
@@ -271,19 +289,13 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	program.Release();
 
-	//debugDraw.reset( new test_debug_draw_t( &Predicate, glm::ivec2( width, height ) ) );
-
-	//GL_CHECK( glEnable( GL_TEXTURE_2D ) );
-
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
-	GL_CHECK( glDepthFunc( GL_LESS ) );
+	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
 
-//	GL_CHECK( glEnable( GL_BLEND ) );
-//	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
-
-	//GL_CHECK( glShadeModel( GL_SMOOTH ) );
+	GL_CHECK( glEnable( GL_BLEND ) );
+	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 	gen.reset( new map::generator_t() );
 
@@ -327,6 +339,7 @@ void App_Frame( void )
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
 	glm::mat4 view( app.camera.GetViewParams().transform );
+
 	for ( map::tile_t& tile: app.gen->tiles )
 	{
 		if ( tile.bounds )
@@ -339,11 +352,20 @@ void App_Frame( void )
 		}
 		else if ( tile.billboard )
 		{
-			tile.billboard->Render( vp );
+			rend::billboard_t::program->Bind();
+
+			rend::billboard_t::program->LoadMat4( "modelToView", vp.transform );
+			rend::billboard_t::program->LoadMat4( "viewToClip", vp.clipTransform );
+			rend::billboard_t::program->LoadVec3( "origin", tile.billboard->origin );
+			rend::billboard_t::program->LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
+
+			app.gen->billTexture.Bind( 0, "image", *rend::billboard_t::program );
+
+			tile.billboard->Render();
+			app.gen->billTexture.Release( 0 );
+			rend::billboard_t::program->Release();
 		}
 	}
-
-
 }
 
 // temporary hack to get around the fact that querying for an app
@@ -406,11 +428,9 @@ uint32_t App_Exec( void )
                     app.camera.EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
                     break;
                 case SDL_MOUSEMOTION:
-                    printf( "mouse { x: %i, y: %i }\n", e.motion.xrel, e.motion.yrel );
-
                     if ( !app.mouseShown )
                     {
-                        app.camera.EvalMouseMove( e.motion.xrel, e.motion.yrel, false );
+                        app.camera.EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
                     }
                     break;
             }
@@ -446,6 +466,11 @@ bool Predicate( geom::bounding_box_t& bounds )
 
 	return intersects;
 }
+
+// SDL2 defines main as a macro for some reason on Windows
+#ifdef _WIN32
+#	undef main
+#endif
 
 int main( void ) 
 {

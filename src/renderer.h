@@ -29,7 +29,7 @@
 #ifdef OP_GL_USE_ES
 #	define GEN_SHADER( data ) "precision mediump float;\n"#data
 #else
-#   define GEN_SHADER( data ) "#version 330 core\n"#data
+#   define GEN_SHADER( data ) "#version 330\n"#data
 #endif // EMSCRIPTEN
 
 #ifdef __DEBUG_RENDERER__
@@ -79,7 +79,7 @@ template < typename T >
 static INLINE void UpdateBufferObject( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
 
 static INLINE void DeleteBufferObject( GLenum target, GLuint obj );
-static INLINE void DrawElementBuffer( GLuint ibo, size_t numIndices );
+static INLINE void DrawElementBuffer( GLuint ibo, GLsizei numIndices );
 
 static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t baseHeight );
 
@@ -102,6 +102,7 @@ struct vertex_t
 using draw_vertex_t = vertex_t< float[ 3 ], float[ 3 ], float[ 2 ], uint8_t[ 4 ] >;
 
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color );
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color );
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position );
 
 struct triangle_t
@@ -279,11 +280,11 @@ struct viewport_stash_t
 // attribLoader_t: helper functions for loading program attributes, given
 // an arbitrary vertex type
 //---------------------------------------------------------------------
-template < typename vertexType_t >
+template < typename vertex_type_t >
 struct attrib_loader_t
 {
 	using loader_func_map_t = std::unordered_map< std::string, std::function< void( const shader_program_t& program, intptr_t attribOffset ) > >;
-    static loader_func_map_t functions;
+	static loader_func_map_t functions;
 };
 
 //---------------------------------------------------------------------
@@ -293,7 +294,7 @@ template < GLenum mode, GLenum usage >
 struct draw_buffer_t
 {
 	GLuint vbo, ibo;
-	size_t count;
+	GLsizei count;
 
 	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData );
 	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData );
@@ -334,7 +335,7 @@ struct debug_split_draw
 
 struct billboard_t
 {
-	using draw_t = draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW >;
+	using draw_t = draw_buffer_t< GL_TRIANGLE_STRIP, GL_STATIC_DRAW >;
 
 	static std::unique_ptr< draw_t > drawBuffer;
 	static std::unique_ptr< shader_program_t > program;
@@ -345,7 +346,7 @@ struct billboard_t
 	 billboard_t( const glm::vec3& origin, const texture_t& image );
 	~billboard_t( void );
 
-	 void Render( const view::params_t& camera );
+	 void Render( void );
 };
 
 } // namespace rend

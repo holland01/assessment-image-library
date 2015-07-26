@@ -53,7 +53,7 @@ static INLINE void DeleteBufferObject( GLenum target, GLuint obj )
 	}
 }
 
-static INLINE void DrawElementBuffer( GLuint ibo, size_t numIndices )
+static INLINE void DrawElementBuffer( GLuint ibo, GLsizei numIndices )
 {
 	GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
 	GL_CHECK( glDrawElements( GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, nullptr ) );
@@ -115,6 +115,11 @@ static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const
 static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position )
 {
 	return draw_vertex_t_Make( position, glm::vec2( 0.0f ), glm::u8vec4( 255 ) );
+}
+
+static INLINE draw_vertex_t draw_vertex_t_Make( const glm::vec3& position, const glm::u8vec4& color )
+{
+	return draw_vertex_t_Make( position, glm::vec2( 0.0f ), color );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -386,7 +391,7 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 			}
 
             GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ),
-                "attribLoadFunctions" );
+                LOADER_FUNC_NAME"color" );
 
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
                 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertex_type_t ),
@@ -403,6 +408,7 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 			}
 
             GLint location = program.attribs.at( "texCoord" );
+			GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), LOADER_FUNC_NAME"texCoord" );
             GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
 				2, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) attribOffset ), LOADER_FUNC_NAME"texCoord" );
         }
@@ -419,7 +425,7 @@ template < GLenum mode, GLenum usage >
 draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData )
 	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
 	  ibo( 0 ),
-	  count( vertexData.size() )
+	  count( ( GLsizei ) vertexData.size() )
 {
 }
 
@@ -427,7 +433,7 @@ template < GLenum mode, GLenum usage >
 draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData )
 	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
 	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
-	  count( indexData.size() )
+	  count( ( GLsizei ) indexData.size() )
 {
 }
 
@@ -445,7 +451,7 @@ template < GLenum mode, GLenum usage >
 void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) const
 {
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
-	shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
+	shader_program_t::LoadAttribLayout< draw_vertex_t >( program );
 
 	if ( ibo )
 	{
@@ -466,7 +472,7 @@ void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) con
 
 template < typename predicate_type_t, typename renderable_t >
 debug_split_draw< predicate_type_t, renderable_t >::debug_split_draw(
-		debug_split_draw< predicate_type_t, renderable_t >::predicate_fn_t predicate_,
+		typename debug_split_draw< predicate_type_t, renderable_t >::predicate_fn_t predicate_,
 		const glm::ivec2& dims_ )
 	: rightDraw( predicate_ ),
 	  originalVp( 0, 0, dims_.x, dims_.y ),

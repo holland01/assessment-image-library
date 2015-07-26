@@ -9,6 +9,10 @@
 #	define GL_PROC __attribute__( ( __cdecl ) ) // default to cdecl calling convention on 32-bit non-MSVC compilers
 #endif
 
+#ifndef _WIN32
+#	define OP_UNIX
+#endif
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_PURE
 

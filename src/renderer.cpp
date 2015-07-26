@@ -6,7 +6,7 @@
 // Shader Util Functions
 //-----------------------------------------------------------
 
-static GLuint CompileShaderSource( const char* src, const int length, GLenum type )
+static GLuint CompileShaderSource( const char* src, int32_t length, GLenum type )
 {
 	GLuint shaderId;
     GL_CHECK(shaderId = glCreateShader(type));
@@ -14,7 +14,7 @@ static GLuint CompileShaderSource( const char* src, const int length, GLenum typ
     {
         if ( length > 0 )
 		{
-			int blength[ 1 ] = { length };
+			int32_t blength[ 1 ] = { length };
 			glShaderSource( shaderId, 1, &src, blength );
 		}
 		else
@@ -130,14 +130,6 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
 // Texture Utils
 //-----------------------------------------------------------
 
-enum texFormat_t
-{
-	TEX_EXTERNAL_R = GL_ALPHA,
-	TEX_INTERNAL_R = GL_ALPHA,
-	TEX_INTERNAL_RGB = GL_RGB,
-	TEX_INTERNAL_RGBA = GL_RGBA,	
-};
-
 namespace rend {
 
 void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program_t& program )
@@ -238,8 +230,8 @@ void texture_t::LoadSettings( void )
 
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, GL_LINEAR ) );
 	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, GL_REPEAT ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, GL_REPEAT ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
 	
 	Release();
 }
@@ -297,6 +289,7 @@ bool texture_t::DetermineFormats( void )
 		format = GL_RGBA;
 		internalFormat = GL_RGBA8;
 		break;
+
 	default:
 		return false;
 		break;
@@ -318,8 +311,8 @@ shader_program_t::shader_program_t( const std::string& vertexShader, const std::
 {
 	GLuint shaders[] = 
 	{
-		CompileShaderSource( vertexShader.c_str(), vertexShader.size(), GL_VERTEX_SHADER ),
-		CompileShaderSource( fragmentShader.c_str(), fragmentShader.size(), GL_FRAGMENT_SHADER )
+		CompileShaderSource( vertexShader.c_str(), ( int32_t ) vertexShader.size(), GL_VERTEX_SHADER ),
+		CompileShaderSource( fragmentShader.c_str(), ( int32_t ) fragmentShader.size(), GL_FRAGMENT_SHADER )
 	};
 
 	program = LinkProgram( shaders, 2 );
@@ -376,7 +369,7 @@ shader_program_t::~shader_program_t( void )
 void shader_program_t::GenData( const std::vector< std::string >& uniforms,
     const std::vector< std::string >& attribs )
 {
-	uint32_t max = glm::max( attribs.size(), uniforms.size() );
+	uint32_t max = ( uint32_t ) glm::max( attribs.size(), uniforms.size() );
 	for ( uint32_t i = 0; i < max; ++i )
 	{
 		if ( i < attribs.size() )
@@ -433,10 +426,13 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 			draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) ),
 
+			/*
 			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) ),
 			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) )
+			*/
 		};
 
 		drawBuffer.reset( new draw_t( v ) );
@@ -487,19 +483,17 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 			in vec4 color;
 
 			uniform vec3 origin;
-			//uniform mat3 viewOrient;
+			uniform mat3 viewOrient;
 			uniform mat4 modelToView;
 			uniform mat4 viewToClip;
 
 			smooth out vec4 frag_Color;
-			noperspective out vec2 frag_TexCoord;
+			smooth out vec2 frag_TexCoord;
 
 			void main( void )
 			{
-				//mat3 orient = viewOrient;
-				//orient[ 2 ] = -viewOrient[ 2 ];
-
-				gl_Position = viewToClip * modelToView * vec4( origin + position, 1.0 );
+				mat3 orient = -viewOrient;
+				gl_Position = viewToClip * modelToView * vec4( origin + orient * position, 1.0 );
 				frag_Color = color;
 				frag_TexCoord = texCoord;
 			}
@@ -507,13 +501,19 @@ billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
 
 		std::string fshader( GEN_SHADER(
 			smooth in vec4 frag_Color;
-			noperspective in vec2 frag_TexCoord;
+			smooth in vec2 frag_TexCoord;
 			uniform sampler2D image;
 			out vec4 fragment;
 			void main( void )
 			{
 				vec4 tex = texture( image, frag_TexCoord );
-				fragment = frag_Color * tex;
+
+				if ( tex.a == 0.0 )
+				{
+					discard;
+				}
+				
+				fragment = tex;
 			}
 		) );
 #endif
@@ -530,20 +530,9 @@ billboard_t::~billboard_t( void )
 {
 }
 
-void billboard_t::Render( const view::params_t& params )
+void billboard_t::Render( void )
 {
-	program->Bind();
-
-	program->LoadMat4( "modelToView", params.transform );
-	program->LoadMat4( "viewToClip", params.clipTransform );
-	program->LoadVec3( "origin", origin );
-	//program->LoadMat3( "viewOrient", glm::mat3( params.inverseOrient ) );
-
-	image.Bind( 0, "image", *program );
 	drawBuffer->Render( *program );
-	image.Release( 0 );
-
-	program->Release();
 }
 
 } // namespace glrend
