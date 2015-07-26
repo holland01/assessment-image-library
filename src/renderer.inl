@@ -53,13 +53,6 @@ static INLINE void DeleteBufferObject( GLenum target, GLuint obj )
 	}
 }
 
-static INLINE void DrawElementBuffer( GLuint ibo, GLsizei numIndices )
-{
-	GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
-	GL_CHECK( glDrawElements( GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, nullptr ) );
-	GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
-}
-
 static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t baseHeight )
 {
 	return glm::min( ( int32_t ) glm::log2( ( float ) baseWidth ), ( int32_t ) glm::log2( ( float ) baseHeight ) );
@@ -417,54 +410,6 @@ typename attrib_loader_t< vertex_type_t >::loader_func_map_t attrib_loader_t< ve
 
 #undef LOADER_FUNC_NAME
 #undef MAP_VEC_3
-
-//---------------------------------------------------------------------
-// draw_buffer_t
-//---------------------------------------------------------------------
-template < GLenum mode, GLenum usage >
-draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
-	  ibo( 0 ),
-	  count( ( GLsizei ) vertexData.size() )
-{
-}
-
-template < GLenum mode, GLenum usage >
-draw_buffer_t< mode, usage >::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
-	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
-	  count( ( GLsizei ) indexData.size() )
-{
-}
-
-template < GLenum mode, GLenum usage >
-draw_buffer_t< mode, usage >::~draw_buffer_t( void )
-{
-	if ( vbo )
-	{
-		GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-		GL_CHECK( glDeleteBuffers( 1, &vbo ) );
-	}
-}
-
-template < GLenum mode, GLenum usage >
-void draw_buffer_t< mode, usage >::Render( const shader_program_t& program ) const
-{
-	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
-	shader_program_t::LoadAttribLayout< draw_vertex_t >( program );
-
-	if ( ibo )
-	{
-		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
-		GL_CHECK( glDrawElements( mode, count, GL_UNSIGNED_INT, 0 ) );
-		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
-	}
-	else
-	{
-		GL_CHECK( glDrawArrays( mode, 0, count ) );
-	}
-	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-}
 
 //---------------------------------------------------------------------
 // debug_split_draw

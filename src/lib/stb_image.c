@@ -20,6 +20,8 @@
 #include <stdarg.h>
 
 #ifndef _MSC_VER
+   #include <stdint.h>
+
    #ifdef __cplusplus
    #define stbi_inline inline
    #else

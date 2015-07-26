@@ -8,8 +8,6 @@ namespace geom {
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-std::unique_ptr< bounding_box_t::draw_t > bounding_box_t::drawBuffer( nullptr );
-
 bounding_box_t::bounding_box_t( void )
 {
     Empty();
@@ -345,51 +343,6 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
 void bounding_box_t::SetDrawable( const glm::vec4& color_ )
 {
     color = color_;
-
-	if ( drawBuffer )
-	{
-        return;
-	}
-
-	std::vector< rend::draw_vertex_t > vertexData =
-	{
-		// Max-z dependent ( back )
-		rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
-
-		// Min-z dependent ( front )
-		rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
-		rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
-	};
-
-	// Draw order:
-	// back face, right face, front face, bottom face, left face, top face
-	std::vector< GLuint > indexData =
-	{
-		0x00000002u, 0x00000003u, 0x00000000u,
-		0x00000000u, 0x00000001u, 0x00000002u,
-
-		0x00000003u, 0x00000005u, 0x00000006u,
-		0x00000006u, 0x00000000u, 0x00000003u,
-
-		0x00000005u, 0x00000004u, 0x00000007u,
-		0x00000007u, 0x00000006u, 0x00000005u,
-
-		0x00000003u, 0x00000002u, 0x00000004u,
-		0x00000004u, 0x00000005u, 0x00000003u,
-
-		0x00000002u, 0x00000001u, 0x00000007u,
-		0x00000007u, 0x00000004u, 0x00000002u,
-
-		0x00000001u, 0x00000000u, 0x00000006u,
-		0x00000006u, 0x00000007u, 0x00000001u
-	};
-
-	drawBuffer.reset( new bounding_box_t::draw_t( vertexData, indexData ) );
 }
 
 } // namespace geom

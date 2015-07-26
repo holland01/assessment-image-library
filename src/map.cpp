@@ -52,24 +52,6 @@ tile_t::tile_t( void )
 generator_t::generator_t( void )
 {
 	billTexture.LoadFromFile( "asset/mooninite.png" );
-
-	/*
-	billTexture.SetBufferSize( 256, 256, 4, 255 );
-
-	std::array< uint8_t, 8 > blackWhite = 
-	{
-		0x00, 0x00, 0x00, 0xFF,
-		0xFF, 0xFF, 0xFF, 0xFF
-	};
-
-	for ( size_t i = 0; i < billTexture.pixels.size(); i += 4  )
-	{
-		billTexture.pixels[ i + 0 ] = blackWhite[ ( i + 0 ) % blackWhite.size() ]; //randByte( randEngine );
-		billTexture.pixels[ i + 1 ] = blackWhite[ ( i + 1 ) % blackWhite.size() ]; //randByte( randEngine );;
-		billTexture.pixels[ i + 2 ] = blackWhite[ ( i + 2 ) % blackWhite.size() ]; //randByte( randEngine );;
-		billTexture.pixels[ i + 3 ] = blackWhite[ ( i + 3 ) % blackWhite.size() ]; //128;
-	}
-	*/
 	billTexture.Load2D();
 
 	tiles.resize( GRID_SIZE * GRID_SIZE );
@@ -157,8 +139,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 		bool isSprite = wallDet( randEngine ) <= 5u;
 		if ( isSprite )
 		{
-			tiles[ center ].billboard.reset( new rend::billboard_t( glm::vec3( x * 2.0f, 0.0f, z * 2.0f ),
-																	billTexture ) );
+			tiles[ center ].billboard.reset( new rend::billboard_t( glm::vec3( x * 2.0f, 0.0f, z * 2.0f ) ) );
 		}
 	}
 }

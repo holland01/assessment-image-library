@@ -37,7 +37,21 @@ static GLuint CompileShaderSource( const char* src, int32_t length, GLenum type 
 
             glGetShaderInfoLog( shaderId, logLen, NULL, infoLog );
 
-            MLOG_ERROR( "SHADER COMPILE MLOG_ERROR [ %s ]: %s", ( type == GL_VERTEX_SHADER ) ? "vertex" : "fragment", infoLog );
+			// May not be null terminated, so just wrap it safely...
+			std::string srcStr;
+			if ( length > 0 )
+			{
+				srcStr = std::string( src, length );
+			}
+			else
+			{
+				srcStr = std::string( src );
+			}
+
+			MLOG_ERROR( "SHADER COMPILE MLOG_ERROR [ %s ]: %s\n Message: %s",
+						srcStr.c_str(),
+						( type == GL_VERTEX_SHADER ) ? "vertex" : "fragment",
+						infoLog );
         }
     }
     else
@@ -412,127 +426,232 @@ load_blend_t::~load_blend_t( void )
 	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
 }
 
-std::unique_ptr< billboard_t::draw_t > billboard_t::drawBuffer( nullptr );
-std::unique_ptr< shader_program_t > billboard_t::program( nullptr );
+//---------------------------------------------------------------------
+// draw_buffer_t
+//---------------------------------------------------------------------
 
-billboard_t::billboard_t( const glm::vec3& origin_, const texture_t& image_ )
-	: origin( origin_ ),
-	  image( image_ )
+draw_buffer_t::draw_buffer_t( void )
 {
-	if ( !drawBuffer )
+}
+
+draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
+							  GLenum mode_, GLenum usage )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+	  ibo( 0 ),
+	  count( ( GLsizei ) vertexData.size() ),
+	  mode( mode_ )
+{
+}
+
+draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
+							  const std::vector< GLuint >& indexData,
+							  GLenum mode_, GLenum usage )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
+	  count( ( GLsizei ) indexData.size() ),
+	  mode( mode_ )
+{
+}
+
+draw_buffer_t::draw_buffer_t( draw_buffer_t&& buffer )
+{
+	*this = std::move( buffer );
+}
+
+draw_buffer_t::~draw_buffer_t( void )
+{
+	DeleteBufferObject( GL_ARRAY_BUFFER, vbo );
+}
+
+draw_buffer_t& draw_buffer_t::operator= ( draw_buffer_t&& buffer )
+{
+	if ( this != &buffer )
 	{
-		std::vector< draw_vertex_t > v =
-		{
-			draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) ),
+		vbo = buffer.vbo;
+		ibo = buffer.ibo;
+		count = buffer.count;
+		mode = buffer.mode;
 
-			/*
-			draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) ),
-			draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) )
-			*/
-		};
-
-		drawBuffer.reset( new draw_t( v ) );
+		buffer.mode = 0;
+		buffer.count = 0;
+		buffer.ibo = 0;
+		buffer.vbo = 0;
 	}
 
-	if ( !program )
+	return *this;
+}
+
+void draw_buffer_t::Render( const shader_program_t& program ) const
+{
+	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+	shader_program_t::LoadAttribLayout< draw_vertex_t >( program );
+
+	if ( ibo )
 	{
-#ifdef OP_GL_USE_ES
-        std::string vshader( GEN_SHADER(
-			attribute vec3 position;
-			attribute vec2 texCoord;
-			attribute vec4 color;
-
-			uniform vec3 origin;
-			//uniform mat3 viewOrient;
-			uniform mat4 modelToView;
-			uniform mat4 viewToClip;
-
-			varying vec4 frag_Color;
-			varying vec2 frag_TexCoord;
-
-			void main( void )
-			{
-				//mat3 orient = viewOrient;
-				//orient[ 2 ] = -viewOrient[ 2 ];
-
-				gl_Position = viewToClip * modelToView * vec4( origin + position, 1.0 );
-                frag_Color = color;
-				frag_TexCoord = texCoord;
-			}
-		) );
-
-        std::string fshader( GEN_SHADER(
-			varying vec4 frag_Color;
-			varying vec2 frag_TexCoord;
-			uniform sampler2D image;
-
-			void main( void )
-			{
-				vec4 tex = texture2D( image, frag_TexCoord );
-				gl_FragColor = frag_Color * tex;
-			}
-        ) );
-#else
-		std::string vshader( GEN_SHADER(
-			in vec3 position;
-			in vec2 texCoord;
-			in vec4 color;
-
-			uniform vec3 origin;
-			uniform mat3 viewOrient;
-			uniform mat4 modelToView;
-			uniform mat4 viewToClip;
-
-			smooth out vec4 frag_Color;
-			smooth out vec2 frag_TexCoord;
-
-			void main( void )
-			{
-				mat3 orient = -viewOrient;
-				gl_Position = viewToClip * modelToView * vec4( origin + orient * position, 1.0 );
-				frag_Color = color;
-				frag_TexCoord = texCoord;
-			}
-		) );
-
-		std::string fshader( GEN_SHADER(
-			smooth in vec4 frag_Color;
-			smooth in vec2 frag_TexCoord;
-			uniform sampler2D image;
-			out vec4 fragment;
-			void main( void )
-			{
-				vec4 tex = texture( image, frag_TexCoord );
-
-				if ( tex.a == 0.0 )
-				{
-					discard;
-				}
-				
-				fragment = tex;
-			}
-		) );
-#endif
-
-
-		program.reset( new shader_program_t( vshader,
-											 fshader,
-											{ "origin", "viewOrient", "modelToView", "viewToClip", "image" },
-											{ "position", "texCoord", "color" } ) );
+		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
+		GL_CHECK( glDrawElements( mode, count, GL_UNSIGNED_INT, 0 ) );
+		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
 	}
+	else
+	{
+		GL_CHECK( glDrawArrays( mode, 0, count ) );
+	}
+
+	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+//-------------------------------------------------------------------------------------------------
+// billboard_t
+//-------------------------------------------------------------------------------------------------
+
+billboard_t::billboard_t( const glm::vec3& origin_ )
+	: origin( origin_ )
+{
 }
 
 billboard_t::~billboard_t( void )
 {
 }
 
-void billboard_t::Render( void )
+//-------------------------------------------------------------------------------------------------
+// pipeline_t
+//-------------------------------------------------------------------------------------------------
+
+#ifdef OP_USE_GL_ES
+#	define OP_GLSL_SHADER_PREPEND "precision mediump float;\n"
+#	define OP_GLSL_SHADER_DIR "es"
+#else
+#	define OP_GLSL_SHADER_PREPEND "#version 130\n"
+#	define OP_GLSL_SHADER_DIR "desktop"
+#endif // OP_USE_GL_eS
+
+namespace {
+	struct program_def_t
+	{
+		std::string programName;
+		std::string vertexName;
+		std::string fragmentName;
+		std::vector< std::string > uniforms;
+		std::vector< std::string > attribs;
+	};
+
+	struct buffer_def_t
+	{
+		std::string name;
+		GLenum mode;
+		GLenum usage;
+		std::vector< draw_vertex_t > vertexData;
+		std::vector< GLuint > indexData;
+	};
+}
+
+pipeline_t::pipeline_t( void )
 {
-	drawBuffer->Render( *program );
+	std::array< program_def_t, 2 > defs =
+	{{
+		{
+			"single_color",
+			"single_color.vert",
+			"single_color.frag",
+			{ "color", "modelToView", "viewToClip" },
+			{ "position" }
+		},
+		{
+			"billboard",
+			"billboard.vert",
+			"billboard.frag",
+			{ "origin", "viewOrient", "modelToView", "viewToClip", "image" },
+			{ "position", "texCoord" }
+		}
+	}};
+
+	std::string shaderRootDir( "asset/shader/" OP_GLSL_SHADER_DIR "/" );
+
+	for ( program_def_t& def: defs )
+	{
+		std::vector< char > vertexBuf, fragmentBuf;
+
+		File_GetBuf( vertexBuf, shaderRootDir + def.vertexName );
+		File_GetBuf( fragmentBuf, shaderRootDir + def.fragmentName );
+
+		std::string prepend( OP_GLSL_SHADER_PREPEND );
+
+		vertexBuf.insert( vertexBuf.begin(), prepend.c_str(), prepend.c_str() + prepend.length() );
+		fragmentBuf.insert( fragmentBuf.begin(), prepend.c_str(), prepend.c_str() + prepend.length() );
+
+		programs[ def.programName ] = std::move( shader_program_t( vertexBuf, fragmentBuf, def.uniforms, def.attribs ) );
+	}
+
+	std::array< buffer_def_t, 2 > bufferDefs =
+	{{
+
+		 {
+			"colored_cube",
+			GL_TRIANGLES,
+			GL_STATIC_DRAW,
+			{
+			 // back
+				rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
+
+			 // front
+				rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+				rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
+			},
+
+			// Draw order:
+			// back face, right face, front face, bottom face, left face, top face
+			{
+				0x00000002u, 0x00000003u, 0x00000000u,
+				0x00000000u, 0x00000001u, 0x00000002u,
+
+				0x00000003u, 0x00000005u, 0x00000006u,
+				0x00000006u, 0x00000000u, 0x00000003u,
+
+				0x00000005u, 0x00000004u, 0x00000007u,
+				0x00000007u, 0x00000006u, 0x00000005u,
+
+				0x00000003u, 0x00000002u, 0x00000004u,
+				0x00000004u, 0x00000005u, 0x00000003u,
+
+				0x00000002u, 0x00000001u, 0x00000007u,
+				0x00000007u, 0x00000004u, 0x00000002u,
+
+				0x00000001u, 0x00000000u, 0x00000006u,
+				0x00000006u, 0x00000007u, 0x00000001u
+			}
+		},
+
+		// billboard
+		{
+			"billboard",
+			GL_TRIANGLE_STRIP,
+			GL_STATIC_DRAW,
+			{
+				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
+				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
+			},
+			{}
+		}
+	}};
+
+	for ( const buffer_def_t& def: bufferDefs )
+	{
+		if ( def.indexData.empty() )
+		{
+			drawBuffers[ def.name ] = std::move( draw_buffer_t( def.vertexData, def.mode, def.usage ) );
+		}
+		else
+		{
+			drawBuffers[ def.name ] = std::move( draw_buffer_t( def.vertexData, def.indexData, def.mode, def.usage ) );
+		}
+	}
 }
 
 } // namespace glrend

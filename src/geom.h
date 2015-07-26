@@ -21,9 +21,6 @@ struct plane_t
 
 struct bounding_box_t
 {
-	using draw_t = rend::draw_buffer_t< GL_LINE_STRIP, GL_STATIC_DRAW >;
-	static std::unique_ptr< draw_t > drawBuffer; // optional, use aabb_t::SetDrawable to initialize
-
 	glm::mat4 transform;
 	bool oriented;
 	glm::vec3 maxPoint, minPoint;

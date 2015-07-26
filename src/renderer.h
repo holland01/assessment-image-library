@@ -79,7 +79,6 @@ template < typename T >
 static INLINE void UpdateBufferObject( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
 
 static INLINE void DeleteBufferObject( GLenum target, GLuint obj );
-static INLINE void DrawElementBuffer( GLuint ibo, GLsizei numIndices );
 
 static INLINE uint32_t Texture_GetMaxMipLevels2D( int32_t baseWidth, int32_t baseHeight );
 
@@ -290,15 +289,23 @@ struct attrib_loader_t
 //---------------------------------------------------------------------
 // draw_buffer_t
 //---------------------------------------------------------------------
-template < GLenum mode, GLenum usage >
 struct draw_buffer_t
 {
 	GLuint vbo, ibo;
 	GLsizei count;
+	GLenum mode;
 
-	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData );
-	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData );
+	draw_buffer_t( const draw_buffer_t& ) = delete;
+	draw_buffer_t& operator =( const draw_buffer_t& ) = delete;
+
+	draw_buffer_t( void );
+	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, GLenum mode, GLenum usage );
+	draw_buffer_t( const std::vector< draw_vertex_t >& vertexData, const std::vector< GLuint >& indexData, GLenum mode, GLenum usage );
+	draw_buffer_t( draw_buffer_t&& m );
+
 	~draw_buffer_t( void );
+
+	draw_buffer_t& operator= ( draw_buffer_t&& m );
 
 	void Render( const shader_program_t& program ) const;
 };
@@ -333,20 +340,31 @@ struct debug_split_draw
 					  const glm::mat4& rightView ) const;
 };
 
+//---------------------------------------------------------------------
+// billboard_t
+//---------------------------------------------------------------------
+
 struct billboard_t
 {
-	using draw_t = draw_buffer_t< GL_TRIANGLE_STRIP, GL_STATIC_DRAW >;
-
-	static std::unique_ptr< draw_t > drawBuffer;
-	static std::unique_ptr< shader_program_t > program;
-
 	glm::vec3 origin;
-	const texture_t& image;
 
-	 billboard_t( const glm::vec3& origin, const texture_t& image );
+	 billboard_t( const glm::vec3& origin );
 	~billboard_t( void );
+};
 
-	 void Render( void );
+//---------------------------------------------------------------------
+// pipline_t
+//---------------------------------------------------------------------
+
+struct pipeline_t
+{
+	using program_map_t = std::unordered_map< std::string, shader_program_t >;
+	using buffer_map_t = std::unordered_map< std::string, draw_buffer_t >;
+
+	program_map_t programs;
+	buffer_map_t drawBuffers;
+
+	pipeline_t( void );
 };
 
 } // namespace rend

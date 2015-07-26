@@ -12,7 +12,7 @@ static INLINE bool File_GetBuf( std::vector< T >& outBuffer, const std::string& 
 	fseek( f, 0, SEEK_SET );
 
 	outBuffer.resize( count, 0 );
-	fread( &outBuffer[ 0 ], sizeof( T ), count, f );
+    fread( &outBuffer[ 0 ], sizeof( T ), count, f );
 	fclose( f );
 
 	return true;

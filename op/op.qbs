@@ -15,6 +15,8 @@ Product {
     cpp.cxxFlags:[
         "-Wno-unused-function",
         "-Wno-unused-but-set-variable",
+        "-Wno-unused-result",
+        "-Wno-strict-aliasing",
         "-std=c++1y"
     ]
     cpp.linkerFlags: [
@@ -51,6 +53,14 @@ Product {
     ]
     files: [
         "../Makefile",
+        "../asset/shader/desktop/billboard.vert",
+        "../asset/shader/desktop/billboard.frag",
+        "../asset/shader/desktop/single_color.vert",
+        "../asset/shader/desktop/single_color.frag",
+        "../asset/shader/es/billboard.frag",
+        "../asset/shader/es/billboard.vert",
+        "../asset/shader/es/single_color.vert",
+        "../asset/shader/es/single_color.frag",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",

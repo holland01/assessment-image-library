@@ -38,8 +38,6 @@ bool Predicate( geom::bounding_box_t& bounds );
 
 namespace {
 
-using test_debug_draw_t = rend::debug_split_draw< geom::bounding_box_t, geom::bounding_box_t::draw_t >;
-
 struct app_t
 {
     bool running = false, mouseShown = true;
@@ -50,18 +48,12 @@ struct app_t
     uint32_t width, height;
 
 	std::unique_ptr< map::generator_t > gen;
-	std::unique_ptr< test_debug_draw_t > debugDraw;
-	std::unique_ptr< rend::draw_buffer_t< GL_TRIANGLES, GL_STATIC_DRAW > > triangle;
+	std::unique_ptr< rend::pipeline_t > pipeline;
 
 	GLuint globalVao;
 
-    rend::shader_program_t program;
-	rend::shader_program_t vertexPassThrough;	
-
     view::camera_t         camera;
 	view::frustum_t		   frustum;
-
-	glm::mat4			   viewModOrientation;
 
     app_t( uint32_t width, uint32_t height );
    ~app_t( void );
@@ -178,7 +170,6 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 app_t::app_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
 	  height( height_ ),
-	  viewModOrientation( 1.0f ),
 	  globalVao( 0 )
 {
 	SDL_Init( SDL_INIT_VIDEO );
@@ -223,63 +214,9 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	SDL_RenderPresent( renderer );
 
-	{
-#ifdef OP_GL_USE_ES
-		std::string vshader( GEN_SHADER(
-			attribute vec3 position;
-			//attribute vec4 color;
+	pipeline.reset( new rend::pipeline_t() );
 
-			varying vec4 frag_Color;
-
-			uniform vec4 color;
-			uniform mat4 modelToView;
-			uniform mat4 viewToClip;
-
-			void main( void )
-			{
-				gl_PointSize = 50.0;
-				gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
-				frag_Color = color;
-			}
-		) );
-
-		std::string fshader( GEN_SHADER(
-			varying vec4 frag_Color;
-			void main( void )
-			{
-				gl_FragColor = frag_Color;
-			}
-		) );
-#else
-		std::string vshader( GEN_SHADER(
-			in vec3 position;
-
-			smooth out vec4 frag_Color;
-
-			uniform vec4 color;
-			uniform mat4 modelToView;
-			uniform mat4 viewToClip;
-
-			void main( void )
-			{
-				gl_Position = viewToClip * modelToView * vec4( position, 1.0 );
-				frag_Color = color;
-			}
-		) );
-
-		std::string fshader( GEN_SHADER(
-			smooth in vec4 frag_Color;
-			out vec4 fragment;
-			void main( void )
-			{
-				fragment = frag_Color;
-			}
-		) );
-#endif //
-		program = std::move( rend::shader_program_t( vshader, fshader, { "color", "modelToView", "viewToClip" }, { "position" } ) );
-	}
-
-	rend::shader_program_t::LoadAttribLayout< rend::draw_vertex_t >( program );
+	const rend::shader_program_t& program = pipeline->programs[ "single_color" ];
 
 	program.Bind();
 
@@ -340,30 +277,38 @@ void App_Frame( void )
 
 	glm::mat4 view( app.camera.GetViewParams().transform );
 
+	const rend::shader_program_t& singleColor = app.pipeline->programs[ "single_color" ];
+	const rend::shader_program_t& billboard = app.pipeline->programs[ "billboard" ];
+
+	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers[ "colored_cube" ];
+	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers[ "billboard" ];
+
 	for ( map::tile_t& tile: app.gen->tiles )
 	{
 		if ( tile.bounds )
 		{
-			app.program.Bind();
-			app.program.LoadVec4( "color", tile.bounds->color );
-			app.program.LoadMat4( "modelToView", view * tile.bounds->transform );
-			tile.bounds->drawBuffer->Render( app.program );
-			app.program.Release();
+			singleColor.Bind();
+			singleColor.LoadVec4( "color", tile.bounds->color );
+			singleColor.LoadMat4( "modelToView", view * tile.bounds->transform );
+
+			coloredCube.Render( singleColor );
+
+			singleColor.Release();
 		}
 		else if ( tile.billboard )
 		{
-			rend::billboard_t::program->Bind();
+			billboard.Bind();
 
-			rend::billboard_t::program->LoadMat4( "modelToView", vp.transform );
-			rend::billboard_t::program->LoadMat4( "viewToClip", vp.clipTransform );
-			rend::billboard_t::program->LoadVec3( "origin", tile.billboard->origin );
-			rend::billboard_t::program->LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
+			billboard.LoadMat4( "modelToView", vp.transform );
+			billboard.LoadMat4( "viewToClip", vp.clipTransform );
+			billboard.LoadVec3( "origin", tile.billboard->origin );
+			billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 
-			app.gen->billTexture.Bind( 0, "image", *rend::billboard_t::program );
-
-			tile.billboard->Render();
+			app.gen->billTexture.Bind( 0, "image", billboard );
+			billboardBuffer.Render( billboard );
 			app.gen->billTexture.Release( 0 );
-			rend::billboard_t::program->Release();
+
+			billboard.Release();
 		}
 	}
 }
@@ -448,6 +393,7 @@ void FlagExit( void )
 	*runningPtr = false;
 }
 
+/*
 bool Predicate( geom::bounding_box_t& bounds )
 {
 	app_t& app = app_t::GetInstance();
@@ -466,6 +412,7 @@ bool Predicate( geom::bounding_box_t& bounds )
 
 	return intersects;
 }
+*/
 
 // SDL2 defines main as a macro for some reason on Windows
 #ifdef _WIN32
