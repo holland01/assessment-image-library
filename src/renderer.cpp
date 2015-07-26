@@ -501,23 +501,10 @@ void draw_buffer_t::Render( const shader_program_t& program ) const
 }
 
 //-------------------------------------------------------------------------------------------------
-// billboard_t
-//-------------------------------------------------------------------------------------------------
-
-billboard_t::billboard_t( const glm::vec3& origin_ )
-	: origin( origin_ )
-{
-}
-
-billboard_t::~billboard_t( void )
-{
-}
-
-//-------------------------------------------------------------------------------------------------
 // pipeline_t
 //-------------------------------------------------------------------------------------------------
 
-#ifdef OP_USE_GL_ES
+#ifdef OP_GL_USE_ES
 #	define OP_GLSL_SHADER_PREPEND "precision mediump float;\n"
 #	define OP_GLSL_SHADER_DIR "es"
 #else
@@ -546,6 +533,7 @@ namespace {
 }
 
 pipeline_t::pipeline_t( void )
+	: vao( 0 )
 {
 	std::array< program_def_t, 2 > defs =
 	{{
@@ -652,6 +640,21 @@ pipeline_t::pipeline_t( void )
 			drawBuffers[ def.name ] = std::move( draw_buffer_t( def.vertexData, def.indexData, def.mode, def.usage ) );
 		}
 	}
+
+#ifndef OP_GL_USE_ES
+	GL_CHECK( glGenVertexArrays( 1, &vao ) );
+	GL_CHECK( glBindVertexArray( vao ) );
+#endif
+}
+
+pipeline_t::~pipeline_t( void )
+{
+#ifndef OP_GL_USE_ES
+	if ( vao )
+	{
+		GL_CHECK( glDeleteVertexArrays( 1, &vao ) );
+	}
+#endif
 }
 
 } // namespace glrend

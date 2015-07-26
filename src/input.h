@@ -15,7 +15,8 @@ enum class input_key_t : uint32_t
     LSHIFT = 16,
     E = 69,
 	Q = 81,
-	R = 82
+	R = 82,
+	V
 #else
     ESC = SDLK_ESCAPE,
     W = SDLK_w,

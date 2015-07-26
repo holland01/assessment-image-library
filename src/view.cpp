@@ -1,6 +1,7 @@
 #include "view.h"
 #include "base.h"
 #include "geom.h"
+#include <glm/gtx/string_cast.hpp>
 
 static const float MOUSE_SENSE = 0.1f;
 
@@ -203,7 +204,12 @@ void camera_t::Update( void )
 
     viewParams.inverseOrient = glm::inverse( viewParams.orientation );
 
-	viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
+    viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
+}
+
+void camera_t::PrintOrigin( void ) const
+{
+    printf( "Origin: %s\n", glm::to_string( viewParams.origin ).c_str() );
 }
 
 //-------------------------------------------------------------------------------------------------------

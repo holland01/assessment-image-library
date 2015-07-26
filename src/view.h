@@ -76,7 +76,7 @@ public:
 
     const params_t& GetViewParams( void ) const;
 
-    friend class Test;
+    void PrintOrigin( void ) const;
 };
 
 INLINE glm::vec3 camera_t::Forward( void ) const
@@ -172,7 +172,7 @@ enum
 	FRUST_FAR       = 5
 };
 
-class frustum_t
+struct frustum_t
 {
 	geom::plane_t    frustPlanes[ FRUST_NUM_PLANES ];
 
@@ -183,8 +183,6 @@ class frustum_t
 	glm::mat4 mvp;
 
 	glm::vec4 CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin );
-
-public:
 
 	frustum_t( void );
 

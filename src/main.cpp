@@ -40,7 +40,7 @@ namespace {
 
 struct app_t
 {
-    bool running = false, mouseShown = true;
+	bool running = false, mouseShown = true, drawAll = false;
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_GLContext context = nullptr;
@@ -59,6 +59,7 @@ struct app_t
    ~app_t( void );
 
 	void ResetMap( void );
+	void ToggleCulling( void );
 
     static app_t& GetInstance( void );
 };
@@ -73,6 +74,7 @@ const std::unordered_map< std::string, input_key_t > emKeyMap =
     { "KeyE", input_key_t::E },
     { "KeyQ", input_key_t::Q },
 	{ "KeyR", input_key_t::R },
+	{ "KeyV", input_key_t::V },
     { "Escape", input_key_t::ESC },
     { "Space", input_key_t::SPACE },
     { "ShiftLeft", input_key_t::LSHIFT }
@@ -136,6 +138,12 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 				app.ResetMap();
 			}
 			break;
+		case input_key_t::V:
+			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
+			{
+				app.ToggleCulling();
+			}
+			break;
 		default:
 			CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
 			break;
@@ -174,15 +182,15 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, OP_GL_MAJOR_VERSION );
+	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, OP_GL_MINOR_VERSION );
+
+#ifndef OP_GL_USE_ES
 	SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 24 );
 	SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8 );
-
-#ifndef OP_GL_USE_ES
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
 #endif
 
@@ -206,9 +214,6 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo( renderer, &info );
-
-	GL_CHECK( glGenVertexArrays( 1, &globalVao ) );
-	GL_CHECK( glBindVertexArray( globalVao ) );
 
 	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
@@ -255,6 +260,51 @@ void app_t::ResetMap( void )
 	gen.reset( new map::generator_t() );
 }
 
+void app_t::ToggleCulling( void )
+{
+	drawAll = !drawAll;
+}
+
+void Draw_Group( const app_t& app,
+				 const view::params_t& vp,
+				 const std::vector< const map::tile_t* >& billboards,
+				 const std::vector< const map::tile_t* >& walls )
+{
+	const rend::shader_program_t& singleColor = app.pipeline->programs.at( "single_color" );
+	const rend::shader_program_t& billboard = app.pipeline->programs.at( "billboard" );
+
+	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers.at( "colored_cube" );
+	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
+
+	for ( const map::tile_t* tile: walls )
+	{
+		singleColor.Bind();
+		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform );
+
+		coloredCube.Render( singleColor );
+
+		singleColor.Release();
+	}
+
+	for ( const map::tile_t* tile: billboards )
+	{
+		billboard.Bind();
+
+		billboard.LoadMat4( "modelToView", vp.transform );
+		billboard.LoadMat4( "viewToClip", vp.clipTransform );
+		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
+		billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
+
+		app.gen->billTexture.Bind( 0, "image", billboard );
+		billboardBuffer.Render( billboard );
+		app.gen->billTexture.Release( 0 );
+
+		billboard.Release();
+	}
+
+}
+
 void App_Frame( void )
 {
     app_t& app = app_t::GetInstance();
@@ -275,41 +325,15 @@ void App_Frame( void )
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
-	glm::mat4 view( app.camera.GetViewParams().transform );
-
-	const rend::shader_program_t& singleColor = app.pipeline->programs[ "single_color" ];
-	const rend::shader_program_t& billboard = app.pipeline->programs[ "billboard" ];
-
-	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers[ "colored_cube" ];
-	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers[ "billboard" ];
-
-	for ( map::tile_t& tile: app.gen->tiles )
+	if ( app.drawAll )
 	{
-		if ( tile.bounds )
-		{
-			singleColor.Bind();
-			singleColor.LoadVec4( "color", tile.bounds->color );
-			singleColor.LoadMat4( "modelToView", view * tile.bounds->transform );
-
-			coloredCube.Render( singleColor );
-
-			singleColor.Release();
-		}
-		else if ( tile.billboard )
-		{
-			billboard.Bind();
-
-			billboard.LoadMat4( "modelToView", vp.transform );
-			billboard.LoadMat4( "viewToClip", vp.clipTransform );
-			billboard.LoadVec3( "origin", tile.billboard->origin );
-			billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
-
-			app.gen->billTexture.Bind( 0, "image", billboard );
-			billboardBuffer.Render( billboard );
-			app.gen->billTexture.Release( 0 );
-
-			billboard.Release();
-		}
+		Draw_Group( app, vp, app.gen->billboards, app.gen->walls );
+	}
+	else
+	{
+		std::vector< const map::tile_t* > billboards, walls;
+		app.gen->GetEntities( billboards, walls, app.frustum, vp );
+		Draw_Group( app, vp, billboards, walls );
 	}
 }
 
@@ -362,6 +386,9 @@ uint32_t App_Exec( void )
 						case SDLK_r:
 							app.ResetMap();
 							break;
+						case SDLK_v:
+							app.ToggleCulling();
+							break;
 
                         default:
                             app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
@@ -392,27 +419,6 @@ void FlagExit( void )
 {
 	*runningPtr = false;
 }
-
-/*
-bool Predicate( geom::bounding_box_t& bounds )
-{
-	app_t& app = app_t::GetInstance();
-
-	bool intersects = app.frustum.IntersectsBox( bounds );
-	if ( intersects )
-	{
-		bounds.SetDrawable( glm::vec4( 1.0f, 1.0f, 1.0f, 0.1f ) );
-	}
-	else
-	{
-		bounds.SetDrawable( glm::vec4( 0.5f, 0.0f, 1.0f, 0.1f ) );
-	}
-
-	app.program.LoadVec4( "color", bounds.color );
-
-	return intersects;
-}
-*/
 
 // SDL2 defines main as a macro for some reason on Windows
 #ifdef _WIN32

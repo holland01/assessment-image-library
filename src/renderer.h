@@ -341,19 +341,7 @@ struct debug_split_draw
 };
 
 //---------------------------------------------------------------------
-// billboard_t
-//---------------------------------------------------------------------
-
-struct billboard_t
-{
-	glm::vec3 origin;
-
-	 billboard_t( const glm::vec3& origin );
-	~billboard_t( void );
-};
-
-//---------------------------------------------------------------------
-// pipline_t
+// pipeline_t
 //---------------------------------------------------------------------
 
 struct pipeline_t
@@ -361,10 +349,12 @@ struct pipeline_t
 	using program_map_t = std::unordered_map< std::string, shader_program_t >;
 	using buffer_map_t = std::unordered_map< std::string, draw_buffer_t >;
 
+	GLuint vao;
 	program_map_t programs;
 	buffer_map_t drawBuffers;
 
 	pipeline_t( void );
+	~pipeline_t( void );
 };
 
 } // namespace rend
