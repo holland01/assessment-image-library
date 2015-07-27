@@ -174,7 +174,7 @@ static INLINE void FlipBytes( byte* out, const byte* src, int width, int height,
 texture_t::texture_t( void )
 	: srgb( false ), mipmap( false ),
       handle( 0 ),
-	  wrap( GL_REPEAT ), minFilter( GL_LINEAR ), magFilter( GL_LINEAR ),
+	  wrap( GL_CLAMP_TO_EDGE ), minFilter( GL_LINEAR ), magFilter( GL_LINEAR ),
 	  format( 0 ), internalFormat( 0 ), target( GL_TEXTURE_2D ), maxMip( 0 ),
 	  width( 0 ),
 	  height( 0 ),
@@ -221,9 +221,8 @@ void texture_t::Load2D( void )
 	if ( mipmap )
 	{
 		maxMip = Texture_CalcMipLevels2D< texture_t >( *this, width, height, 0 );
-
-		GL_CHECK( glGenerateMipmap( target ) );
 		minFilter = GL_LINEAR_MIPMAP_LINEAR;
+		GL_CHECK( glGenerateMipmap( target ) );
 	}
 	else
 	{
@@ -242,10 +241,10 @@ void texture_t::LoadSettings( void )
 	// For some reason setting this through SDL's GL ES context on the desktop (in Linux) causes really bad texture sampling to happen,
 	// regardless of the value passed. WTF?!
 
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, GL_LINEAR ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, GL_LINEAR ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, minFilter ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, magFilter ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, wrap ) );
+	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap ) );
 	
 	Release();
 }
@@ -253,17 +252,6 @@ void texture_t::LoadSettings( void )
 bool texture_t::LoadFromFile( const char* texPath )
 {
 	File_GetPixels( texPath, pixels, bpp, width, height );
-
-	/*
-	if ( bpp == 3 )
-	{
-		pixels.resize( width * height * 4, 255 ); 
-		Pixels_24BitTo32Bit( &pixels[ 0 ], &tmp[ 0 ], width * height );
-		bpp = 4;
-	}
-	else
-	{
-	}*/
 
 	if ( !DetermineFormats() )
 	{
@@ -566,6 +554,11 @@ pipeline_t::pipeline_t( void )
 
 		vertexBuf.insert( vertexBuf.begin(), prepend.c_str(), prepend.c_str() + prepend.length() );
 		fragmentBuf.insert( fragmentBuf.begin(), prepend.c_str(), prepend.c_str() + prepend.length() );
+
+		std::string vshader( &vertexBuf[ 0 ], vertexBuf.size() );
+		std::string fshader( &fragmentBuf[ 0 ], fragmentBuf.size() );
+
+		printf( "VERTEX: \n %s \n FRAGMENT: \n %s \n", vshader.c_str(), fshader.c_str() );
 
 		programs[ def.programName ] = std::move( shader_program_t( vertexBuf, fragmentBuf, def.uniforms, def.attribs ) );
 	}

@@ -53,6 +53,7 @@ tile_t::tile_t( void )
 
 generator_t::generator_t( void )
 {
+	billTexture.mipmap = true;
 	billTexture.LoadFromFile( "asset/mooninite.png" );
 	billTexture.Load2D();
 
@@ -103,24 +104,6 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 			}
 		}
 	}
-
-	// Do a world-space depth sort...
-
-	/*
-	std::sort( walls.begin(), walls.end(),
-	   []( const tile_t* a, const tile_t* b ) -> bool
-	   {
-		   return a->bounds->transform[ 3 ].z > b->bounds->transform[ 3 ].z;
-	   }
-	);
-
-	std::sort( billboards.begin(), billboards.end(),
-		[]( const tile_t* a, const tile_t* b ) -> bool
-		{
-			return a->origin.z > b->origin.z;
-		}
-	);
-	*/
 
 	return count;
 }

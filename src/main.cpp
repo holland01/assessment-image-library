@@ -50,8 +50,6 @@ struct app_t
 	std::unique_ptr< map::generator_t > gen;
 	std::unique_ptr< rend::pipeline_t > pipeline;
 
-	GLuint globalVao;
-
     view::camera_t         camera;
 	view::frustum_t		   frustum;
 
@@ -157,7 +155,7 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
     UNUSEDPARAM( eventType );
     UNUSEDPARAM( userData );
 
-    printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
+	//printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
 
     app_t& app = app_t::GetInstance();
 
@@ -177,8 +175,7 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 
 app_t::app_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
-	  height( height_ ),
-	  globalVao( 0 )
+	  height( height_ )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -215,7 +212,7 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo( renderer, &info );
 
-	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
+	GL_CHECK( glClearColor( 1.0f, 0.0f, 0.0f, 1.0f ) );
 
 	SDL_RenderPresent( renderer );
 
@@ -230,6 +227,8 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
 
 	program.Release();
+
+	GL_CHECK( glEnable( GL_TEXTURE_2D ) );
 
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );

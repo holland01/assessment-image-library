@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.4.2, 2015-07-26T00:51:46. -->
+<!-- Written by QtCreator 3.4.2, 2015-07-26T20:10:08. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -8,7 +8,7 @@
  </data>
  <data>
   <variable>ProjectExplorer.Project.ActiveTarget</variable>
-  <value type="int">1</value>
+  <value type="int">0</value>
  </data>
  <data>
   <variable>ProjectExplorer.Project.EditorSettings</variable>
@@ -69,7 +69,7 @@
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
      <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
       <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
-      <value type="QString" key="ProjectExplorer.ProcessStep.Arguments">make</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.Arguments">make DEBUG=1</value>
       <value type="QString" key="ProjectExplorer.ProcessStep.Command">emmake</value>
       <value type="QString" key="ProjectExplorer.ProcessStep.WorkingDirectory">/home/amstderdam/dev/proj/op/</value>
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Custom Process Step</value>
@@ -108,19 +108,12 @@
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
      <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
       <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName"></value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Qbs Build</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.BuildStep</value>
-      <value type="bool" key="Qbs.CleanInstallRoot">false</value>
-      <valuemap type="QVariantMap" key="Qbs.Configuration">
-       <value type="QString" key="qbs.buildVariant">release</value>
-       <value type="QString" key="qbs.profile">qtc_Emscript_65d54e4b</value>
-      </valuemap>
-      <value type="bool" key="Qbs.DryKeepGoing">false</value>
-      <value type="bool" key="Qbs.DryRun">false</value>
-      <value type="bool" key="Qbs.Install">true</value>
-      <value type="int" key="Qbs.MaxJobs">0</value>
-      <value type="bool" key="Qbs.ShowCommandLines">false</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.Arguments">make</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.Command">emmake</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.WorkingDirectory">/home/amstderdam/dev/proj/op/</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Custom Process Step</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.ProcessStep</value>
      </valuemap>
      <value type="int" key="ProjectExplorer.BuildStepList.StepsCount">1</value>
      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Build</value>
@@ -130,12 +123,12 @@
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.1">
      <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
       <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName"></value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Qbs Clean</value>
-      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.CleanStep</value>
-      <value type="bool" key="Qbs.CleanAll">true</value>
-      <value type="bool" key="Qbs.DryKeepGoing">false</value>
-      <value type="bool" key="Qbs.DryRun">false</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.Arguments">make clean</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.Command">emmake</value>
+      <value type="QString" key="ProjectExplorer.ProcessStep.WorkingDirectory">/home/amstderdam/dev/proj/op/</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Custom Process Step</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.ProcessStep</value>
      </valuemap>
      <value type="int" key="ProjectExplorer.BuildStepList.StepsCount">1</value>
      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Clean</value>
@@ -250,13 +243,15 @@
      <value type="int">13</value>
      <value type="int">14</value>
     </valuelist>
-    <value type="int" key="PE.EnvironmentAspect.Base">-1</value>
+    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">op</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">op2</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.RunConfiguration:op.qtc_Desktop__cbb42f77---Qbs.RC.NameSeparator---op</value>
-    <value type="QString" key="Qbs.RunConfiguration.CommandLineArguments"></value>
-    <value type="QString" key="Qbs.RunConfiguration.UserWorkingDirectory"></value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">/home/amstderdam/dev/proj/op/testbin.html</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">google-chrome</value>
+    <value type="bool" key="ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal">true</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">../</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Run google-chrome</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Chrome</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
@@ -299,15 +294,13 @@
      <value type="int">13</value>
      <value type="int">14</value>
     </valuelist>
-    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+    <value type="int" key="PE.EnvironmentAspect.Base">-1</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">/home/amstderdam/dev/proj/op/testbin.html</value>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">google-chrome</value>
-    <value type="bool" key="ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal">true</value>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">../</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Run google-chrome</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Chrome</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">op</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">op2</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.RunConfiguration:op.qtc_Desktop__cbb42f77---Qbs.RC.NameSeparator---op</value>
+    <value type="QString" key="Qbs.RunConfiguration.CommandLineArguments"></value>
+    <value type="QString" key="Qbs.RunConfiguration.UserWorkingDirectory"></value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
@@ -326,7 +319,7 @@
    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">qt.55.gcc_64_kit</value>
    <value type="int" key="ProjectExplorer.Target.ActiveBuildConfiguration">0</value>
    <value type="int" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
-   <value type="int" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
+   <value type="int" key="ProjectExplorer.Target.ActiveRunConfiguration">1</value>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/amstderdam/dev/proj/op/build-op-Desktop_Qt_5_5_0_GCC_64bit-Debug</value>
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
@@ -476,12 +469,13 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">op</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">op2</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.RunConfiguration:op.qtc_Desktop__cbb42f77---Qbs.RC.NameSeparator---op</value>
-    <value type="QString" key="Qbs.RunConfiguration.CommandLineArguments"></value>
-    <value type="bool" key="Qbs.RunConfiguration.UseTerminal">true</value>
-    <value type="QString" key="Qbs.RunConfiguration.UserWorkingDirectory">%{buildDir}/../</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">./op</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">optirun</value>
+    <value type="bool" key="ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal">true</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">%{buildDir}/qtc_Desktop__cbb42f77-release/install-root</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Run optirun</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
@@ -526,13 +520,11 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">./op</value>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">optirun</value>
-    <value type="bool" key="ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal">true</value>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">%{buildDir}/qtc_Desktop__cbb42f77-release/install-root</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Run optirun</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">op</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">op2</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.RunConfiguration:op.qtc_Desktop__cbb42f77---Qbs.RC.NameSeparator---op</value>
+    <value type="QString" key="Qbs.RunConfiguration.CommandLineArguments"></value>
+    <value type="QString" key="Qbs.RunConfiguration.UserWorkingDirectory">%{buildDir}/../</value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>

@@ -1,5 +1,4 @@
 VERBOSE=1
-DEBUG=1
 
 ifdef VERBOSE
         Q =
@@ -29,8 +28,15 @@ COMMONFLAGS = -Wall -Wextra -pedantic -Werror\
 LDFLAGS = --emrun 
 
 ifdef DEBUG
-        COMMONFLAGS := $(COMMONFLAGS) -g
+    COMMONFLAGS := $(COMMONFLAGS) -g
+else
+	RELEASE = 1
 endif
+
+ifdef RELEASE
+	LDFLAGS := $(LDFLAGS) -O2
+endif
+
 CFLAGS = $(COMMONFLAGS) -std=c99
 CXXFLAGS = $(COMMONFLAGS) -std=c++14
 DEPDIR = deps
@@ -70,7 +76,7 @@ Makefile.dep: $(CFILES) $(CXXFILES)
         
 $(BINFILE): $(OFILES)
 	$(E)Linking $@
-	$(Q)$(CXX) $(LDFLAGS) $(OFILES) ~/.emscripten_cache/ports-builds/sdl2/libsdl2.bc -o $@
+	$(Q)$(CXX) $(LDFLAGS) $(OFILES) ~/.emscripten_cache/ports-builds/sdl2/libsdl2.bc -o $@ --preload-file asset
 clean:
 	$(E)Removing files
 	$(Q)rm -rf obj/ 

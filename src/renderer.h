@@ -26,12 +26,6 @@
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 
-#ifdef OP_GL_USE_ES
-#	define GEN_SHADER( data ) "precision mediump float;\n"#data
-#else
-#   define GEN_SHADER( data ) "#version 330\n"#data
-#endif // EMSCRIPTEN
-
 #ifdef __DEBUG_RENDERER__
 #   define GL_CHECK( expr )\
         do\

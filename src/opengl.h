@@ -11,8 +11,8 @@
 #	define GL_RGBA8 GL_RGBA
 #else
 #	include <GL/glew.h>
-#	define OP_GL_MAJOR_VERSION 2
-#	define OP_GL_MINOR_VERSION 1
+#	define OP_GL_MAJOR_VERSION 3
+#	define OP_GL_MINOR_VERSION 3
 #endif
 
 
