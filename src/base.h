@@ -7,6 +7,7 @@
 #include <string>
 
 extern void FlagExit( void ); // should be defined by the user in a different source file
+extern float GetTime( void );
 
 bool File_GetPixels( const std::string& filepath, 
 	std::vector< uint8_t >& outBuffer, int32_t& outBpp, int32_t& outWidth, int32_t& outHeight );

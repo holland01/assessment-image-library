@@ -65,20 +65,29 @@ Product {
         "../src/base.h",
         "../src/base.inl",
         "../src/def.h",
+        "../src/eminput.cpp",
         "../src/geom.cpp",
         "../src/geom.h",
+        "../src/input.cpp",
         "../src/input.h",
         "../src/lib/stb_image.c",
         "../src/main.cpp",
         "../src/map.cpp",
         "../src/map.h",
         "../src/opengl.h",
+        "../src/physics.cpp",
+        "../src/physics.h",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",
         "../src/view.cpp",
         "../src/view.h",
     ]
+
+    Group {
+        condition: qbs.buildVariant == "debug"
+        cpp.defines: outer.concat(["DEBUG"])
+    }
 
     Group {     // Properties for the produced executable
         fileTagsFilter: product.type

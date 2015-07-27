@@ -47,7 +47,9 @@ namespace {
 namespace map {
 
 tile_t::tile_t( void )
-	: bounds( nullptr )
+	: bounds( nullptr ),
+	  type( tile_t::EMPTY ),
+	  x( 0 ), z( 0 )
 {
 }
 
@@ -125,12 +127,13 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 
 	tiles[ center ].bounds.reset( nullptr );
 	tiles[ center ].type = tile_t::EMPTY;
+	tiles[ center ].x = x;
+	tiles[ center ].z = z;
 
 	// Multiply x and z values by 2 to accomodate for bounds scaling on the axis
 	if ( isWall )
 	{
 		tiles[ center ].type = tile_t::WALL;
-
 		if ( pass == GEN_PASS_COUNT - 1 )
 		{
 			walls.push_back( &tiles[ center ] );
@@ -145,6 +148,14 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 			if ( pass == GEN_PASS_COUNT - 1 )
 			{
 				billboards.push_back( &tiles[ center ] );
+			}
+
+		}
+		else
+		{
+			if ( pass == GEN_PASS_COUNT - 1 )
+			{
+				freeSpace.push_back( &tiles[ center ] );
 			}
 		}
 	}

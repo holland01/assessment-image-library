@@ -8,14 +8,14 @@
 
 #include <iostream>
 #ifdef EMSCRIPTEN
-#   include <emscripten.h>
-#   include <html5.h>
+#	include "eminput.cpp"
 #endif
 
 #include "renderer.h"
 #include "geom.h"
-#include "view.h"
+#include "input.h"
 #include "map.h"
+#include "physics.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
@@ -34,11 +34,7 @@
 
 #define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
-bool Predicate( geom::bounding_box_t& bounds );
-
-namespace {
-
-struct app_t
+struct game_t
 {
 	bool running = false, mouseShown = true, drawAll = false;
     SDL_Window* window = nullptr;
@@ -50,130 +46,21 @@ struct app_t
 	std::unique_ptr< map::generator_t > gen;
 	std::unique_ptr< rend::pipeline_t > pipeline;
 
-    view::camera_t         camera;
-	view::frustum_t		   frustum;
+	geom::plane_t groundPlane;
 
-    app_t( uint32_t width, uint32_t height );
-   ~app_t( void );
+	input_client_t camera;
+	view::frustum_t	frustum;
+
+	game_t( uint32_t width, uint32_t height );
+   ~game_t( void );
 
 	void ResetMap( void );
 	void ToggleCulling( void );
 
-    static app_t& GetInstance( void );
+	static game_t& GetInstance( void );
 };
 
-#ifdef EMSCRIPTEN
-const std::unordered_map< std::string, input_key_t > emKeyMap =
-{
-    { "KeyW", input_key_t::W },
-    { "KeyS", input_key_t::S },
-    { "KeyA", input_key_t::A },
-    { "KeyD", input_key_t::D },
-    { "KeyE", input_key_t::E },
-    { "KeyQ", input_key_t::Q },
-	{ "KeyR", input_key_t::R },
-	{ "KeyV", input_key_t::V },
-    { "Escape", input_key_t::ESC },
-    { "Space", input_key_t::SPACE },
-    { "ShiftLeft", input_key_t::LSHIFT }
-};
-
-INLINE std::string EmscriptenResultFromEnum( int32_t result )
-{
-    switch ( result )
-    {
-        case EMSCRIPTEN_RESULT_SUCCESS: return "EMSCRIPTEN_RESULT_SUCCESS";
-        case EMSCRIPTEN_RESULT_DEFERRED: return "EMSCRIPTEN_RESULT_DEFERRED";
-        case EMSCRIPTEN_RESULT_NOT_SUPPORTED: return "EMSCRIPTEN_RESULT_NOT_SUPPORTED";
-        case EMSCRIPTEN_RESULT_FAILED_NOT_DEFERRED: "EMSCRIPTEN_RESULT_FAILED_NOT_DEFERRED";
-        case EMSCRIPTEN_RESULT_INVALID_TARGET: return "EMSCRIPTEN_RESULT_INVALID_TARGET";
-        case EMSCRIPTEN_RESULT_UNKNOWN_TARGET: return "EMSCRIPTEN_RESULT_UNKNOWN_TARGET";
-        case EMSCRIPTEN_RESULT_INVALID_PARAM: return "EMSCRIPTEN_RESULT_INVALID_PARAM";
-        case EMSCRIPTEN_RESULT_FAILED: return "EMSCRIPTEN_RESULT_FAILED";
-        case EMSCRIPTEN_RESULT_NO_DATA: return "EMSCRIPTEN_RESULT_NO_DATA";
-    }
-
-    return "EMSCRIPTEN_RESULT_UNDEFINED";
-}
-
-#define SET_CALLBACK_RESULT( expr )\
-    do\
-    {\
-        ret = ( expr );\
-        if ( ret != EMSCRIPTEN_RESULT_SUCCESS )\
-        {\
-            MLOG_ERROR( "Error setting emscripten function. Result returned: %s, Call expression: %s", EmscriptenResultFromEnum( ret ).c_str(), #expr );\
-        }\
-    }\
-    while( 0 )
-
-typedef void ( view::camera_t::*camKeyFunc_t )( input_key_t key );
-
-template< camKeyFunc_t cameraKeyFunc >
-INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* keyEvent, void* userData )
-{
-    UNUSEDPARAM( userData );
-
-    printf( "EMCode: %s, EMKey: %s\n", keyEvent->code, keyEvent->key );
-
-    app_t& app = app_t::GetInstance();
-
-    auto entry = emKeyMap.find( keyEvent->code );
-
-    if ( entry == emKeyMap.end() )
-    {
-        return 0;
-    }
-
-	switch ( entry->second )
-	{
-		case input_key_t::ESC:
-			app.running = false;
-			break;
-		case input_key_t::R:
-			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
-			{
-				app.ResetMap();
-			}
-			break;
-		case input_key_t::V:
-			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
-			{
-				app.ToggleCulling();
-			}
-			break;
-		default:
-			CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
-			break;
-	}
-
-    return 1;
-}
-
-EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent, void* userData )
-{
-    UNUSEDPARAM( eventType );
-    UNUSEDPARAM( userData );
-
-	//printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
-
-    app_t& app = app_t::GetInstance();
-
-    EmscriptenPointerlockChangeEvent pl;
-    emscripten_get_pointerlock_status( &pl );
-
-    bool activePl = !!pl.isActive;
-
-    if ( activePl )
-    {
-        app.camera.EvalMouseMove( ( float ) mouseEvent->movementX, ( float ) mouseEvent->movementY, false );
-    }
-
-    return 1;
-}
-#endif // EMSCRIPTEN
-
-app_t::app_t( uint32_t width_ , uint32_t height_ )
+game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
 	  height( height_ )
 {
@@ -219,52 +106,63 @@ app_t::app_t( uint32_t width_ , uint32_t height_ )
 	pipeline.reset( new rend::pipeline_t() );
 
 	const rend::shader_program_t& program = pipeline->programs[ "single_color" ];
-
 	program.Bind();
-
-	camera.SetViewOrigin( glm::vec3( 0.0f, 0.0f, 5.0f ) );
 	camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
 	program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
-
 	program.Release();
 
 	GL_CHECK( glEnable( GL_TEXTURE_2D ) );
-
 	GL_CHECK( glDisable( GL_CULL_FACE ) );
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
 	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
-
 	GL_CHECK( glEnable( GL_BLEND ) );
 	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 	gen.reset( new map::generator_t() );
 
+	glm::ivec2 min( INT_MAX ), max( INT_MIN );
+	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map::tile_t* a, const map::tile_t* b ) -> bool
+	{
+		glm::vec2 va( a->x, a->z ), vb( b->x, b->z );
+
+		return glm::length( va ) < glm::length( vb );
+	});
+	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
+	camera.body.position = glm::vec3( tile->x, 1000.0f, tile->z );
+
+	camera.body.initialForce = glm::vec3( 0.0f, -9.8, 0.0f );
+	camera.body.Reset();
+	camera.body.invMass = 1.0f / 100.0f;
+
+	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
+	groundPlane.d = 0.0f;
+
 	running = true;
 }
 
-app_t::~app_t( void )
+game_t::~game_t( void )
 {
 	SDL_Quit();
 }
 
-app_t& app_t::GetInstance( void )
+game_t& game_t::GetInstance( void )
 {
-	static app_t app( 1366, 768 );
+	static game_t app( 1366, 768 );
 	return app;
 }
 
-void app_t::ResetMap( void )
+void game_t::ResetMap( void )
 {
 	gen.reset( new map::generator_t() );
 }
 
-void app_t::ToggleCulling( void )
+void game_t::ToggleCulling( void )
 {
 	drawAll = !drawAll;
 }
 
-void Draw_Group( const app_t& app,
+void Draw_Group( const game_t& app,
 				 const view::params_t& vp,
 				 const std::vector< const map::tile_t* >& billboards,
 				 const std::vector< const map::tile_t* >& walls )
@@ -304,9 +202,16 @@ void Draw_Group( const app_t& app,
 
 }
 
+namespace  {
+	bool PointPlanePredicate( float value )
+	{
+		return value <= 0.0f;
+	}
+}
+
 void App_Frame( void )
 {
-    app_t& app = app_t::GetInstance();
+	game_t& app = game_t::GetInstance();
 
 #ifdef EMSCRIPTEN
     if ( !app.running )
@@ -317,9 +222,17 @@ void App_Frame( void )
 #endif
 
     app.camera.Update();
+	printf( "%s\n", app.camera.body.Info().c_str() );
+
+	std::array< glm::vec3, 8 > clipBounds;
+	app.camera.bounds.GetPoints( clipBounds );
+
+	if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
+	{
+		app.camera.body.initialForce.y = 0.01f;
+	}
 
 	const view::params_t& vp = app.camera.GetViewParams();
-
 	app.frustum.Update( vp );
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
@@ -342,16 +255,11 @@ static bool* runningPtr = nullptr;
 
 uint32_t App_Exec( void )
 {   
-    app_t& app = app_t::GetInstance();
+	game_t& app = game_t::GetInstance();
 	runningPtr = &app.running;
 
 #ifdef EMSCRIPTEN
-    int32_t ret;
-    SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyPress > ) );
-    SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyRelease > ) );
-    SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
-
-    emscripten_set_main_loop( ( em_callback_func )&App_Frame, 0, 1 );
+	InitEmInput();
 #else
     while ( app.running )
     {
@@ -390,13 +298,13 @@ uint32_t App_Exec( void )
 							break;
 
                         default:
-                            app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
+							app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                             break;
 
                     }
                     break;
                 case SDL_KEYUP:
-                    app.camera.EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
+					app.camera.EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
                     break;
                 case SDL_MOUSEMOTION:
                     if ( !app.mouseShown )
@@ -412,11 +320,14 @@ uint32_t App_Exec( void )
     return 0;
 }
 
-}
-
 void FlagExit( void )
 {
 	*runningPtr = false;
+}
+
+float GetTime( void )
+{
+	return ( float )SDL_GetTicks() * 0.001f;
 }
 
 // SDL2 defines main as a macro for some reason on Windows

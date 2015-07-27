@@ -1,50 +1,12 @@
 #include "view.h"
 #include "base.h"
 #include "geom.h"
-#include <glm/gtx/string_cast.hpp>
-
-static const float MOUSE_SENSE = 0.1f;
 
 #ifdef EMSCRIPTEN
 #	define DEFAULT_MOVE_STEP 0.1f
 #else
-#	define DEFAULT_MOVE_STEP 0.1f
+#	define DEFAULT_MOVE_STEP 0.005f
 #endif
-
-static INLINE void NormalizeRotation( glm::vec3& r )
-{
-    if ( r.x > 89.9f )
-    {
-        r.x -= 180.0f;
-    }
-    else if ( r.x < -89.9f )
-    {
-        r.x += 180.0f;
-    }
-
-    if ( r.y > 180.0f )
-    {
-        r.y -= 360.0f;
-    }
-    else if ( r.y < -180.0f )
-    {
-        r.y += 360.0f;
-    }
-}
-
-enum
-{
-    KEY_PRESSED = 1,
-    KEY_NOT_PRESSED = 0,
-    KEY_FORWARD = 0,
-    KEY_BACKWARD = 1,
-    KEY_LEFT = 2,
-    KEY_RIGHT = 3,
-    KEY_UP = 4,
-    KEY_DOWN = 5,
-    KEY_IN = 6,
-    KEY_OUT = 7
-};
 
 
 namespace view {
@@ -54,162 +16,12 @@ params_t::params_t( void )
       origin( 0.0f ),
       fovy( 0.0f ), aspect( 0.0f ), zNear( 0.0f ), zFar( 0.0f ),
       width( 0.0f ), height( 0.0f ),
+	  moveStep( DEFAULT_MOVE_STEP ),
       transform( 1.0f ),
       orientation( 1.0f ),
       inverseOrient( 1.0f ),
       clipTransform( 1.0f )
 {
-}
-
-camera_t::camera_t( void )
-    : camera_t( params_t(), glm::vec3( 0.0f ) )
-{
-}
-
-camera_t::camera_t( const params_t& view, const glm::vec3& currRot )
-    : viewParams( view ),
-      currRot( currRot ),
-      lastMouse( 0.0f ),
-	  moveStep( DEFAULT_MOVE_STEP )
-{
-    keysPressed.fill( 0 );
-}
-
-camera_t::camera_t( float width, float height, const glm::mat4& view, const glm::mat4& projection )
-{
-    viewParams.origin = glm::vec3( -view[ 3 ] );
-    viewParams.transform = view;
-    viewParams.clipTransform = projection;
-    viewParams.orientation = view;
-    viewParams.orientation[ 3 ] = glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f );
-    viewParams.inverseOrient = glm::inverse( viewParams.orientation );
-    viewParams.forward = Forward();
-    viewParams.up = Up();
-    viewParams.right = Right();
-    viewParams.width = width;
-    viewParams.height = height;
-}
-
-void camera_t::EvalMouseMove( float x, float y, bool calcRelative )
-{
-    if ( calcRelative )
-    {
-        currRot.x += ( y - lastMouse.y ) * MOUSE_SENSE;
-        currRot.y += ( x - lastMouse.x ) * MOUSE_SENSE;
-    }
-    else
-    {
-        currRot.x += y * MOUSE_SENSE;
-        currRot.y += x * MOUSE_SENSE;
-    }
-
-    lastMouse.x = x;
-    lastMouse.y = y;
-}
-
-void camera_t::EvalKeyPress( input_key_t key )
-{
-    switch( key )
-    {
-        case input_key_t::W:
-            keysPressed[ KEY_FORWARD ] = KEY_PRESSED;
-            break;
-
-        case input_key_t::S:
-            keysPressed[ KEY_BACKWARD ] = KEY_PRESSED;
-            break;
-
-        case input_key_t::A:
-            keysPressed[ KEY_LEFT ] = KEY_PRESSED;
-            break;
-
-        case input_key_t::D:
-            keysPressed[ KEY_RIGHT ] = KEY_PRESSED;
-            break;
-
-        case input_key_t::LSHIFT:
-            keysPressed[ KEY_DOWN ] = KEY_PRESSED;
-            break;
-
-        case input_key_t::SPACE:
-            keysPressed[ KEY_UP ] = KEY_PRESSED;
-            break;
-        case input_key_t::E:
-            keysPressed[ KEY_IN ] = KEY_PRESSED;
-            break;
-        case input_key_t::Q:
-            keysPressed[ KEY_OUT ] = KEY_PRESSED;
-            break;
-        default:
-            break;
-    }
-}
-
-void camera_t::EvalKeyRelease( input_key_t key )
-{
-    switch( key )
-    {
-        case input_key_t::W:
-            keysPressed[ KEY_FORWARD ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::S:
-            keysPressed[ KEY_BACKWARD ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::A:
-            keysPressed[ KEY_LEFT ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::D:
-            keysPressed[ KEY_RIGHT ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::LSHIFT:
-            keysPressed[ KEY_DOWN ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::SPACE:
-            keysPressed[ KEY_UP ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::E:
-            keysPressed[ KEY_IN ] = KEY_NOT_PRESSED;
-            break;
-        case input_key_t::Q:
-            keysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
-            break;
-        default:
-            break;
-
-    }
-}
-
-void camera_t::Update( void )
-{
-     NormalizeRotation( currRot );
-
-     lastRot = currRot;
-
-	 viewParams.forward = Forward();
-	 viewParams.right = Right();
-	 viewParams.up = Up();
-
-    if ( keysPressed[ KEY_FORWARD ] ) Walk( moveStep );
-    if ( keysPressed[ KEY_BACKWARD ] ) Walk( -moveStep );
-    if ( keysPressed[ KEY_RIGHT ] ) Strafe( moveStep );
-    if ( keysPressed[ KEY_LEFT ] ) Strafe( -moveStep );
-    if ( keysPressed[ KEY_UP ] ) Raise( moveStep );
-    if ( keysPressed[ KEY_DOWN ] ) Raise( -moveStep );
-    if ( keysPressed[ KEY_IN ] ) currRot.z += moveStep;
-    if ( keysPressed[ KEY_OUT ] ) currRot.z -= moveStep;
-
-	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-    viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( currRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
-
-    viewParams.inverseOrient = glm::inverse( viewParams.orientation );
-
-    viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
-}
-
-void camera_t::PrintOrigin( void ) const
-{
-    printf( "Origin: %s\n", glm::to_string( viewParams.origin ).c_str() );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -307,46 +119,25 @@ void frustum_t::Update( const view::params_t& view )
 
 // Adding plane[ 3 ] ( which is the distance from the plane to the origin ) offsets the plane so we can ensure that the point is in front of the plane normal
 
-#ifdef _DEBUG_FRUSTUM
-	static float F_PlaneSide( const glm::vec3& point, const geom::plane_t& plane )
+namespace {
+	bool PointPlanePredicate( float value )
 	{
-		float x = glm::dot( point, plane.normal ) - plane.d;
-
-		return x;
+		return value >= 0.0f;
 	}
-#else
-#	define F_PlaneSide( point, plane ) ( glm::dot( ( point ), ( plane ).normal ) - ( plane ).d )
-)
-#endif
+}
 
 bool frustum_t::IntersectsBox( const geom::bounding_box_t& box ) const
 {
-#define C(v) ( glm::vec3( ( v ) ) )
-
-	std::array< glm::vec3, 8 > clipBounds =
-	{{
-		C( box.Corner4( 0 ) ),
-		C( box.Corner4( 1 ) ),
-		C( box.Corner4( 2 ) ),
-		C( box.Corner4( 3 ) ),
-		C( box.Corner4( 4 ) ),
-		C( box.Corner4( 5 ) ),
-		C( box.Corner4( 6 ) ),
-		C( box.Corner4( 7 ) )
-	}};
-#undef C
+	std::array< glm::vec3, 8 > clipBounds;
+	box.GetPoints( clipBounds );
 
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-		if ( F_PlaneSide( clipBounds[ 0 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 1 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 2 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 3 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 4 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 5 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 6 ], frustPlanes[ i ] ) >= 0 ) continue;
-		if ( F_PlaneSide( clipBounds[ 7 ], frustPlanes[ i ] ) >= 0 ) continue;
+		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
+		{
+			continue;
+		}
 
 		rejectCount++;
 		return false;

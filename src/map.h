@@ -21,6 +21,7 @@ struct tile_t
 
 	std::unique_ptr< geom::bounding_box_t > bounds;
     type_t type;
+	int32_t x, z;
 
 	tile_t( void );
 };
@@ -31,6 +32,7 @@ struct generator_t
 
     std::vector< const tile_t* > billboards;
     std::vector< const tile_t* > walls;
+	std::vector< const tile_t* > freeSpace;
 
 	rend::texture_t billTexture;
 

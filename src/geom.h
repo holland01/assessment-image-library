@@ -15,8 +15,26 @@ struct plane_t
     glm::vec3   normal;
 };
 
+using point_predicate_t = bool ( * )( float );
+
+template < size_t N, point_predicate_t predicate >
+static INLINE bool PointPlaneTest( const std::array< glm::vec3, N >& points, const plane_t& plane )
+{
+    for ( const glm::vec3& p: points )
+    {
+        float x = glm::dot( p, plane.normal ) - plane.d;
+
+        if ( ( *predicate )( x ) )
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 //-------------------------------------------------------------------------------------------------------
-// AABB
+// bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
 struct bounding_box_t
@@ -99,6 +117,8 @@ struct bounding_box_t
 
     void			SetDrawable( const glm::vec4& color );
 
+    void            GetPoints( std::array< glm::vec3, 8 >& points ) const;
+
 	static void		FromTransform( bounding_box_t& box, const glm::mat4& transform );
 
 	static void		FromPoints( bounding_box_t& box, const glm::vec3 p[], int32_t n );
@@ -147,8 +167,17 @@ INLINE bool bounding_box_t::InZRange( const glm::vec3& v ) const
 #endif
 }
 
-
-
+INLINE void bounding_box_t::GetPoints( std::array< glm::vec3, 8 >& points ) const
+{
+    points[ 0 ] = Corner( 0 );
+    points[ 1 ] = Corner( 1 );
+    points[ 2 ] = Corner( 2 );
+    points[ 3 ] = Corner( 3 );
+    points[ 4 ] = Corner( 4 );
+    points[ 5 ] = Corner( 5 );
+    points[ 6 ] = Corner( 6 );
+    points[ 7 ] = Corner( 7 );
+}
 
 }
 
