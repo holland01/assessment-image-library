@@ -97,17 +97,20 @@ INLINE glm::vec3 input_client_t::Up( void ) const
 
 INLINE void input_client_t::Walk( float amount )
 {
-	body.forceAccum += viewParams.forward * amount;
+	viewParams.origin += viewParams.forward * amount;
+	//body.forceAccum += viewParams.forward * amount;
 }
 
 INLINE void input_client_t::Strafe( float amount )
 {
+	viewParams.origin += viewParams.right * amount;
 	body.forceAccum += viewParams.right * amount;
 }
 
 INLINE void input_client_t::Raise( float amount )
 {
-	body.forceAccum += viewParams.up * amount;
+	viewParams.origin += viewParams.up * amount;
+	//body.forceAccum += viewParams.up * amount;
 }
 
 INLINE void input_client_t::SetPerspective( float fovy, float width, float height, float zNear, float zFar )

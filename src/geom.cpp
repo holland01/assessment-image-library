@@ -218,18 +218,24 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 	{
 		glm::vec3 originToP( p - halfSpace.origin );
 
-		if ( glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] ) ) != 0.0f )
+		float d = glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] ) );
+
+		// We give ourselves some wiggle room; if we're less than 1.5 then we just project the point onto the half-space plane.
+		if ( glm::abs( d ) >= 0.5f  )
 		{
 			continue;
 		}
 
-		glm::vec3 rightToP( p - halfSpace.extents[ 0 ] );
+		float dist = glm::dot( originToP, halfSpace.extents[ 2 ] );
+		glm::vec3 projP( p - halfSpace.extents[ 2 ] * dist );
+
+		glm::vec3 rightToP( projP - halfSpace.extents[ 0 ] );
 		if ( glm::dot( rightToP, -halfSpace.extents[ 0 ] ) < 0.0f )
 		{
 			continue;
 		}
 
-		glm::vec3 upToP( p - halfSpace.extents[ 1 ] );
+		glm::vec3 upToP( projP - halfSpace.extents[ 1 ] );
 		if ( glm::dot( upToP, -halfSpace.extents[ 1 ] ) < 0.0f )
 		{
 			continue;

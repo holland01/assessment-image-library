@@ -19,6 +19,7 @@ struct half_space_t
 {
 	glm::mat3 extents;
 	glm::vec3 origin;
+	float distance;
 };
 
 using point_predicate_t = bool ( * )( float );

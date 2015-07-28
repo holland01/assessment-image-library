@@ -263,6 +263,7 @@ bool generator_t::CollidesWall( const tile_t& t,
 			hs.extents[ 1 ] = upAxis;
 			hs.extents[ 2 ] = halfSpaceNormals[ i ];
 			hs.origin = std::move( boundsOrigin + halfSpaceNormals[ i ] * halfSize );
+			hs.distance = glm::dot( hs.extents[ 2 ], hs.origin );
 
 			if ( bounds.IntersectsHalfSpace( hs ) )
 			{

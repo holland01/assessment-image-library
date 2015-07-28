@@ -176,8 +176,8 @@ void input_client_t::Update( void )
 	body.Integrate();
 	body.Reset();
 
-	viewParams.origin = body.position;
-	bounds.transform[ 3 ] = glm::vec4( body.position, 1.0f );
+	//viewParams.origin = body.position;
+	bounds.transform[ 3 ] =  glm::vec4( viewParams.origin, 1.0f );
 
 	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( viewParams.currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );

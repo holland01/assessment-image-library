@@ -128,7 +128,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 		return glm::length( va ) < glm::length( vb );
 	});
 	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
-	camera.body.position = glm::vec3( tile->x, 1000.0f, tile->z );
+	camera.body.position = glm::vec3( tile->x, 0.0f, tile->z );
 
 	camera.body.initialForce = glm::vec3( 0.0f, -9.8, 0.0f );
 	camera.body.Reset();
@@ -208,17 +208,20 @@ void Draw_Group( const game_t& app,
 	{
 		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
 
+		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform  );
 		coloredCube.Render( singleColor );
 
-		glm::vec3 collideNormal;
-		if ( app.gen->CollidesWall( *tile, app.camera.bounds, collideNormal ) )
+
+	//	if ( glm::distance( vp.origin, glm::vec3( tile->bounds->transform[ 3 ] ) ) <= 1.5f )
 		{
-			printf( "YES: %iu\n", ++yesCount );
+			glm::vec3 collideNormal;
+			if ( app.gen->CollidesWall( *tile, app.camera.bounds, collideNormal ) )
+			{
+				printf( "YES: %iu\n", ++yesCount );
+			}
 		}
 
-		/*
-		singleColor.LoadVec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
 		if ( tile->halfSpaceIndex >= 0 )
 		{
 			const std::array< int8_t, map::generator_t::NUM_FACES >& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
@@ -236,7 +239,6 @@ void Draw_Group( const game_t& app,
 				}
 			}
 		}
-		*/
 	}
 	singleColor.Release();
 
