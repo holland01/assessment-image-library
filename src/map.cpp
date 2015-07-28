@@ -235,20 +235,20 @@ namespace {
 	}
 }
 
-bool generator_t::CollidesWall( const tile_t* t,
+bool generator_t::CollidesWall( const tile_t& t,
 								const geom::bounding_box_t& bounds,
 								glm::vec3& outNormal )
 {
-	if ( t->halfSpaceIndex < 0 )
+	if ( t.halfSpaceIndex < 0 )
 	{
 		return false;
 	}
 
-	const std::array< int8_t, NUM_FACES >& halfSpaceFaces = halfSpaceTable[ t->halfSpaceIndex ];
+	const std::array< int8_t, NUM_FACES >& halfSpaceFaces = halfSpaceTable[ t.halfSpaceIndex ];
 
-	glm::vec3 upAxis( bounds.transform[ 1 ] );
-	glm::vec3 boundsOrigin( bounds.transform[ 3 ] );
-	glm::vec3 halfSize( bounds.GetSize() * 0.5f );
+	glm::vec3 upAxis( t.bounds->transform[ 1 ] );
+	glm::vec3 boundsOrigin( t.bounds->transform[ 3 ] );
+	glm::vec3 halfSize( t.bounds->GetSize() * 0.5f );
 
 	for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
 	{

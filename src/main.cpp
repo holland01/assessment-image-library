@@ -161,13 +161,19 @@ void game_t::ToggleCulling( void )
 	drawAll = !drawAll;
 }
 
-static std::array< glm::vec4, 4 > colors =
+namespace {
+
+std::array< glm::vec4, 4 > colors =
 {{
 	glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ),
 	glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ),
 	glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ),
 	glm::vec4( 1.0f, 1.0f, 0.0f, 1.0f )
 }};
+
+uint32_t yesCount = 0;
+
+}
 
 void Draw_Group( const game_t& app,
 				 const view::params_t& vp,
@@ -197,14 +203,21 @@ void Draw_Group( const game_t& app,
 	};
 
 	singleColor.Bind();
+	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const map::tile_t* tile: walls )
 	{
-		LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
+		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
 
-		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform  );
 		coloredCube.Render( singleColor );
 
+		glm::vec3 collideNormal;
+		if ( app.gen->CollidesWall( *tile, app.camera.bounds, collideNormal ) )
+		{
+			printf( "YES: %iu\n", ++yesCount );
+		}
+
+		/*
 		singleColor.LoadVec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
 		if ( tile->halfSpaceIndex >= 0 )
 		{
@@ -223,20 +236,20 @@ void Draw_Group( const game_t& app,
 				}
 			}
 		}
+		*/
 	}
 	singleColor.Release();
 
+	billboard.Bind();
+	billboard.LoadMat4( "modelToView", vp.transform );
+	billboard.LoadMat4( "viewToClip", vp.clipTransform );
+	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 	for ( const map::tile_t* tile: billboards )
 	{
-		singleColor.Bind();
-		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.5f, 0.0f ) );
+		//singleColor.Bind();
+		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.5f, 0.0f ) );
 
-		billboard.Bind();
-
-		billboard.LoadMat4( "modelToView", vp.transform );
-		billboard.LoadMat4( "viewToClip", vp.clipTransform );
 		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
-		billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 
 		app.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
@@ -272,7 +285,7 @@ void App_Frame( void )
 #endif
 
     app.camera.Update();
-	printf( "%s\n", app.camera.body.Info().c_str() );
+	//printf( "%s\n", app.camera.body.Info().c_str() );
 
 	std::array< glm::vec3, 8 > clipBounds;
 	app.camera.bounds.GetPoints( clipBounds );

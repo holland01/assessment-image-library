@@ -6,7 +6,8 @@
 namespace phys {
 
 body_t::body_t( void )
-	: invMass( 0.0f ),
+	: lastTime( 0.0f ),
+	  invMass( 0.0f ),
 	  position( 0.0f ),
 	  velocity( 0.0f ),
 	  forceAccum( 0.0f ),
@@ -18,10 +19,12 @@ void body_t::Integrate( void )
 {
 	glm::vec3 accel( forceAccum * invMass );
 
-	float time = GetTime();
+	float t = GetTime();
 
-	velocity = accel * time;
-	position += velocity * time;
+	glm::vec3 v( velocity + accel * t );
+	position += v * t;
+
+	lastTime = t;
 }
 
 std::string body_t::Info( void ) const

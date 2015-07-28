@@ -218,7 +218,7 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 	{
 		glm::vec3 originToP( p - halfSpace.origin );
 
-		if ( glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 2 ] ) ) != 0.0f )
+		if ( glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] ) ) != 0.0f )
 		{
 			continue;
 		}
