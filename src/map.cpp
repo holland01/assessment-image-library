@@ -18,8 +18,7 @@ namespace {
 						  1.0f );
 	}
 
-	const uint32_t GRID_SIZE = 100;
-	const uint32_t GEN_PASS_COUNT = 5;
+	const int32_t GEN_PASS_COUNT = 5;
 
 	std::array< std::function< bool( uint32_t ) >, 4 > predicates =
 	{{
@@ -49,11 +48,18 @@ namespace map {
 tile_t::tile_t( void )
 	: bounds( nullptr ),
 	  type( tile_t::EMPTY ),
-	  x( 0 ), z( 0 )
+	  x( 0 ), z( 0 ),
+	  halfSpaceIndex( -1 )
 {
 }
 
 generator_t::generator_t( void )
+	: halfSpaceNormals( {
+			glm::vec3( -1.0f, 0.0f, 0.0f ),
+			glm::vec3( 0.0f, 0.0f, -1.0f ),
+			glm::vec3( 1.0f, 0.0f, 0.0f ),
+			glm::vec3( 0.0f, 0.0f, 1.0f )
+	  } )
 {
 	billTexture.mipmap = true;
 	billTexture.LoadFromFile( "asset/mooninite.png" );
@@ -61,21 +67,69 @@ generator_t::generator_t( void )
 
 	tiles.resize( GRID_SIZE * GRID_SIZE );
 
+	// used to compute half-spaces
+	std::vector< tile_t* > mutWalls;
+
 	for ( uint32_t pass = 0; pass < GEN_PASS_COUNT; ++pass )
 	{
 		for ( uint32_t z = 0; z < GRID_SIZE; ++z )
 		{
 			for ( uint32_t x = 0; x < GRID_SIZE; ++x )
 			{
-				SetTile( pass, x, z );
+				SetTile( pass, x, z, mutWalls );
 			}
 		}
 	}
-}
 
-uint32_t generator_t::Mod( uint32_t x, uint32_t z ) const
-{
-	return ( z % GRID_SIZE ) * GRID_SIZE + x % GRID_SIZE;
+	// Iterate through each wall; any adjacent
+	// tiles which aren't also walls will allow
+	// for this wall to have a half-space
+	// for the corresponding face.
+	for ( tile_t* wall: mutWalls )
+	{
+		// NOTE: While most of the generation appears to work, some half-spaces are being
+		// produced in areas they shouldn't be...
+
+		std::array< int8_t, NUM_FACES > halfSpaces;
+		halfSpaces.fill( 0 );
+
+		int32_t left = TileModIndex( wall->x - 1, wall->z );
+		int32_t forward = TileModIndex( wall->x, wall->z - 1 );
+		int32_t right = TileModIndex( wall->x + 1, wall->z );
+		int32_t back = TileModIndex( wall->x, wall->z + 1 );
+
+		bool hasHalfSpace = false;
+
+		if ( tiles[ left ].type != tile_t::WALL && ( wall->x - 1 ) >= 0 )
+		{
+			halfSpaces[ FACE_LEFT ] = 1;
+			hasHalfSpace = true;
+		}
+
+		if ( tiles[ forward ].type != tile_t::WALL && ( wall->z - 1 ) >= 0 )
+		{
+			halfSpaces[ FACE_FORWARD ] = 1;
+			hasHalfSpace = true;
+		}
+
+		if ( tiles[ right ].type != tile_t::WALL && ( wall->x + 1 ) < GRID_SIZE )
+		{
+			halfSpaces[ FACE_RIGHT ] = 1;
+			hasHalfSpace = true;
+		}
+
+		if ( tiles[ back ].type != tile_t::WALL && ( wall->z + 1 ) < GRID_SIZE )
+		{
+			halfSpaces[ FACE_BACK ] = 1;
+			hasHalfSpace = true;
+		}
+
+		if ( hasHalfSpace )
+		{
+			wall->halfSpaceIndex = halfSpaceTable.size();
+			halfSpaceTable.push_back( std::move( halfSpaces ) );
+		}
+	}
 }
 
 uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
@@ -98,9 +152,9 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 	{
 		for ( uint32_t ix = x; ix < ex; ++ix )
 		{
-			uint32_t i = Mod( ix, iz );
+			uint32_t i = TileModIndex( ix, iz );
 
-			if ( tiles[ i ].bounds )
+			if ( tiles[ i ].type != tile_t::EMPTY )
 			{
 				count++;
 			}
@@ -110,10 +164,10 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 	return count;
 }
 
-void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
+void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<tile_t*>& mutWalls )
 {
 	bool isWall;
-	uint32_t center = z * GRID_SIZE + x;
+	uint32_t center = TileIndex( x, z );
 	const float size = 1.0f;
 
 	if ( pass == 0 )
@@ -137,6 +191,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 		if ( pass == GEN_PASS_COUNT - 1 )
 		{
 			walls.push_back( &tiles[ center ] );
+			mutWalls.push_back( &tiles[ center ] );
 		}
 	}
 	else
@@ -160,7 +215,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 		}
 	}
 
-	if ( tiles[ center ].type != tile_t::EMPTY )
+	//if ( tiles[ center ].type != tile_t::EMPTY )
 	{
 		glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
@@ -170,16 +225,59 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z )
 													 glm::vec3( -1.0f ),
 													 t * s,
 													 true ) );
-
-		if ( isWall )
-		{
-			tiles[ center ].bounds->SetDrawable( RandomColor() );
-		}
 	}
 }
 
-void generator_t::GetEntities( std::vector< const tile_t* >& billboards,
-							   std::vector< const tile_t* >& walls,
+namespace {
+	bool Predicate_TileCollide( float value )
+	{
+		return value <= 0.0f && value >= -1.0f;
+	}
+}
+
+bool generator_t::CollidesWall( const tile_t* t,
+								const geom::bounding_box_t& bounds,
+								glm::vec3& outNormal )
+{
+	if ( t->halfSpaceIndex < 0 )
+	{
+		return false;
+	}
+
+	const std::array< int8_t, NUM_FACES >& halfSpaceFaces = halfSpaceTable[ t->halfSpaceIndex ];
+
+	glm::vec3 upAxis( bounds.transform[ 1 ] );
+	glm::vec3 boundsOrigin( bounds.transform[ 3 ] );
+	glm::vec3 halfSize( bounds.GetSize() * 0.5f );
+
+	for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
+	{
+		// Find the matrix of the half-space.
+		// offset its translation in the direction of the vector MULTIPLIED
+		// by the bounds size vector
+		if ( halfSpaceFaces[ i ] )
+		{
+			geom::half_space_t hs;
+
+			hs.extents[ 0 ] = std::move( glm::cross( halfSpaceNormals[ i ], upAxis ) );
+			hs.extents[ 1 ] = upAxis;
+			hs.extents[ 2 ] = halfSpaceNormals[ i ];
+			hs.origin = std::move( boundsOrigin + halfSpaceNormals[ i ] * halfSize );
+
+			if ( bounds.IntersectsHalfSpace( hs ) )
+			{
+				outNormal = halfSpaceNormals[ i ];
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
+							   std::vector< const tile_t* >& outWalls,
+							   std::vector< const tile_t* >& outFreeSpace,
 							   const view::frustum_t& frustum,
 							   const view::params_t& viewParams ) const
 {
@@ -211,12 +309,7 @@ void generator_t::GetEntities( std::vector< const tile_t* >& billboards,
 				break;
 			}
 
-			int32_t index = Mod( x, z );
-
-			if ( tiles[ index ].type == tile_t::EMPTY )
-			{
-				continue;
-			}
+			int32_t index = TileModIndex( x, z );
 
 			if ( !frustum.IntersectsBox( *tiles[ index ].bounds ) )
 			{
@@ -226,13 +319,14 @@ void generator_t::GetEntities( std::vector< const tile_t* >& billboards,
 			switch ( tiles[ index ].type )
 			{
 				case tile_t::BILLBOARD:
-					billboards.push_back( &tiles[ index ] );
+					outBillboards.push_back( &tiles[ index ] );
 					break;
 				case tile_t::WALL:
-					walls.push_back( &tiles[ index ] );
+					outWalls.push_back( &tiles[ index ] );
 					break;
-				default:
-					break; // prevent compiler from bitching
+				case tile_t::EMPTY:
+					outFreeSpace.push_back( &tiles[ index ] );
+					break;
 			}
 			// cull frustum, insert into appropriate type, etc.
 		}

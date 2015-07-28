@@ -140,24 +140,24 @@ glm::vec3 bounding_box_t::GetMinRelativeToNormal( const glm::vec3 &normal ) cons
 }
 
 
-glm::vec3 bounding_box_t::Center( void ) const
+glm::vec3 bounding_box_t::GetCenter( void ) const
 {
     const glm::vec3& p = ( maxPoint + minPoint );
 
     return p / 2.0f;
 }
 
-glm::vec3 bounding_box_t::Size( void ) const
+glm::vec3 bounding_box_t::GetSize( void ) const
 {
     return maxPoint - minPoint;
 }
 
-glm::vec3 bounding_box_t::Radius( void ) const
+glm::vec3 bounding_box_t::GetRadius( void ) const
 {
-    return maxPoint - Center();
+	return maxPoint - GetCenter();
 }
 
-glm::vec3 bounding_box_t::Corner( int index ) const
+glm::vec3 bounding_box_t::GetCorner( int index ) const
 {
     assert( index >= 0 );
     assert( index <= 7 );
@@ -198,6 +198,48 @@ bool bounding_box_t::InPointRange( float k ) const
 {
     return ( maxPoint.x >= k && maxPoint.y >= k && maxPoint.z >= k )
         && ( minPoint.x <= k && minPoint.y <= k && minPoint.z <= k );
+}
+
+
+// test for a scalar triple product between the direction
+// from the translation origin to the point to test; if it's not 0 (or within an arbitrary range, if desired), then the point
+// isn't in the same plane and therefore fails.
+// Otherwise, take the direction from the right axis of the half-space to the point.
+// Then, negate the right axis and dot it with the direction just computed. If the result
+// is less than zero, point is not within the half-space - test fails. Perform
+// the same process with the point against the up axis.
+// If these 3 tests pass, we has a winrar.
+bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
+{
+	std::array< glm::vec3, 8 > points;
+	GetPoints( points );
+
+	for ( const glm::vec3& p: points )
+	{
+		glm::vec3 originToP( p - halfSpace.origin );
+
+		if ( glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 2 ] ) ) != 0.0f )
+		{
+			continue;
+		}
+
+		glm::vec3 rightToP( p - halfSpace.extents[ 0 ] );
+		if ( glm::dot( rightToP, -halfSpace.extents[ 0 ] ) < 0.0f )
+		{
+			continue;
+		}
+
+		glm::vec3 upToP( p - halfSpace.extents[ 1 ] );
+		if ( glm::dot( upToP, -halfSpace.extents[ 1 ] ) < 0.0f )
+		{
+			continue;
+		}
+
+		// winrar
+		return true;
+	}
+
+	return false;
 }
 
 // Find the closest 3 faces
@@ -315,19 +357,19 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
             plane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
 		case bounding_box_t::FACE_FRONT:
-			p = Corner( CORNER_NEAR_UP_RIGHT );
+			p = GetCorner( CORNER_NEAR_UP_RIGHT );
             plane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
 		case bounding_box_t::FACE_LEFT:
-			p = Corner( CORNER_NEAR_UP_LEFT );
+			p = GetCorner( CORNER_NEAR_UP_LEFT );
             plane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
 		case bounding_box_t::FACE_BACK:
-			p = Corner( CORNER_FAR_UP_LEFT );
+			p = GetCorner( CORNER_FAR_UP_LEFT );
             plane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
 		case bounding_box_t::FACE_BOTTOM:
-            p = Corner( CORNER_NEAR_DOWN_RIGHT );
+			p = GetCorner( CORNER_NEAR_DOWN_RIGHT );
             plane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
     }

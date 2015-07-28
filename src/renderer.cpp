@@ -419,25 +419,37 @@ load_blend_t::~load_blend_t( void )
 //---------------------------------------------------------------------
 
 draw_buffer_t::draw_buffer_t( void )
+	: vbo(	[]( void ) -> GLuint
+			{
+				GLuint buf;
+				GL_CHECK( glGenBuffers( 1, &buf ) );
+				return buf;
+			}() ),
+	  ibo( 0 ),
+	  count( 0 ),
+	  mode( 0 ),
+	  usage( 0 )
 {
 }
 
 draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
-							  GLenum mode_, GLenum usage )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+							  GLenum mode_, GLenum usage_ )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
 	  ibo( 0 ),
 	  count( ( GLsizei ) vertexData.size() ),
-	  mode( mode_ )
+	  mode( mode_ ),
+	  usage( usage_ )
 {
 }
 
 draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
 							  const std::vector< GLuint >& indexData,
-							  GLenum mode_, GLenum usage )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage ) ),
+							  GLenum mode_, GLenum usage_ )
+	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
 	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
 	  count( ( GLsizei ) indexData.size() ),
-	  mode( mode_ )
+	  mode( mode_ ),
+	  usage( usage_ )
 {
 }
 
@@ -449,6 +461,7 @@ draw_buffer_t::draw_buffer_t( draw_buffer_t&& buffer )
 draw_buffer_t::~draw_buffer_t( void )
 {
 	DeleteBufferObject( GL_ARRAY_BUFFER, vbo );
+	DeleteBufferObject( GL_ELEMENT_ARRAY_BUFFER, ibo );
 }
 
 draw_buffer_t& draw_buffer_t::operator= ( draw_buffer_t&& buffer )
@@ -469,9 +482,41 @@ draw_buffer_t& draw_buffer_t::operator= ( draw_buffer_t&& buffer )
 	return *this;
 }
 
-void draw_buffer_t::Render( const shader_program_t& program ) const
+void draw_buffer_t::Bind( void ) const
 {
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+}
+
+void draw_buffer_t::Release( void ) const
+{
+	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+void draw_buffer_t::ReallocVertices( const std::vector< draw_vertex_t >& vertexData )
+{
+	Bind();
+	GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( draw_vertex_t ) * vertexData.size(), &vertexData[ 0 ], usage ) );
+	Release();
+
+	if ( !ibo )
+	{
+		count = vertexData.size();
+	}
+}
+
+void draw_buffer_t::Update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex ) const
+{
+	Bind();
+	GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER,
+							   ( GLintptr )( vertexOffsetIndex * sizeof( draw_vertex_t ) ),
+							   sizeof( draw_vertex_t ) * vertexData.size(),
+							   &vertexData[ 0 ] ) );
+	Release();
+}
+
+void draw_buffer_t::Render( const shader_program_t& program ) const
+{
+	Bind();
 	shader_program_t::LoadAttribLayout< draw_vertex_t >( program );
 
 	if ( ibo )
@@ -484,9 +529,53 @@ void draw_buffer_t::Render( const shader_program_t& program ) const
 	{
 		GL_CHECK( glDrawArrays( mode, 0, count ) );
 	}
-
-	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+	Release();
 }
+
+//-------------------------------------------------------------------------------------------------
+// imm_draw_t
+//-------------------------------------------------------------------------------------------------
+
+std::unique_ptr< draw_buffer_t > imm_draw_t::buffer( nullptr );
+
+imm_draw_t::imm_draw_t( const shader_program_t& prog )
+	  : lastSize( 0 ),
+		program( prog )
+{
+}
+
+void imm_draw_t::Begin( GLenum mode )
+{
+	if ( !buffer )
+	{
+		buffer.reset( new draw_buffer_t() );
+		buffer->usage = GL_DYNAMIC_DRAW;
+	}
+
+	buffer->mode = mode;
+}
+
+void imm_draw_t::Vertex( const draw_vertex_t& v )
+{
+	vertices.push_back( v );
+}
+
+void imm_draw_t::End( void )
+{
+	if ( lastSize != vertices.size() )
+	{
+		buffer->ReallocVertices( vertices );
+		lastSize = vertices.size();
+	}
+	else
+	{
+		buffer->Update( vertices );
+	}
+
+	vertices.clear();
+	buffer->Render( program );
+}
+
 
 //-------------------------------------------------------------------------------------------------
 // pipeline_t
@@ -568,7 +657,7 @@ pipeline_t::pipeline_t( void )
 
 		 {
 			"colored_cube",
-			GL_TRIANGLES,
+			GL_LINE_STRIP,
 			GL_STATIC_DRAW,
 			{
 			 // back

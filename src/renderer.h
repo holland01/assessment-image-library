@@ -287,7 +287,7 @@ struct draw_buffer_t
 {
 	GLuint vbo, ibo;
 	GLsizei count;
-	GLenum mode;
+	GLenum mode, usage;
 
 	draw_buffer_t( const draw_buffer_t& ) = delete;
 	draw_buffer_t& operator =( const draw_buffer_t& ) = delete;
@@ -301,6 +301,10 @@ struct draw_buffer_t
 
 	draw_buffer_t& operator= ( draw_buffer_t&& m );
 
+	void Bind( void ) const;
+	void Release( void ) const;
+	void ReallocVertices( const std::vector< draw_vertex_t >& vertexData );
+	void Update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex = 0 ) const;
 	void Render( const shader_program_t& program ) const;
 };
 
@@ -349,6 +353,28 @@ struct pipeline_t
 
 	pipeline_t( void );
 	~pipeline_t( void );
+};
+
+//---------------------------------------------------------------------
+// imm_draw_t
+//---------------------------------------------------------------------
+
+struct imm_draw_t
+{
+private:
+	static std::unique_ptr< draw_buffer_t > buffer;
+	size_t lastSize;
+	std::vector< draw_vertex_t > vertices;
+	const shader_program_t& program;
+
+public:
+	imm_draw_t( const shader_program_t& prog );
+
+	void Begin( GLenum target );
+
+	void Vertex( const draw_vertex_t& v );
+
+	void End( void );
 };
 
 } // namespace rend

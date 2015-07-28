@@ -99,7 +99,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	SDL_RendererInfo info;
 	SDL_GetRendererInfo( renderer, &info );
 
-	GL_CHECK( glClearColor( 1.0f, 0.0f, 0.0f, 1.0f ) );
+	GL_CHECK( glClearColor( 0.0f, 0.0f, 0.0f, 1.0f ) );
 
 	SDL_RenderPresent( renderer );
 
@@ -121,7 +121,6 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 	gen.reset( new map::generator_t() );
 
-	glm::ivec2 min( INT_MAX ), max( INT_MIN );
 	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map::tile_t* a, const map::tile_t* b ) -> bool
 	{
 		glm::vec2 va( a->x, a->z ), vb( b->x, b->z );
@@ -162,30 +161,76 @@ void game_t::ToggleCulling( void )
 	drawAll = !drawAll;
 }
 
+static std::array< glm::vec4, 4 > colors =
+{{
+	glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ),
+	glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ),
+	glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ),
+	glm::vec4( 1.0f, 1.0f, 0.0f, 1.0f )
+}};
+
 void Draw_Group( const game_t& app,
 				 const view::params_t& vp,
 				 const std::vector< const map::tile_t* >& billboards,
-				 const std::vector< const map::tile_t* >& walls )
+				 const std::vector< const map::tile_t* >& walls,
+				 const std::vector< const map::tile_t* >& freeSpace )
 {
+
 	const rend::shader_program_t& singleColor = app.pipeline->programs.at( "single_color" );
 	const rend::shader_program_t& billboard = app.pipeline->programs.at( "billboard" );
 
 	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers.at( "colored_cube" );
 	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
 
+	rend::imm_draw_t drawer( singleColor );
+
+	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
+
+	quadTransform[ 3 ].y = -1.0f;
+
+	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
+			const glm::vec3& color )
+	{
+		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
+		singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
+		billboardBuffer.Render( singleColor );
+	};
+
+	singleColor.Bind();
 	for ( const map::tile_t* tile: walls )
 	{
-		singleColor.Bind();
-		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform );
+		LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
 
+		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform  );
 		coloredCube.Render( singleColor );
 
-		singleColor.Release();
+		singleColor.LoadVec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+		if ( tile->halfSpaceIndex >= 0 )
+		{
+			const std::array< int8_t, map::generator_t::NUM_FACES >& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
+
+			for ( int8_t i = 0; i < map::generator_t::NUM_FACES; ++i )
+			{
+				if ( table[ i ] )
+				{
+					singleColor.LoadVec4( "color", colors[ i ] );
+
+					drawer.Begin( GL_LINES );
+					drawer.Vertex( rend::draw_vertex_t_Make( app.gen->halfSpaceNormals[ i ] ) );
+					drawer.Vertex( rend::draw_vertex_t_Make( app.gen->halfSpaceNormals[ i ] * 2.0f ) );
+					drawer.End();
+				}
+			}
+		}
 	}
+	singleColor.Release();
 
 	for ( const map::tile_t* tile: billboards )
 	{
+		singleColor.Bind();
+		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.5f, 0.0f ) );
+
 		billboard.Bind();
 
 		billboard.LoadMat4( "modelToView", vp.transform );
@@ -196,10 +241,15 @@ void Draw_Group( const game_t& app,
 		app.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
 		app.gen->billTexture.Release( 0 );
-
-		billboard.Release();
 	}
+	billboard.Release();
 
+	singleColor.Bind();
+	for ( const map::tile_t* tile: freeSpace )
+	{
+		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.0f, 0.5f ) );
+	}
+	singleColor.Release();
 }
 
 namespace  {
@@ -229,7 +279,7 @@ void App_Frame( void )
 
 	if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
 	{
-		app.camera.body.initialForce.y = 0.01f;
+		app.camera.body.initialForce.y = 0.0f;
 	}
 
 	const view::params_t& vp = app.camera.GetViewParams();
@@ -239,13 +289,13 @@ void App_Frame( void )
 
 	if ( app.drawAll )
 	{
-		Draw_Group( app, vp, app.gen->billboards, app.gen->walls );
+		Draw_Group( app, vp, app.gen->billboards, app.gen->walls, app.gen->freeSpace );
 	}
 	else
 	{
-		std::vector< const map::tile_t* > billboards, walls;
-		app.gen->GetEntities( billboards, walls, app.frustum, vp );
-		Draw_Group( app, vp, billboards, walls );
+		std::vector< const map::tile_t* > billboards, walls, freeSpace;
+		app.gen->GetEntities( billboards, walls, freeSpace, app.frustum, vp );
+		Draw_Group( app, vp, billboards, walls, freeSpace );
 	}
 }
 

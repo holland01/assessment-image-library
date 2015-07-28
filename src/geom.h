@@ -15,6 +15,12 @@ struct plane_t
     glm::vec3   normal;
 };
 
+struct half_space_t
+{
+	glm::mat3 extents;
+	glm::vec3 origin;
+};
+
 using point_predicate_t = bool ( * )( float );
 
 template < size_t N, point_predicate_t predicate >
@@ -79,27 +85,27 @@ struct bounding_box_t
 	bounding_box_t( const bounding_box_t& toCopy ) = delete;
 	bounding_box_t& operator =( bounding_box_t toAssign ) = delete;
 
-	bool		Encloses( const bounding_box_t& box ) const;
+	bool			Encloses( const bounding_box_t& box ) const;
 
-    void        Add( const glm::vec3& p );
+	void			Add( const glm::vec3& p );
 
-    void        Empty( void ); // Sets maxPoint to -pseudoInfinity, and minPoint to pseudoInfinity
+	void			Empty( void ); // Sets maxPoint to -pseudoInfinity, and minPoint to pseudoInfinity
 
-	void        TransformTo( const bounding_box_t& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
+	void			TransformTo( const bounding_box_t& box, const glm::mat4& transform ); // Finds the smallest AABB from a given transformation
 
     glm::vec3       GetMaxRelativeToNormal( const glm::vec3& normal ) const;
 
     glm::vec3       GetMinRelativeToNormal( const glm::vec3 &normal ) const;
 
-    glm::vec3       Center( void ) const;
+	glm::vec3       GetCenter( void ) const;
 
-    glm::vec3       Size( void ) const;
+	glm::vec3       GetSize( void ) const;
 
-    glm::vec3       Radius( void ) const;
+	glm::vec3       GetRadius( void ) const;
 
-    glm::vec3       Corner( int index ) const;
+	glm::vec3       GetCorner( int index ) const;
 
-    glm::vec4       Corner4( int index ) const;
+	glm::vec4       GetCorner4( int index ) const;
 
     bool			InXRange( const glm::vec3& v ) const;
 
@@ -110,6 +116,8 @@ struct bounding_box_t
     bool			IsEmpty( void ) const;
 
     bool			InPointRange( float k ) const;
+
+	bool			IntersectsHalfSpace( const half_space_t& halfSpace ) const;
 
     float			CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const;
 
@@ -124,9 +132,9 @@ struct bounding_box_t
 	static void		FromPoints( bounding_box_t& box, const glm::vec3 p[], int32_t n );
 };
 
-INLINE glm::vec4 bounding_box_t::Corner4( int32_t index ) const
+INLINE glm::vec4 bounding_box_t::GetCorner4( int32_t index ) const
 {
-    return glm::vec4( Corner( index ), 1.0f );
+	return glm::vec4( GetCorner( index ), 1.0f );
 }
 
 INLINE bool	bounding_box_t::Encloses( const bounding_box_t& box ) const
@@ -169,14 +177,14 @@ INLINE bool bounding_box_t::InZRange( const glm::vec3& v ) const
 
 INLINE void bounding_box_t::GetPoints( std::array< glm::vec3, 8 >& points ) const
 {
-    points[ 0 ] = Corner( 0 );
-    points[ 1 ] = Corner( 1 );
-    points[ 2 ] = Corner( 2 );
-    points[ 3 ] = Corner( 3 );
-    points[ 4 ] = Corner( 4 );
-    points[ 5 ] = Corner( 5 );
-    points[ 6 ] = Corner( 6 );
-    points[ 7 ] = Corner( 7 );
+	points[ 0 ] = GetCorner( 0 );
+	points[ 1 ] = GetCorner( 1 );
+	points[ 2 ] = GetCorner( 2 );
+	points[ 3 ] = GetCorner( 3 );
+	points[ 4 ] = GetCorner( 4 );
+	points[ 5 ] = GetCorner( 5 );
+	points[ 6 ] = GetCorner( 6 );
+	points[ 7 ] = GetCorner( 7 );
 }
 
 }
