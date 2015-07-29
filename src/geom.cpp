@@ -4,27 +4,62 @@
 
 namespace geom {
 
-/*
-namespace {
-	struct corner_map_t
-	{
-		bounding_box_t::corner_t src;
-		bounding_box_t::corner_t a, b, c;
-	};
+//-------------------------------------------------------------------------------------------------------
+// half_space_t
+//-------------------------------------------------------------------------------------------------------
 
-	std::array< corner_map_t, 8 > edgeTable =
-	{{
-		{ bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_FAR_DOWN_LEFT },
-		{ bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_FAR_DOWN_RIGHT },
-		{ bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_FAR_UP_LEFT },
-		{ bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_MAX },
-
-		{ bounding_box_t::CORNER_FAR_DOWN_LEFT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_FAR_UP_LEFT, bounding_box_t::CORNER_FAR_DOWN_RIGHT },
-		{ bounding_box_t::CORNER_FAR_DOWN_RIGHT, bounding_box_t::CORNER_MAX, bounding_box_t::CORNER_FAR_DOWN_LEFT, bounding_box_t::CORNER_NEAR_DOWN_RIGHT },
-		{ bounding_box_t::CORNER_FAR_UP_LEFT, bounding_box_t::CORNER_ }
-	}};
+half_space_t::half_space_t( void )
+	: extents( 1.0f ), origin( 0.0f ),
+	  distance( 0.0f )
+{
 }
-*/
+
+bool half_space_t::TestPoint( const glm::vec3& point ) const
+{
+	glm::vec3 originToP( point - origin );
+
+	float d = TripleProduct( originToP, extents[ 1 ], extents[ 0 ] );
+
+	// We give ourselves some wiggle room; if we're less than 0.005 then we just project the point onto the half-space plane.
+	if ( glm::abs( d ) > 0.005f )
+	{
+		return false;
+	}
+
+	float dist = glm::dot( originToP, extents[ 2 ] );
+	glm::vec3 projP( point - extents[ 2 ] * dist );
+
+	glm::vec3 rightToP( projP - extents[ 0 ] );
+	if ( glm::dot( rightToP, -extents[ 0 ] ) < 0.0f )
+	{
+		return false;
+	}
+
+	glm::vec3 upToP( projP - extents[ 1 ] );
+	if ( glm::dot( upToP, -extents[ 1 ] ) < 0.0f )
+	{
+		return false;
+	}
+
+	// winrar
+	return true;
+}
+
+void half_space_t::Draw( rend::imm_draw_t& drawer ) const
+{
+	drawer.Begin( GL_LINES );
+
+	drawer.Vertex( origin );
+	drawer.Vertex( origin + extents[ 0 ] );
+
+	drawer.Vertex( origin );
+	drawer.Vertex( origin + extents[ 1 ] );
+
+	drawer.Vertex( origin );
+	drawer.Vertex( origin + extents[ 2 ] * 2.0f );
+
+	drawer.End();
+}
 
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
@@ -295,33 +330,10 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 
 	for ( const glm::vec3& p: points )
 	{
-		glm::vec3 originToP( p - halfSpace.origin );
-
-		float d = TripleProduct( originToP, halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] );
-
-		// We give ourselves some wiggle room; if we're less than 1.5 then we just project the point onto the half-space plane.
-		if ( glm::abs( d ) > 0.005f )
+		if ( halfSpace.TestPoint( p ) )
 		{
-			continue;
+			return true;
 		}
-
-		float dist = glm::dot( originToP, halfSpace.extents[ 2 ] );
-		glm::vec3 projP( p - halfSpace.extents[ 2 ] * dist );
-
-		glm::vec3 rightToP( projP - halfSpace.extents[ 0 ] );
-		if ( glm::dot( rightToP, -halfSpace.extents[ 0 ] ) < 0.0f )
-		{
-			continue;
-		}
-
-		glm::vec3 upToP( projP - halfSpace.extents[ 1 ] );
-		if ( glm::dot( upToP, -halfSpace.extents[ 1 ] ) < 0.0f )
-		{
-			continue;
-		}
-
-		// winrar
-		return true;
 	}
 
 	return false;

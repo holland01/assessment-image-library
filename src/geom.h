@@ -20,6 +20,11 @@ struct half_space_t
 	glm::mat3 extents;
 	glm::vec3 origin;
 	float distance;
+
+	half_space_t( void );
+
+	bool TestPoint( const glm::vec3& point ) const;
+	void Draw( rend::imm_draw_t& drawer ) const;
 };
 
 using point_predicate_t = bool ( * )( float );
@@ -43,22 +48,6 @@ static INLINE bool PointPlaneTest( const std::array< glm::vec3, N >& points, con
 static INLINE float TripleProduct( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c )
 {
 	return glm::dot( a, glm::cross( b, c ) );
-}
-
-static INLINE void DrawHalfSpace( rend::imm_draw_t& drawer, const half_space_t& hs )
-{
-	drawer.Begin( GL_LINES );
-
-	drawer.Vertex( hs.origin );
-	drawer.Vertex( hs.origin + hs.extents[ 0 ] );
-
-	drawer.Vertex( hs.origin );
-	drawer.Vertex( hs.origin + hs.extents[ 1 ] );
-
-	drawer.Vertex( hs.origin );
-	drawer.Vertex( hs.origin + hs.extents[ 2 ] * 2.0f );
-
-	drawer.End();
 }
 
 //-------------------------------------------------------------------------------------------------------
