@@ -300,7 +300,7 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 		float d = TripleProduct( originToP, halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] );
 
 		// We give ourselves some wiggle room; if we're less than 1.5 then we just project the point onto the half-space plane.
-		if ( glm::abs( d ) > 0.5f  )
+		if ( glm::abs( d ) > 0.005f )
 		{
 			continue;
 		}

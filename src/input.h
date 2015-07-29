@@ -43,21 +43,25 @@ struct input_client_t
 
 	std::array< uint8_t, 8 > keysPressed;
 
+	enum mode_t
+	{
+		MODE_PLAY = 0,
+		MODE_ROAM
+	};
+
+	mode_t mode;
+
 	input_client_t( void );
-
 	input_client_t( const view::params_t& viewParams );
-
 	input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
 	void    EvalKeyPress( input_key_t key );
 	void    EvalKeyRelease( input_key_t key );
 	void    EvalMouseMove( float x, float y, bool calcRelative );
 
-	void    Update( void );
+	void    Update( float time );
 
-	void    Walk( float amount );
-	void    Strafe( float amount );
-	void    Raise( float amount );
+	void	AddDir( const glm::vec3& dir, float scale );
 
 	void    SetPerspective( float fovy, float width, float height, float znear, float zfar );
 	void	SetClipTransform( const glm::mat4& proj );
@@ -95,23 +99,19 @@ INLINE glm::vec3 input_client_t::Up( void ) const
 	return glm::normalize( glm::vec3( up ) );
 }
 
-INLINE void input_client_t::Walk( float amount )
+INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 {
-	viewParams.origin += viewParams.forward * amount;
-	//body.forceAccum += viewParams.forward * amount;
+	switch ( mode )
+	{
+		case MODE_ROAM:
+			viewParams.origin += dir * scale;
+			break;
+		case MODE_PLAY:
+			body.forceAccum += dir * scale;
+			break;
+	}
 }
 
-INLINE void input_client_t::Strafe( float amount )
-{
-	viewParams.origin += viewParams.right * amount;
-	body.forceAccum += viewParams.right * amount;
-}
-
-INLINE void input_client_t::Raise( float amount )
-{
-	viewParams.origin += viewParams.up * amount;
-	//body.forceAccum += viewParams.up * amount;
-}
 
 INLINE void input_client_t::SetPerspective( float fovy, float width, float height, float zNear, float zFar )
 {

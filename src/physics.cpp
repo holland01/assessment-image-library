@@ -2,29 +2,26 @@
 #include "base.h"
 #include <sstream>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/projection.hpp>
 
 namespace phys {
 
 body_t::body_t( void )
-	: lastTime( 0.0f ),
-	  invMass( 0.0f ),
+	: invMass( 0.0f ),
 	  position( 0.0f ),
 	  velocity( 0.0f ),
 	  forceAccum( 0.0f ),
-	  initialForce( 0.0f )
+	  initialForce( 0.0f ),
+	  orientation( 1.0f )
 {
 }
 
-void body_t::Integrate( void )
+void body_t::Integrate( float t )
 {
 	glm::vec3 accel( forceAccum * invMass );
 
-	float t = GetTime();
-
-	glm::vec3 v( velocity + accel * t );
+	glm::vec3 v( orientation * velocity + accel * t );
 	position += v * t;
-
-	lastTime = t;
 }
 
 std::string body_t::Info( void ) const

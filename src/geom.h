@@ -45,6 +45,22 @@ static INLINE float TripleProduct( const glm::vec3& a, const glm::vec3& b, const
 	return glm::dot( a, glm::cross( b, c ) );
 }
 
+static INLINE void DrawHalfSpace( rend::imm_draw_t& drawer, const half_space_t& hs )
+{
+	drawer.Begin( GL_LINES );
+
+	drawer.Vertex( hs.origin );
+	drawer.Vertex( hs.origin + hs.extents[ 0 ] );
+
+	drawer.Vertex( hs.origin );
+	drawer.Vertex( hs.origin + hs.extents[ 1 ] );
+
+	drawer.Vertex( hs.origin );
+	drawer.Vertex( hs.origin + hs.extents[ 2 ] * 2.0f );
+
+	drawer.End();
+}
+
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------

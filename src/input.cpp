@@ -45,7 +45,9 @@ input_client_t::input_client_t( void )
 
 input_client_t::input_client_t( const view::params_t& view )
 	: viewParams( view ),
-	  bounds( glm::vec3( 1.0f ), glm::vec3( -1.0f ), glm::mat4( 1.0f ), true )
+	  bounds( glm::vec3( 1.0f ), glm::vec3( -1.0f ), glm::mat4( 1.0f ), true ),
+	  mode( MODE_PLAY )
+
 {
 	keysPressed.fill( 0 );
 }
@@ -154,7 +156,7 @@ void input_client_t::EvalKeyRelease( input_key_t key )
 	}
 }
 
-void input_client_t::Update( void )
+void input_client_t::Update( float time )
 {
 	NormalizeRotation( viewParams.currRot );
 
@@ -164,17 +166,14 @@ void input_client_t::Update( void )
 	viewParams.right = Right();
 	viewParams.up = Up();
 
-	if ( keysPressed[ KEY_FORWARD ] ) Walk( viewParams.moveStep );
-	if ( keysPressed[ KEY_BACKWARD ] ) Walk( -viewParams.moveStep );
-	if ( keysPressed[ KEY_RIGHT ] ) Strafe( viewParams.moveStep );
-	if ( keysPressed[ KEY_LEFT ] ) Strafe( -viewParams.moveStep );
-	if ( keysPressed[ KEY_UP ] ) Raise( viewParams.moveStep );
-	if ( keysPressed[ KEY_DOWN ] ) Raise( -viewParams.moveStep );
+	if ( keysPressed[ KEY_FORWARD ] ) AddDir( viewParams.forward, viewParams.moveStep );
+	if ( keysPressed[ KEY_BACKWARD ] ) AddDir( viewParams.forward, -viewParams.moveStep );
+	if ( keysPressed[ KEY_RIGHT ] ) AddDir( viewParams.right, viewParams.moveStep );
+	if ( keysPressed[ KEY_LEFT ] ) AddDir( viewParams.right, -viewParams.moveStep );
+	if ( keysPressed[ KEY_UP ] ) AddDir( viewParams.up, viewParams.moveStep );
+	if ( keysPressed[ KEY_DOWN ] ) AddDir( viewParams.up, -viewParams.moveStep );
 	if ( keysPressed[ KEY_IN ] ) viewParams.currRot.z += viewParams.moveStep;
 	if ( keysPressed[ KEY_OUT ] ) viewParams.currRot.z -= viewParams.moveStep;
-
-	body.Integrate();
-	body.Reset();
 
 	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( viewParams.currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
@@ -183,9 +182,22 @@ void input_client_t::Update( void )
 	viewParams.inverseOrient = glm::inverse( viewParams.orientation );
 
 	viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
-
 	bounds.transform = viewParams.inverseOrient;
-	bounds.transform[ 3 ] =  glm::vec4( viewParams.origin, 1.0f );
+
+	switch ( mode )
+	{
+		case MODE_ROAM:
+			bounds.transform[ 3 ] = glm::vec4( viewParams.origin, 1.0f );
+			break;
+		case MODE_PLAY:
+			body.orientation = glm::mat3( viewParams.inverseOrient );
+			body.Integrate( time );
+			body.Reset();
+			body.position.y = 0.0f;
+			viewParams.origin = body.position;
+			bounds.transform[ 3 ] = glm::vec4( body.position, 1.0f );
+			break;
+	}
 }
 
 void input_client_t::PrintOrigin( void ) const

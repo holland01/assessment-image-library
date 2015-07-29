@@ -43,6 +43,8 @@ struct game_t
 
     uint32_t width, height;
 
+	float frameTime, lastTime, startTime;
+
 	std::unique_ptr< map::generator_t > gen;
 	std::unique_ptr< rend::pipeline_t > pipeline;
 
@@ -56,13 +58,17 @@ struct game_t
 
 	void ResetMap( void );
 	void ToggleCulling( void );
+	void Tick( void );
 
 	static game_t& GetInstance( void );
 };
 
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
-	  height( height_ )
+	  height( height_ ),
+	  frameTime( 0.0f ),
+	  lastTime( 0.0f ),
+	  startTime( 0.0f )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -165,6 +171,12 @@ void game_t::ToggleCulling( void )
 	drawAll = !drawAll;
 }
 
+void game_t::Tick( void )
+{
+	frameTime = startTime - lastTime;
+}
+
+/*
 namespace {
 
 std::array< glm::vec4, 4 > colors =
@@ -178,8 +190,9 @@ std::array< glm::vec4, 4 > colors =
 uint32_t yesCount = 0;
 
 }
+*/
 
-void Draw_Group( const game_t& app,
+void Draw_Group( game_t& app,
 				 const view::params_t& vp,
 				 const std::vector< const map::tile_t* >& billboards,
 				 const std::vector< const map::tile_t* >& walls,
@@ -192,7 +205,7 @@ void Draw_Group( const game_t& app,
 	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers.at( "colored_cube" );
 	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
 
-	rend::imm_draw_t drawer( singleColor );
+	//rend::imm_draw_t drawer( singleColor );
 
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
 
@@ -210,11 +223,7 @@ void Draw_Group( const game_t& app,
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const map::tile_t* tile: walls )
 	{
-		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
-
 		glm::mat4 viewBoundsT( vp.transform * tile->bounds->transform );
-
-		glm::mat4 invBoundsT( glm::inverse( tile->bounds->transform ) );
 
 		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 		singleColor.LoadMat4( "modelToView", viewBoundsT );
@@ -224,10 +233,11 @@ void Draw_Group( const game_t& app,
 			geom::half_space_t hs;
 			if ( app.gen->CollidesWall( *tile, app.camera.bounds, hs ) )
 			{
-				printf( "YES: %iu\n", ++yesCount );
+				app.camera.body.forceAccum += hs.extents[ 2 ];
 			}
 		}
 
+		/*
 		if ( tile->halfSpaceIndex >= 0 )
 		{
 			const map::generator_t::half_space_table_t& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
@@ -239,29 +249,15 @@ void Draw_Group( const game_t& app,
 					singleColor.LoadMat4( "modelToView", viewBoundsT );
 					singleColor.LoadVec4( "color", colors[ i ] );
 
-					const geom::half_space_t& hs = app.gen->halfSpaces[ table[ i ] ];
-
-					glm::vec3 idOrigin( invBoundsT * glm::vec4( hs.origin, 1.0f ) );
-
-					drawer.Begin( GL_LINES );
-					drawer.Vertex( hs.extents[ 2 ] );
-					drawer.Vertex( hs.extents[ 2 ] * 2.0f );
-
-					drawer.Vertex( idOrigin );
-					drawer.Vertex( idOrigin + hs.extents[ 0 ] );
-
-					drawer.Vertex( idOrigin );
-					drawer.Vertex( idOrigin + hs.extents[ 1 ] );
-					drawer.End();
-
 					singleColor.LoadMat4( "modelToView", vp.transform );
 
-					drawer.Begin( GL_POINTS );
-					drawer.Vertex( hs.origin );
-					drawer.End();
+					const geom::half_space_t& hs = app.gen->halfSpaces[ table[ i ] ];
+
+					geom::DrawHalfSpace( drawer, hs );
 				}
 			}
 		}
+		*/
 	}
 	singleColor.Release();
 
@@ -301,6 +297,8 @@ void App_Frame( void )
 {
 	game_t& app = game_t::GetInstance();
 
+	app.startTime = GetTime();
+
 #ifdef EMSCRIPTEN
     if ( !app.running )
     {
@@ -309,19 +307,20 @@ void App_Frame( void )
     }
 #endif
 
-    app.camera.Update();
-	//printf( "%s\n", app.camera.body.Info().c_str() );
-
-	std::array< glm::vec3, 8 > clipBounds;
-	app.camera.bounds.GetPoints( clipBounds );
-
-	if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
-	{
-		app.camera.body.initialForce.y = 0.0f;
-	}
-
 	const view::params_t& vp = app.camera.GetViewParams();
-	app.frustum.Update( vp );
+
+	{
+		app.camera.Update( app.frameTime );
+		std::array< glm::vec3, 8 > clipBounds;
+		app.camera.bounds.GetPoints( clipBounds );
+
+		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
+		{
+			app.camera.body.initialForce.y = 0.0f;
+		}
+
+		app.frustum.Update( vp );
+	}
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
@@ -335,6 +334,8 @@ void App_Frame( void )
 		app.gen->GetEntities( billboards, walls, freeSpace, app.frustum, vp );
 		Draw_Group( app, vp, billboards, walls, freeSpace );
 	}
+
+	app.frameTime = GetTime() - app.startTime;
 }
 
 // temporary hack to get around the fact that querying for an app
@@ -342,7 +343,7 @@ void App_Frame( void )
 static bool* runningPtr = nullptr;
 
 uint32_t App_Exec( void )
-{   
+{   	
 	game_t& app = game_t::GetInstance();
 	runningPtr = &app.running;
 
@@ -415,7 +416,7 @@ void FlagExit( void )
 
 float GetTime( void )
 {
-	return ( float )SDL_GetTicks() * 0.001f;
+	return ( float )SDL_GetTicks();
 }
 
 // SDL2 defines main as a macro for some reason on Windows
