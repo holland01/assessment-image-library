@@ -560,6 +560,11 @@ void imm_draw_t::Vertex( const draw_vertex_t& v )
 	vertices.push_back( v );
 }
 
+void imm_draw_t::Vertex( const glm::vec3& position )
+{
+	vertices.push_back( draw_vertex_t_Make( position ) );
+}
+
 void imm_draw_t::End( void )
 {
 	if ( lastSize != vertices.size() )

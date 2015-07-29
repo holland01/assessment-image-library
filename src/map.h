@@ -39,6 +39,8 @@ struct generator_t
 		NUM_FACES
 	};
 
+	using half_space_table_t = std::array< int32_t, NUM_FACES >;
+
 	std::vector< tile_t > tiles;
 
     std::vector< const tile_t* > billboards;
@@ -47,8 +49,8 @@ struct generator_t
 
 	rend::texture_t billTexture;
 
-	std::vector< std::array< int8_t, NUM_FACES > > halfSpaceTable;
-	std::array< glm::vec3, NUM_FACES > halfSpaceNormals;
+	std::vector< half_space_table_t > halfSpaceTable;
+	std::vector< geom::half_space_t > halfSpaces;
 
 	generator_t( void );
 
@@ -62,13 +64,15 @@ struct generator_t
 	uint32_t TileIndex( uint32_t x, uint32_t z ) const;
 	uint32_t TileModIndex( uint32_t x, uint32_t z ) const;
 
-	bool CollidesWall( const tile_t& t, const geom::bounding_box_t& bounds, glm::vec3& outNormal );
+	bool CollidesWall( const tile_t& t, const geom::bounding_box_t& bounds, geom::half_space_t& outHalfSpace );
 
 	void GetEntities( std::vector< const tile_t* >& billboards,
 					  std::vector< const tile_t* >& walls,
 					  std::vector< const tile_t* >& freeSpace,
 					  const view::frustum_t& frustum,
 					  const view::params_t& viewParams ) const;
+
+	geom::half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };
 
 INLINE uint32_t generator_t::TileIndex( uint32_t x, uint32_t z ) const

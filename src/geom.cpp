@@ -4,6 +4,28 @@
 
 namespace geom {
 
+/*
+namespace {
+	struct corner_map_t
+	{
+		bounding_box_t::corner_t src;
+		bounding_box_t::corner_t a, b, c;
+	};
+
+	std::array< corner_map_t, 8 > edgeTable =
+	{{
+		{ bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_FAR_DOWN_LEFT },
+		{ bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_FAR_DOWN_RIGHT },
+		{ bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_FAR_UP_LEFT },
+		{ bounding_box_t::CORNER_NEAR_UP_RIGHT, bounding_box_t::CORNER_NEAR_UP_LEFT, bounding_box_t::CORNER_NEAR_DOWN_RIGHT, bounding_box_t::CORNER_MAX },
+
+		{ bounding_box_t::CORNER_FAR_DOWN_LEFT, bounding_box_t::CORNER_MIN, bounding_box_t::CORNER_FAR_UP_LEFT, bounding_box_t::CORNER_FAR_DOWN_RIGHT },
+		{ bounding_box_t::CORNER_FAR_DOWN_RIGHT, bounding_box_t::CORNER_MAX, bounding_box_t::CORNER_FAR_DOWN_LEFT, bounding_box_t::CORNER_NEAR_DOWN_RIGHT },
+		{ bounding_box_t::CORNER_FAR_UP_LEFT, bounding_box_t::CORNER_ }
+	}};
+}
+*/
+
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
@@ -157,28 +179,85 @@ glm::vec3 bounding_box_t::GetRadius( void ) const
 	return maxPoint - GetCenter();
 }
 
-glm::vec3 bounding_box_t::GetCorner( int index ) const
+glm::vec3 bounding_box_t::GetCorner( corner_t index ) const
 {
-    assert( index >= 0 );
-    assert( index <= 7 );
-
-	if ( oriented  )
+	if ( oriented )
 	{
-		glm::vec4 cornerP(
-			( index & 1 ) ? 1.0f : -1.0f,
-			( index & 2 ) ? 1.0f : -1.0f,
-			( index & 4 ) ? 1.0f : -1.0f,
-							1.0f
-		);
-
-		return glm::vec3( transform * cornerP );
+		return glm::vec3( transform * glm::vec4( GetCornerIdentity( index ), 1.0f ) );
 	}
 
 	return glm::vec3(
-		( index & 1 ) ? maxPoint.x : minPoint.x,
-		( index & 2 ) ? maxPoint.y : minPoint.y,
-		( index & 4 ) ? maxPoint.z : minPoint.z
-	);;
+		( ( int32_t ) index & 1 ) ? maxPoint.x : minPoint.x,
+		( ( int32_t ) index & 2 ) ? maxPoint.y : minPoint.y,
+		( ( int32_t ) index & 4 ) ? maxPoint.z : minPoint.z
+	);
+}
+
+// Iterate through the identity
+// corners and compute a direction
+// from our origin point ( denoted by index ) to
+// the corner of the current iteration. If
+// we deem the direction to be an edge,
+// transform the edge by the bounds
+// transformation and map
+// it to the respective right, up, and forward
+// axes of the returned matrix.
+void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) const
+{
+	glm::vec3 origin( GetCornerIdentity( index ) );
+
+	glm::mat3 axes( 1.0f );
+	glm::mat3 transform3( transform );
+
+	int32_t edgeCount = 0;
+
+	for ( int32_t i = 0; i < 7; ++i )
+	{
+		if ( ( corner_t )i == index )
+		{
+			continue;
+		}
+
+		glm::vec3 edge( GetCornerIdentity( ( corner_t ) i ) - origin );
+
+		float dx = glm::abs( glm::dot( edge, axes[ 0 ] ) );
+		float dy = glm::abs( glm::dot( edge, axes[ 1 ] ) );
+		float dz = glm::abs( glm::dot( edge, axes[ 2 ] ) );
+
+		// if any of the dot products are 1, then the rest are 0.
+		// If none of them are one, then we don't have an edge
+		// since the candidate we just computed isn't parallel
+		// to a cardinal axis.
+		if ( dx != 1.0f && dy != 1.0f && dz != 1.0f )
+		{
+			continue;
+		}
+
+		int32_t axis;
+
+		// Check paralellity with each axis, map the cardinality to the appropriate axial slot
+		if ( dx == 1.0f )
+		{
+			axis = 0;
+		}
+		else if ( dy == 1.0f )
+		{
+			axis = 1;
+		}
+		else // ( dz == 1.0f )
+		{
+			axis = 2;
+		}
+
+		glm::vec3 tedge( transform3 * edge );
+		edges[ axis ] = std::move( tedge );
+		edgeCount++;
+
+		if ( edgeCount == 3 )
+		{
+			break;
+		}
+	}
 }
 
 bool bounding_box_t::IsEmpty( void ) const
@@ -218,10 +297,10 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 	{
 		glm::vec3 originToP( p - halfSpace.origin );
 
-		float d = glm::dot( originToP, glm::cross( halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] ) );
+		float d = TripleProduct( originToP, halfSpace.extents[ 1 ], halfSpace.extents[ 0 ] );
 
 		// We give ourselves some wiggle room; if we're less than 1.5 then we just project the point onto the half-space plane.
-		if ( glm::abs( d ) >= 0.5f  )
+		if ( glm::abs( d ) > 0.3f  )
 		{
 			continue;
 		}
@@ -254,7 +333,7 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 float bounding_box_t::CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const
 {
     // Quick early out; 0 implies no scaling necessary
-    if ( InXRange( origin ) && InYRange( origin ) && InZRange( origin ) )
+	if ( EnclosesPoint( origin ) )
     {
         return 0.0f;
     }

@@ -374,6 +374,8 @@ public:
 
 	void Vertex( const draw_vertex_t& v );
 
+	void Vertex( const glm::vec3& position );
+
 	void End( void );
 };
 

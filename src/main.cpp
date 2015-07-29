@@ -119,6 +119,10 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	GL_CHECK( glEnable( GL_BLEND ) );
 	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
+#ifndef OP_GL_USE_ES
+	GL_CHECK( glPointSize( 3.0f ) );
+#endif
+
 	gen.reset( new map::generator_t() );
 
 	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map::tile_t* a, const map::tile_t* b ) -> bool
@@ -208,15 +212,17 @@ void Draw_Group( const game_t& app,
 	{
 		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.5f, 0.0f, 0.0f ) );
 
+		glm::mat4 viewBoundsT( vp.transform * tile->bounds->transform );
+
+		glm::mat4 invBoundsT( glm::inverse( tile->bounds->transform ) );
+
 		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-		singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->transform  );
+		singleColor.LoadMat4( "modelToView", viewBoundsT );
 		coloredCube.Render( singleColor );
 
-
-	//	if ( glm::distance( vp.origin, glm::vec3( tile->bounds->transform[ 3 ] ) ) <= 1.5f )
 		{
-			glm::vec3 collideNormal;
-			if ( app.gen->CollidesWall( *tile, app.camera.bounds, collideNormal ) )
+			geom::half_space_t hs;
+			if ( app.gen->CollidesWall( *tile, app.camera.bounds, hs ) )
 			{
 				printf( "YES: %iu\n", ++yesCount );
 			}
@@ -224,17 +230,34 @@ void Draw_Group( const game_t& app,
 
 		if ( tile->halfSpaceIndex >= 0 )
 		{
-			const std::array< int8_t, map::generator_t::NUM_FACES >& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
+			const map::generator_t::half_space_table_t& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
 
-			for ( int8_t i = 0; i < map::generator_t::NUM_FACES; ++i )
+			for ( size_t i = 0; i < table.size(); ++i )
 			{
-				if ( table[ i ] )
+				if ( table[ i ] >= 0 )
 				{
+					singleColor.LoadMat4( "modelToView", viewBoundsT );
 					singleColor.LoadVec4( "color", colors[ i ] );
 
+					const geom::half_space_t& hs = app.gen->halfSpaces[ table[ i ] ];
+
+					glm::vec3 idOrigin( invBoundsT * glm::vec4( hs.origin, 1.0f ) );
+
 					drawer.Begin( GL_LINES );
-					drawer.Vertex( rend::draw_vertex_t_Make( app.gen->halfSpaceNormals[ i ] ) );
-					drawer.Vertex( rend::draw_vertex_t_Make( app.gen->halfSpaceNormals[ i ] * 2.0f ) );
+					drawer.Vertex( hs.extents[ 2 ] );
+					drawer.Vertex( hs.extents[ 2 ] * 2.0f );
+
+					drawer.Vertex( idOrigin );
+					drawer.Vertex( idOrigin + hs.extents[ 0 ] );
+
+					drawer.Vertex( idOrigin );
+					drawer.Vertex( idOrigin + hs.extents[ 1 ] );
+					drawer.End();
+
+					singleColor.LoadMat4( "modelToView", vp.transform );
+
+					drawer.Begin( GL_POINTS );
+					drawer.Vertex( hs.origin );
 					drawer.End();
 				}
 			}
