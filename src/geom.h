@@ -25,7 +25,7 @@ struct half_space_t
 
 	glm::vec3 Project( const glm::vec3& p ) const;
 	bool TestPoint( const glm::vec3& point ) const;
-	bool TestEdges( const glm::mat3& axis, const glm::vec3& origin ) const;
+	bool TestExtents( uint32_t& edge, const glm::mat3& extents, const glm::vec3& origin ) const;
 	bool PointInside( const glm::vec3& point ) const;
 	bool TestRay( const glm::vec3& dir, const glm::vec3& point ) const;
 
@@ -65,6 +65,8 @@ struct bounding_box_t
 	bool oriented;
 	glm::vec3 maxPoint, minPoint;
     glm::vec4 color;
+
+	static rend::imm_draw_t* drawer;
 
     enum face_t
     {

@@ -130,11 +130,11 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
 	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
-	GL_CHECK( glEnable( GL_BLEND ) );
-	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+	//GL_CHECK( glEnable( GL_BLEND ) );
+	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 #ifndef OP_GL_USE_ES
-	GL_CHECK( glPointSize( 3.0f ) );
+	GL_CHECK( glPointSize( 10.0f ) );
 #endif
 
 	gen.reset( new map::generator_t() );
@@ -221,7 +221,8 @@ void Draw_Group( game_t& app,
 	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers.at( "colored_cube" );
 	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
 
-	//rend::imm_draw_t drawer( singleColor );
+	rend::imm_draw_t drawer( singleColor );
+	geom::bounding_box_t::drawer = &drawer;
 
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
 
@@ -247,10 +248,11 @@ void Draw_Group( game_t& app,
 	for ( const map::tile_t* tile: walls )
 	{
 		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
-
 		{
 			geom::half_space_t hs;
-			if ( app.gen->CollidesWall( *tile, app.camera->bounds, hs ) )
+			singleColor.LoadMat4( "modelToView",  vp.transform );
+			singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0, 0.0f, 1.0f ) );
+			if ( app.gen->CollidesWall( *tile, app.player.bounds, hs ) )
 			{
 				//app.camera.body.forceAccum += hs.extents[ 2 ] * 0.1f;
 			}

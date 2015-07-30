@@ -1,6 +1,7 @@
 #include "geom.h"
 #include <array>
 #include <string.h>
+#include <glm/gtx/projection.hpp>
 
 namespace geom {
 
@@ -26,10 +27,9 @@ bool half_space_t::TestPoint( const glm::vec3& point ) const
 {
 	glm::vec3 originToP( point - origin );
 
-	float d = TripleProduct( originToP, extents[ 1 ], extents[ 0 ] );
+	float d = glm::dot( originToP, extents[ 2 ] ); //TripleProduct( originToP, extents[ 1 ], extents[ 0 ] );
 
-	// We give ourselves some wiggle room; if we're less than 0.005 then we just project the point onto the half-space plane.
-	if ( glm::abs( d ) > 0.005f )
+	if ( glm::abs( d ) > 0.0004f )
 	{
 		return false;
 	}
@@ -39,12 +39,13 @@ bool half_space_t::TestPoint( const glm::vec3& point ) const
 	return PointInside( projP );
 }
 
-bool half_space_t::TestEdges( const glm::mat3& axes, const glm::vec3& origin ) const
+bool half_space_t::TestExtents( uint32_t& edge, const glm::mat3& extents, const glm::vec3& origin ) const
 {
 	for ( int8_t i = 0; i < 3; ++i )
 	{
-		if ( TestRay( axes[ i ], origin ) )
+		if ( TestRay( extents[ i ], origin ) )
 		{
+			edge = i;
 			return true;
 		}
 	}
@@ -71,25 +72,37 @@ bool half_space_t::PointInside( const glm::vec3& point ) const
 
 bool half_space_t::TestRay( const glm::vec3& dir, const glm::vec3& point ) const
 {
-	float distToOrigin = glm::distance( origin, dir + point );
+	glm::vec3 ray( point + dir );
 
-	if ( distToOrigin > glm::length( extents[ 0 ] ) && distToOrigin > glm::length( extents[ 1 ] ) )
+	const float THRESHOLD = 0.01f;
+	const float dr = glm::dot( ray, extents[ 2 ] ) - distance;
+	const float dp = glm::dot( point, extents[ 2 ] ) - distance;
+
+	if ( dr > THRESHOLD && dp > THRESHOLD )
+	{
+		return false;
+	}
+
+	float lenUp = glm::length( extents[ 1 ] );
+	float lenRight = glm::length( extents[ 0 ] );
+	float lenPoint = glm::length( point - origin );
+
+	if ( lenPoint > lenUp && lenPoint > lenRight )
 	{
 		return false;
 	}
 
 	float dnorm = glm::dot( dir, extents[ 2 ] );
-
-	if ( dnorm > 0.0f )
+/*
+	if ( dnorm == 0.0f && dp > THRESHOLD )
 	{
 		return false;
 	}
+	*/
 
-	float t = distance - glm::dot( point, extents[ 2 ] ) / dnorm;
+	float t = ( distance - glm::dot( point, extents[ 2 ] ) ) / dnorm;
 
-	glm::vec3 pRay( point + dir * t );
-
-	return PointInside( pRay );
+	return t >= 0.0f && t <= 1.0f;
 }
 
 void half_space_t::Draw( rend::imm_draw_t& drawer ) const
@@ -111,6 +124,8 @@ void half_space_t::Draw( rend::imm_draw_t& drawer ) const
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
+
+rend::imm_draw_t* bounding_box_t::drawer = nullptr;
 
 bounding_box_t::bounding_box_t( void )
 {
@@ -328,7 +343,7 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 		{
 			axis = 1;
 		}
-		else // ( dz == 1.0f )
+		else
 		{
 			axis = 2;
 		}
@@ -392,8 +407,29 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 		glm::mat3 edges;
 		GetEdgesFromCorner( ( corner_t )corner, edges );
 
-		if ( halfSpace.TestEdges( edges, p ) )
+		uint32_t edge;
+		if ( halfSpace.TestExtents( edge, edges, p ) )
 		{
+			if ( drawer )
+			{
+				drawer->Begin( GL_LINES );
+				drawer->Vertex( p );
+				drawer->Vertex( p + edges[ 0 ] );
+
+				drawer->Vertex( p );
+				drawer->Vertex( p + edges[ 1 ] );
+
+				drawer->Vertex( p );
+				drawer->Vertex( p + edges[ 2 ] );
+				drawer->End();
+
+				drawer->Begin( GL_POINTS );
+				drawer->Vertex( p );
+				drawer->End();
+
+				halfSpace.Draw( *drawer );
+			}
+
 			printf( "Edge Collision: %li\n", ++edgeCount );
 			return true;
 		}
