@@ -46,7 +46,7 @@ struct input_client_t
 	enum mode_t
 	{
 		MODE_PLAY = 0,
-		MODE_ROAM
+		MODE_SPEC
 	};
 
 	mode_t mode;
@@ -103,7 +103,7 @@ INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 {
 	switch ( mode )
 	{
-		case MODE_ROAM:
+		case MODE_SPEC:
 			viewParams.origin += dir * scale;
 			break;
 		case MODE_PLAY:

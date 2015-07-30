@@ -50,7 +50,11 @@ struct game_t
 
 	geom::plane_t groundPlane;
 
-	input_client_t camera;
+	input_client_t player, spec;
+	input_client_t* camera;
+
+	geom::bounding_box_t* drawBounds;
+
 	view::frustum_t	frustum;
 
 	game_t( uint32_t width, uint32_t height );
@@ -68,7 +72,8 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	  height( height_ ),
 	  frameTime( 0.0f ),
 	  lastTime( 0.0f ),
-	  startTime( 0.0f )
+	  startTime( 0.0f ),
+	  camera( nullptr )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -113,8 +118,11 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 	const rend::shader_program_t& program = pipeline->programs[ "single_color" ];
 	program.Bind();
-	camera.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
-	program.LoadMat4( "viewToClip", camera.GetViewParams().clipTransform );
+
+	spec.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
+	player.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
+
+	program.LoadMat4( "viewToClip", player.GetViewParams().clipTransform );
 	program.Release();
 
 	GL_CHECK( glEnable( GL_TEXTURE_2D ) );
@@ -138,14 +146,22 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 		return glm::length( va ) < glm::length( vb );
 	});
 	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
-	camera.body.position = glm::vec3( tile->x, 0.0f, tile->z );
+	player.body.position = glm::vec3( tile->x, 0.0f, tile->z );
 
-	camera.body.initialForce = glm::vec3( 0.0f, -9.8, 0.0f );
-	camera.body.Reset();
-	camera.body.invMass = 1.0f / 100.0f;
+	player.body.initialForce = glm::vec3( 0.0f, -9.8, 0.0f );
+	player.body.Reset();
+	player.body.invMass = 1.0f / 100.0f;
 
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
+
+	spec.mode = input_client_t::MODE_SPEC;
+	spec.viewParams.origin = glm::vec3( tile->x, 10.0f, tile->z );
+	//spec.body.invMass = 1.0f / 10.0f;
+	spec.Update( 1000.0f );
+
+	camera = &player;
+	drawBounds = &spec.bounds;
 
 	running = true;
 }
@@ -219,46 +235,30 @@ void Draw_Group( game_t& app,
 		billboardBuffer.Render( singleColor );
 	};
 
+	auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const geom::bounding_box_t& bounds, const glm::vec3& color )
+	{
+		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
+		singleColor.LoadMat4( "modelToView",  vp.transform * bounds.transform );
+		coloredCube.Render( singleColor );
+	};
+
 	singleColor.Bind();
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const map::tile_t* tile: walls )
 	{
-		glm::mat4 viewBoundsT( vp.transform * tile->bounds->transform );
-
-		singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-		singleColor.LoadMat4( "modelToView", viewBoundsT );
-		coloredCube.Render( singleColor );
+		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
 
 		{
 			geom::half_space_t hs;
-			if ( app.gen->CollidesWall( *tile, app.camera.bounds, hs ) )
+			if ( app.gen->CollidesWall( *tile, app.camera->bounds, hs ) )
 			{
-				app.camera.body.forceAccum += hs.extents[ 2 ];
+				//app.camera.body.forceAccum += hs.extents[ 2 ] * 0.1f;
 			}
 		}
-
-		/*
-		if ( tile->halfSpaceIndex >= 0 )
-		{
-			const map::generator_t::half_space_table_t& table = app.gen->halfSpaceTable[ tile->halfSpaceIndex ];
-
-			for ( size_t i = 0; i < table.size(); ++i )
-			{
-				if ( table[ i ] >= 0 )
-				{
-					singleColor.LoadMat4( "modelToView", viewBoundsT );
-					singleColor.LoadVec4( "color", colors[ i ] );
-
-					singleColor.LoadMat4( "modelToView", vp.transform );
-
-					const geom::half_space_t& hs = app.gen->halfSpaces[ table[ i ] ];
-
-					geom::DrawHalfSpace( drawer, hs );
-				}
-			}
-		}
-		*/
 	}
+
+	LDrawBounds( *( app.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
+
 	singleColor.Release();
 
 	billboard.Bind();
@@ -267,9 +267,6 @@ void Draw_Group( game_t& app,
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 	for ( const map::tile_t* tile: billboards )
 	{
-		//singleColor.Bind();
-		//LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.5f, 0.0f ) );
-
 		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
 
 		app.gen->billTexture.Bind( 0, "image", billboard );
@@ -307,16 +304,16 @@ void App_Frame( void )
     }
 #endif
 
-	const view::params_t& vp = app.camera.GetViewParams();
+	const view::params_t& vp = app.camera->GetViewParams();
 
 	{
-		app.camera.Update( app.frameTime );
+		app.camera->Update( app.frameTime );
 		std::array< glm::vec3, 8 > clipBounds;
-		app.camera.bounds.GetPoints( clipBounds );
+		app.camera->bounds.GetPoints( clipBounds );
 
 		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
 		{
-			app.camera.body.initialForce.y = 0.0f;
+			app.camera->body.initialForce.y = 0.0f;
 		}
 
 		app.frustum.Update( vp );
@@ -385,20 +382,33 @@ uint32_t App_Exec( void )
 						case SDLK_v:
 							app.ToggleCulling();
 							break;
+						case SDLK_c:
+							if ( app.camera == &app.player )
+							{
+								app.drawBounds = &app.player.bounds;
+								app.camera = &app.spec;
+							}
+							else
+							{
+								app.drawBounds = &app.spec.bounds;
+								app.camera = &app.player;
+							}
+							break;
 
                         default:
-							app.camera.EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
+							app.camera->EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                             break;
+
 
                     }
                     break;
                 case SDL_KEYUP:
-					app.camera.EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
+					app.camera->EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
                     break;
                 case SDL_MOUSEMOTION:
                     if ( !app.mouseShown )
                     {
-                        app.camera.EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
+						app.camera->EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
                     }
                     break;
             }

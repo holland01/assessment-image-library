@@ -14,6 +14,14 @@ half_space_t::half_space_t( void )
 {
 }
 
+glm::vec3 half_space_t::Project( const glm::vec3& p ) const
+{
+	glm::vec3 originToP( p - origin );
+
+	float dist = glm::dot( originToP, extents[ 2 ] );
+	return std::move( glm::vec3( p - extents[ 2 ] * dist ) );
+}
+
 bool half_space_t::TestPoint( const glm::vec3& point ) const
 {
 	glm::vec3 originToP( point - origin );
@@ -26,23 +34,62 @@ bool half_space_t::TestPoint( const glm::vec3& point ) const
 		return false;
 	}
 
-	float dist = glm::dot( originToP, extents[ 2 ] );
-	glm::vec3 projP( point - extents[ 2 ] * dist );
+	glm::vec3 projP( Project( point ) );
 
-	glm::vec3 rightToP( projP - extents[ 0 ] );
+	return PointInside( projP );
+}
+
+bool half_space_t::TestEdges( const glm::mat3& axes, const glm::vec3& origin ) const
+{
+	for ( int8_t i = 0; i < 3; ++i )
+	{
+		if ( TestRay( axes[ i ], origin ) )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool half_space_t::PointInside( const glm::vec3& point ) const
+{
+	glm::vec3 rightToP( point - extents[ 0 ] );
 	if ( glm::dot( rightToP, -extents[ 0 ] ) < 0.0f )
 	{
 		return false;
 	}
 
-	glm::vec3 upToP( projP - extents[ 1 ] );
+	glm::vec3 upToP( point - extents[ 1 ] );
 	if ( glm::dot( upToP, -extents[ 1 ] ) < 0.0f )
 	{
 		return false;
 	}
 
-	// winrar
 	return true;
+}
+
+bool half_space_t::TestRay( const glm::vec3& dir, const glm::vec3& point ) const
+{
+	float distToOrigin = glm::distance( origin, dir + point );
+
+	if ( distToOrigin > glm::length( extents[ 0 ] ) && distToOrigin > glm::length( extents[ 1 ] ) )
+	{
+		return false;
+	}
+
+	float dnorm = glm::dot( dir, extents[ 2 ] );
+
+	if ( dnorm > 0.0f )
+	{
+		return false;
+	}
+
+	float t = distance - glm::dot( point, extents[ 2 ] ) / dnorm;
+
+	glm::vec3 pRay( point + dir * t );
+
+	return PointInside( pRay );
 }
 
 void half_space_t::Draw( rend::imm_draw_t& drawer ) const
@@ -255,6 +302,8 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 
 		glm::vec3 edge( GetCornerIdentity( ( corner_t ) i ) - origin );
 
+		float edgeLen = glm::length( edge );
+
 		float dx = glm::abs( glm::dot( edge, axes[ 0 ] ) );
 		float dy = glm::abs( glm::dot( edge, axes[ 1 ] ) );
 		float dz = glm::abs( glm::dot( edge, axes[ 2 ] ) );
@@ -263,7 +312,7 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 		// If none of them are one, then we don't have an edge
 		// since the candidate we just computed isn't parallel
 		// to a cardinal axis.
-		if ( dx != 1.0f && dy != 1.0f && dz != 1.0f )
+		if ( dx != edgeLen && dy != edgeLen && dz != edgeLen )
 		{
 			continue;
 		}
@@ -271,11 +320,11 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 		int32_t axis;
 
 		// Check paralellity with each axis, map the cardinality to the appropriate axial slot
-		if ( dx == 1.0f )
+		if ( dx == edgeLen )
 		{
 			axis = 0;
 		}
-		else if ( dy == 1.0f )
+		else if ( dy == edgeLen )
 		{
 			axis = 1;
 		}
@@ -325,15 +374,31 @@ bool bounding_box_t::InPointRange( float k ) const
 // If these 3 tests pass, we has a winrar.
 bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 {
+	static int64_t edgeCount = 0;
+	static int64_t pointCount = 0;
+
 	std::array< glm::vec3, 8 > points;
 	GetPoints( points );
 
+	uint32_t corner = 0;
 	for ( const glm::vec3& p: points )
 	{
 		if ( halfSpace.TestPoint( p ) )
 		{
+			printf( "Point Collision: %li\n", ++pointCount );
 			return true;
 		}
+
+		glm::mat3 edges;
+		GetEdgesFromCorner( ( corner_t )corner, edges );
+
+		if ( halfSpace.TestEdges( edges, p ) )
+		{
+			printf( "Edge Collision: %li\n", ++edgeCount );
+			return true;
+		}
+
+		corner++;
 	}
 
 	return false;

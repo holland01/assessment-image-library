@@ -23,7 +23,12 @@ struct half_space_t
 
 	half_space_t( void );
 
+	glm::vec3 Project( const glm::vec3& p ) const;
 	bool TestPoint( const glm::vec3& point ) const;
+	bool TestEdges( const glm::mat3& axis, const glm::vec3& origin ) const;
+	bool PointInside( const glm::vec3& point ) const;
+	bool TestRay( const glm::vec3& dir, const glm::vec3& point ) const;
+
 	void Draw( rend::imm_draw_t& drawer ) const;
 };
 

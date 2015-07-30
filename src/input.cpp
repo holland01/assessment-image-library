@@ -186,7 +186,7 @@ void input_client_t::Update( float time )
 
 	switch ( mode )
 	{
-		case MODE_ROAM:
+		case MODE_SPEC:
 			bounds.transform[ 3 ] = glm::vec4( viewParams.origin, 1.0f );
 			break;
 		case MODE_PLAY:
