@@ -5,6 +5,50 @@
 
 namespace geom {
 
+const float DISTANCE_THRESH = 0.03125f;
+
+glm::vec3 PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
+{
+	glm::vec3 originToP( p - origin );
+
+	float dist = glm::dot( originToP, normal );
+	return std::move( glm::vec3( p - normal * dist ) );
+}
+
+bool RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
+{
+	glm::vec3 crossDir( glm::cross( r0.d, r1.d ) );
+
+	float dist = glm::distance( r0.p, r1.p );
+
+	if ( crossDir == glm::zero< glm::vec3 >() && dist > DISTANCE_THRESH  )
+	{
+		return false;
+	}
+
+	glm::vec3 pointDiff( r0.p - r1.p );
+	glm::vec3 pointDiffCross1( glm::cross( pointDiff, r1.d ) );
+
+	float crossMag = glm::length( crossDir );
+	float invMagSqr = 1.0f / ( crossMag * crossMag );
+
+	t0 = glm::dot( pointDiffCross1, crossDir ) * invMagSqr;
+
+	glm::vec3 pointDiffCross0( glm::cross( pointDiff, r0.d ) );
+	t1 = glm::dot( pointDiffCross0, crossDir ) * invMagSqr;
+
+	glm::vec3 pr0( r0.p + r0.d * t0 );
+	glm::vec3 pr1( r1.p + r1.d * t1 );
+
+	if ( glm::distance( pr0, pr1 ) > DISTANCE_THRESH )
+	{
+		// skew lines
+		return false;
+	}
+
+	return true;
+}
+
 //-------------------------------------------------------------------------------------------------------
 // half_space_t
 //-------------------------------------------------------------------------------------------------------
@@ -13,14 +57,6 @@ half_space_t::half_space_t( void )
 	: extents( 1.0f ), origin( 0.0f ),
 	  distance( 0.0f )
 {
-}
-
-glm::vec3 half_space_t::Project( const glm::vec3& p ) const
-{
-	glm::vec3 originToP( p - origin );
-
-	float dist = glm::dot( originToP, extents[ 2 ] );
-	return std::move( glm::vec3( p - extents[ 2 ] * dist ) );
 }
 
 bool half_space_t::TestPoint( const glm::vec3& point ) const
@@ -34,23 +70,64 @@ bool half_space_t::TestPoint( const glm::vec3& point ) const
 		return false;
 	}
 
-	glm::vec3 projP( Project( point ) );
+	glm::vec3 projP( PlaneProject( point, origin, extents[ 2 ] ) );
 
 	return PointInside( projP );
 }
 
-bool half_space_t::TestExtents( uint32_t& edge, const glm::mat3& extents, const glm::vec3& origin ) const
+bool half_space_t::TestExtents( uint32_t& edge, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
-	for ( int8_t i = 0; i < 3; ++i )
-	{
-		if ( TestRay( extents[ i ], origin ) )
-		{
-			edge = i;
-			return true;
-		}
-	}
+	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] * 0.01f ) );
 
-	return false;
+	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
+	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );
+	glm::vec3 c( srcOrigin + srcExtents[ 2 ] );
+
+	if ( glm::distance( origin, a ) > szLength ) return false;
+	if ( glm::distance( origin, b ) > szLength ) return false;
+	if ( glm::distance( origin, c ) > szLength ) return false;
+
+	auto LIntersects = [ this, &edge, &srcOrigin, &srcExtents ]( const glm::vec3& p0, const glm::vec3& d0 ) -> bool
+	{
+		glm::vec3 a( origin + extents[ 0 ] ),
+				  b( origin + extents[ 1 ] ),
+				  c( origin + extents[ 2 ] ),
+				  d( srcOrigin + srcExtents[ 0 ] ),
+				  e( srcOrigin + srcExtents[ 1 ] ),
+				  f( srcOrigin + srcExtents[ 2 ] );
+
+		float ax( glm::dot( a - p0, d0 ) );
+		float ay( glm::dot( b - p0, d0 ) );
+//		float az( glm::dot( c - p0, d0 ) );
+
+		float bx( glm::dot( d - p0, d0 ) );
+		float by( glm::dot( e - p0, d0 ) );
+		float bz( glm::dot( f - p0, d0 ) );
+
+		float dlen = glm::length( d0 );
+
+		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
+		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
+		//if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
+
+		if ( d0 != srcExtents[ 0 ] && bx > 0.0f && bx <= dlen ) return true;
+		if ( d0 != srcExtents[ 1 ] && by > 0.0f && by <= dlen ) return true;
+		if ( d0 != srcExtents[ 2 ] && bz > 0.0f && bz <= dlen ) return true;
+
+		return false;
+	};
+
+	if ( !LIntersects( origin, extents[ 0 ] ) ) return false;
+	if ( !LIntersects( origin, extents[ 1 ] ) ) return false;
+	//if ( !LIntersects( origin, extents[ 2 ] ) ) return false;
+
+	if ( !LIntersects( srcOrigin, srcExtents[ 0 ] ) ) return false;
+	if ( !LIntersects( srcOrigin, srcExtents[ 1 ] ) ) return false;
+	if ( !LIntersects( srcOrigin, srcExtents[ 2 ] ) ) return false;
+
+	edge = 0;
+
+	return true;
 }
 
 bool half_space_t::PointInside( const glm::vec3& point ) const
@@ -389,9 +466,23 @@ bool bounding_box_t::InPointRange( float k ) const
 // If these 3 tests pass, we has a winrar.
 bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 {
-	static int64_t edgeCount = 0;
-	static int64_t pointCount = 0;
+	glm::mat3 t( transform );
+	glm::vec3 origin( transform[ 3 ] );
 
+	uint32_t e;
+	static uint32_t count = 0;
+	if ( halfSpace.TestExtents( e, t, origin ) )
+	{
+		printf( "YEAH: %iu\n", ++count );
+		return true;
+	}
+
+	return false;
+
+	//static int64_t edgeCount = 0;
+	//static int64_t pointCount = 0;
+
+	/*
 	std::array< glm::vec3, 8 > points;
 	GetPoints( points );
 
@@ -437,7 +528,9 @@ bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
 		corner++;
 	}
 
-	return false;
+	*/
+
+	//return false;
 }
 
 // Find the closest 3 faces

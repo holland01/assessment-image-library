@@ -15,6 +15,12 @@ struct plane_t
     glm::vec3   normal;
 };
 
+struct ray_t
+{
+	glm::vec3 p;
+	glm::vec3 d;
+};
+
 struct half_space_t
 {
 	glm::mat3 extents;
@@ -23,7 +29,6 @@ struct half_space_t
 
 	half_space_t( void );
 
-	glm::vec3 Project( const glm::vec3& p ) const;
 	bool TestPoint( const glm::vec3& point ) const;
 	bool TestExtents( uint32_t& edge, const glm::mat3& extents, const glm::vec3& origin ) const;
 	bool PointInside( const glm::vec3& point ) const;
@@ -54,6 +59,10 @@ static INLINE float TripleProduct( const glm::vec3& a, const glm::vec3& b, const
 {
 	return glm::dot( a, glm::cross( b, c ) );
 }
+
+glm::vec3 PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal );
+
+bool RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 );
 
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
