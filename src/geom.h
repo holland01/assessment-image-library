@@ -142,6 +142,8 @@ struct bounding_box_t
 
     bool			InPointRange( float k ) const;
 
+	bool			IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const;
+
 	bool			IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const;
 
     float			CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const;

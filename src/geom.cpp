@@ -387,25 +387,14 @@ bool bounding_box_t::InPointRange( float k ) const
 // If these 3 tests pass, we has a winrar.
 bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const
 {
-	//glm::mat3 t( transform );
-	//glm::vec3 origin( transform[ 3 ] );
+	glm::mat3 t( transform );
+	glm::vec3 origin( transform[ 3 ] );
 
 	static uint32_t count = 0;
-
-	for ( uint32_t i = 0; i < 8; ++i )
+	if ( halfSpace.TestBounds( normal, t, origin ) )
 	{
-		corner_t corner = ( corner_t )i;
-
-		glm::vec3 pCorner( GetCorner( corner ) );
-
-		glm::mat3 edges;
-		GetEdgesFromCorner( corner, edges );
-
-		if ( halfSpace.TestBounds( normal, edges, pCorner ) )
-		{
-			printf( "YEAH: %iu\n", ++count );
-			return true;
-		}
+		printf( "YEAH: %iu\n", ++count );
+		return true;
 	}
 
 	return false;
