@@ -52,7 +52,7 @@ INLINE std::string EmscriptenResultFromEnum( int32_t result )
 	}\
 	while( 0 )
 
-typedef void ( view::camera_t::*camKeyFunc_t )( input_key_t key );
+typedef void ( input_client_t::*camKeyFunc_t )( input_key_t key );
 
 template< camKeyFunc_t cameraKeyFunc >
 INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* keyEvent, void* userData )
@@ -61,7 +61,7 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 
 	printf( "EMCode: %s, EMKey: %s\n", keyEvent->code, keyEvent->key );
 
-	app_t& app = app_t::GetInstance();
+	game_t& app = game_t::GetInstance();
 
 	auto entry = emKeyMap.find( keyEvent->code );
 
@@ -88,7 +88,7 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 			}
 			break;
 		default:
-			CALL_MEM_FNPTR( app.camera, cameraKeyFunc )( entry->second );
+			CALL_MEM_FNPTR( *app.camera, cameraKeyFunc )( entry->second );
 			break;
 	}
 
@@ -102,7 +102,7 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 
 	//printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
 
-	app_t& app = app_t::GetInstance();
+	game_t& app = game_t::GetInstance();
 
 	EmscriptenPointerlockChangeEvent pl;
 	emscripten_get_pointerlock_status( &pl );
@@ -111,7 +111,7 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 
 	if ( activePl )
 	{
-		app.camera.EvalMouseMove( ( float ) mouseEvent->movementX, ( float ) mouseEvent->movementY, false );
+		app.camera->EvalMouseMove( ( float ) mouseEvent->movementX, ( float ) mouseEvent->movementY, false );
 	}
 
 	return 1;
@@ -120,8 +120,8 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 void InitEmInput( void )
 {
 	int32_t ret;
-	SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyPress > ) );
-	SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &view::camera_t::EvalKeyRelease > ) );
+	SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyPress > ) );
+	SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyRelease > ) );
 	SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
 
 	emscripten_set_main_loop( ( em_callback_func )&App_Frame, 0, 1 );

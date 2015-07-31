@@ -3,7 +3,7 @@
 #include "geom.h"
 
 #ifdef EMSCRIPTEN
-#	define DEFAULT_MOVE_STEP 0.1f
+#	define DEFAULT_MOVE_STEP 10.0f
 #else
 #	define DEFAULT_MOVE_STEP 1.0f
 #endif

@@ -65,7 +65,7 @@ Product {
         "../src/base.h",
         "../src/base.inl",
         "../src/def.h",
-        "../src/eminput.cpp",
+        "../src/eminput.h",
         "../src/geom.cpp",
         "../src/geom.h",
         "../src/input.cpp",

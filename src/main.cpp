@@ -7,9 +7,6 @@
 */
 
 #include <iostream>
-#ifdef EMSCRIPTEN
-#	include "eminput.cpp"
-#endif
 
 #include "renderer.h"
 #include "geom.h"
@@ -31,8 +28,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
-
-#define VERT( p, c ) { p, glm::vec3( 0.0f ), glm::vec2( 0.0f ), c }
 
 struct game_t
 {
@@ -67,6 +62,8 @@ struct game_t
 
 	static game_t& GetInstance( void );
 };
+
+#include "eminput.h"
 
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),

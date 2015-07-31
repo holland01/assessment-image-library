@@ -26,6 +26,8 @@ COMMONFLAGS = -Wall -Wextra -pedantic -Werror\
  -Isrc/lib 
 
 LDFLAGS = --emrun 
+OP_LVL=-O3
+
 
 ifdef DEBUG
     COMMONFLAGS := $(COMMONFLAGS) -g
@@ -34,7 +36,7 @@ else
 endif
 
 ifdef RELEASE
-	LDFLAGS := $(LDFLAGS) -O2
+	LDFLAGS := $(LDFLAGS) $(OP_LVL)
 endif
 
 CFLAGS = $(COMMONFLAGS) -std=c99
@@ -51,7 +53,7 @@ endif
 CC = emcc -v
 CXX = em++ -v
 
-OP_LVL=-O2
+
 
 DEPFLAGS=-s USE_SDL=2 -s ASSERTIONS=1
 
