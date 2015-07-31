@@ -384,10 +384,7 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
             break;
     }
 
-	if ( oriented )
-	{
-		plane.normal = glm::normalize( glm::mat3( transform ) * plane.normal );
-	}
+	plane.normal = glm::normalize( glm::mat3( transform ) * plane.normal );
 
     plane.d = glm::dot( p, plane.normal );
 }

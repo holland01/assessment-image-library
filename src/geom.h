@@ -68,7 +68,6 @@ bool RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 );
 struct bounding_box_t
 {
 	glm::mat4 transform;
-	bool oriented;
     glm::vec4 color;
 
     enum face_t
