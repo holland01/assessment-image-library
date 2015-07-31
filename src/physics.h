@@ -3,6 +3,8 @@
 #include "def.h"
 #include <glm/glm.hpp>
 #include <string>
+#include <memory>
+#include <vector>
 
 namespace phys {
 
@@ -20,6 +22,18 @@ struct body_t
 	void Integrate( float t );
 	void Reset( void );
 	std::string Info( void ) const;
+};
+
+struct world_t
+{
+	std::vector< std::unique_ptr< body_t > > bodies;
+
+	float time;
+	float dt;
+
+	world_t( float time, float dt );
+
+	void Update( void );
 };
 
 }

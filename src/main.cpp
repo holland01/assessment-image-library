@@ -52,8 +52,9 @@ struct game_t
 
 	input_client_t player, spec;
 	input_client_t* camera;
-
 	geom::bounding_box_t* drawBounds;
+
+	phys::world_t world;
 
 	view::frustum_t	frustum;
 
@@ -73,7 +74,9 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	  frameTime( 0.0f ),
 	  lastTime( 0.0f ),
 	  startTime( 0.0f ),
-	  camera( nullptr )
+	  camera( nullptr ),
+	  drawBounds( nullptr ),
+	  world( 1.0f, 1.0f / 16.0f )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -137,6 +140,9 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	GL_CHECK( glPointSize( 10.0f ) );
 #endif
 
+	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
+	groundPlane.d = 0.0f;
+
 	gen.reset( new map::generator_t() );
 
 	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map::tile_t* a, const map::tile_t* b ) -> bool
@@ -146,20 +152,27 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 		return glm::length( va ) < glm::length( vb );
 	});
 	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
-	player.body.position = glm::vec3( tile->x, 0.0f, tile->z );
 
-	player.body.initialForce = glm::vec3( 0.0f, -9.8, 0.0f );
-	player.body.Reset();
-	player.body.invMass = 1.0f / 100.0f;
+	{
+		phys::body_t* body = new phys::body_t();
+		body->position = glm::vec3( tile->x, 0.0f, tile->z );
+		body->invMass = 1.0f / 5.0f;
 
-	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
-	groundPlane.d = 0.0f;
+		player.body = body;
+		std::unique_ptr< phys::body_t > bptr( body );
+		world.bodies.push_back( std::move( bptr ) );
+	}
+	{
+		phys::body_t* specBody = new phys::body_t();
+		specBody->position = glm::vec3( tile->x, 10.0f, tile->z );
+		specBody->invMass = 1.0f / 20.0f;
 
-	spec.mode = input_client_t::MODE_SPEC;
-	spec.viewParams.origin = glm::vec3( tile->x, 10.0f, tile->z );
-	//spec.body.invMass = 1.0f / 10.0f;
-	spec.Update( 1000.0f );
+		spec.mode = input_client_t::MODE_SPEC;
+		spec.body = specBody;
+		spec.Update();
 
+		world.bodies.push_back( std::unique_ptr< phys::body_t >( specBody ) );
+	}
 	camera = &player;
 	drawBounds = &spec.bounds;
 
@@ -192,22 +205,6 @@ void game_t::Tick( void )
 	frameTime = startTime - lastTime;
 }
 
-/*
-namespace {
-
-std::array< glm::vec4, 4 > colors =
-{{
-	glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ),
-	glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ),
-	glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ),
-	glm::vec4( 1.0f, 1.0f, 0.0f, 1.0f )
-}};
-
-uint32_t yesCount = 0;
-
-}
-*/
-
 void Draw_Group( game_t& app,
 				 const view::params_t& vp,
 				 const std::vector< const map::tile_t* >& billboards,
@@ -222,7 +219,7 @@ void Draw_Group( game_t& app,
 	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
 
 	rend::imm_draw_t drawer( singleColor );
-	geom::bounding_box_t::drawer = &drawer;
+	rend::immDrawer = &drawer;
 
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
 
@@ -250,11 +247,15 @@ void Draw_Group( game_t& app,
 		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
 		{
 			geom::half_space_t hs;
+			glm::vec3 normal;
 			singleColor.LoadMat4( "modelToView",  vp.transform );
 			singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0, 0.0f, 1.0f ) );
-			if ( app.gen->CollidesWall( *tile, app.player.bounds, hs ) )
+			if ( app.gen->CollidesWall( normal, *tile, app.player.bounds, hs ) )
 			{
-				//app.camera.body.forceAccum += hs.extents[ 2 ] * 0.1f;
+				if ( app.camera->body )
+				{
+					app.camera->body->forceAccum += normal;
+				}
 			}
 		}
 	}
@@ -309,13 +310,19 @@ void App_Frame( void )
 	const view::params_t& vp = app.camera->GetViewParams();
 
 	{
-		app.camera->Update( app.frameTime );
+		app.world.time = app.frameTime;
+
+		app.world.Update();
+		app.camera->Update();
 		std::array< glm::vec3, 8 > clipBounds;
 		app.camera->bounds.GetPoints( clipBounds );
 
 		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
 		{
-			app.camera->body.initialForce.y = 0.0f;
+			if ( app.camera->body )
+			{
+				app.camera->body->initialForce.y = 0.0f;
+			}
 		}
 
 		app.frustum.Update( vp );

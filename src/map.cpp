@@ -289,7 +289,7 @@ geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& 
 	return std::move( hs );
 }
 
-bool generator_t::CollidesWall( const tile_t& t,
+bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 								const geom::bounding_box_t& bounds,
 								geom::half_space_t& outHalfSpace )
 {
@@ -302,17 +302,19 @@ bool generator_t::CollidesWall( const tile_t& t,
 
 	for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
 	{
-		// Find the matrix of the half-space.
-		// offset its translation in the direction of the vector MULTIPLIED
-		// by the bounds size vector
 		if ( halfSpaceFaces[ i ] >= 0 )
-		{
+		{	
 			const geom::half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];
 
-			if ( bounds.IntersectsHalfSpace( hs ) )
+			if ( bounds.IntersectsHalfSpace( normal, hs ) )
 			{
 				outHalfSpace = hs;
 				return true;
+			}
+
+			if ( rend::immDrawer )
+			{
+				hs.Draw( *rend::immDrawer );
 			}
 		}
 	}

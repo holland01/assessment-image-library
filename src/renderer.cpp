@@ -744,4 +744,6 @@ pipeline_t::~pipeline_t( void )
 #endif
 }
 
+imm_draw_t* immDrawer = nullptr;
+
 } // namespace glrend

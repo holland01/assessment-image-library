@@ -29,11 +29,7 @@ struct half_space_t
 
 	half_space_t( void );
 
-	bool TestPoint( const glm::vec3& point ) const;
-	bool TestExtents( uint32_t& edge, const glm::mat3& extents, const glm::vec3& origin ) const;
-	bool PointInside( const glm::vec3& point ) const;
-	bool TestRay( const glm::vec3& dir, const glm::vec3& point ) const;
-
+	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
 	void Draw( rend::imm_draw_t& drawer ) const;
 };
 
@@ -74,8 +70,6 @@ struct bounding_box_t
 	bool oriented;
 	glm::vec3 maxPoint, minPoint;
     glm::vec4 color;
-
-	static rend::imm_draw_t* drawer;
 
     enum face_t
     {
@@ -148,7 +142,7 @@ struct bounding_box_t
 
     bool			InPointRange( float k ) const;
 
-	bool			IntersectsHalfSpace( const half_space_t& halfSpace ) const;
+	bool			IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const;
 
     float			CalcIntersection( const glm::vec3& ray, const glm::vec3& origin ) const;
 

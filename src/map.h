@@ -64,7 +64,7 @@ struct generator_t
 	uint32_t TileIndex( uint32_t x, uint32_t z ) const;
 	uint32_t TileModIndex( uint32_t x, uint32_t z ) const;
 
-	bool CollidesWall( const tile_t& t, const geom::bounding_box_t& bounds, geom::half_space_t& outHalfSpace );
+	bool CollidesWall( glm::vec3& normal, const tile_t& t, const geom::bounding_box_t& bounds, geom::half_space_t& outHalfSpace );
 
 	void GetEntities( std::vector< const tile_t* >& billboards,
 					  std::vector< const tile_t* >& walls,

@@ -45,14 +45,15 @@ input_client_t::input_client_t( void )
 
 input_client_t::input_client_t( const view::params_t& view )
 	: viewParams( view ),
+	  body( nullptr ),
 	  bounds( glm::vec3( 1.0f ), glm::vec3( -1.0f ), glm::mat4( 1.0f ), true ),
 	  mode( MODE_PLAY )
-
 {
 	keysPressed.fill( 0 );
 }
 
 input_client_t::input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
+	: input_client_t( view::params_t() )
 {
 	viewParams.origin = glm::vec3( -viewTransform[ 3 ] );
 	viewParams.transform = viewTransform;
@@ -156,7 +157,7 @@ void input_client_t::EvalKeyRelease( input_key_t key )
 	}
 }
 
-void input_client_t::Update( float time )
+void input_client_t::Update( void )
 {
 	NormalizeRotation( viewParams.currRot );
 
@@ -184,19 +185,27 @@ void input_client_t::Update( float time )
 	viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
 	bounds.transform = viewParams.inverseOrient;
 
-	switch ( mode )
+	if ( mode == MODE_PLAY )
 	{
-		case MODE_SPEC:
-			bounds.transform[ 3 ] = glm::vec4( viewParams.origin, 1.0f );
-			break;
-		case MODE_PLAY:
-			body.orientation = glm::mat3( viewParams.inverseOrient );
-			body.Integrate( time );
-			body.Reset();
-			body.position.y = 0.0f;
-			viewParams.origin = body.position;
-			bounds.transform[ 3 ] = glm::vec4( body.position, 1.0f );
-			break;
+		if ( body )
+		{
+			body->position.y = 0.0f;
+		}
+		else
+		{
+			viewParams.origin.y = 0.0f;
+		}
+	}
+
+	if ( body )
+	{
+		body->orientation = glm::mat3( viewParams.inverseOrient );
+		viewParams.origin = body->position;
+		bounds.transform[ 3 ] = glm::vec4( body->position, 1.0f );
+	}
+	else
+	{
+		bounds.transform[ 3 ] = glm::vec4( viewParams.origin, 1.0f );
 	}
 }
 

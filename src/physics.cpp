@@ -6,6 +6,10 @@
 
 namespace phys {
 
+//-------------------------------------------------------------------------------------------------------
+// body_t
+//-------------------------------------------------------------------------------------------------------
+
 body_t::body_t( void )
 	: invMass( 0.0f ),
 	  position( 0.0f ),
@@ -39,6 +43,34 @@ std::string body_t::Info( void ) const
 void body_t::Reset( void )
 {
 	forceAccum = initialForce;
+}
+
+//-------------------------------------------------------------------------------------------------------
+// world_t
+//-------------------------------------------------------------------------------------------------------
+
+world_t::world_t( float time_, float dt_ )
+	: time( time_ ),
+	  dt( dt_ )
+{
+}
+
+void world_t::Update( void )
+{
+	float t = 0.0f;
+	while ( t < time )
+	{
+		for ( std::unique_ptr< body_t >& body: bodies )
+		{
+			body->Integrate( dt );
+		}
+		t += dt;
+	}
+
+	for ( std::unique_ptr< body_t >& body: bodies )
+	{
+		body->Reset();
+	}
 }
 
 }

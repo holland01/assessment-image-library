@@ -379,6 +379,8 @@ public:
 	void End( void );
 };
 
+extern imm_draw_t* immDrawer;
+
 } // namespace rend
 
 #include "renderer.inl"

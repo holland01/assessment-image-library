@@ -5,7 +5,7 @@
 #ifdef EMSCRIPTEN
 #	define DEFAULT_MOVE_STEP 0.1f
 #else
-#	define DEFAULT_MOVE_STEP 0.1f
+#	define DEFAULT_MOVE_STEP 1.0f
 #endif
 
 

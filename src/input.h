@@ -38,7 +38,7 @@ enum class input_key_t : uint32_t
 struct input_client_t
 {
 	view::params_t viewParams;
-	phys::body_t body;
+	phys::body_t* body;
 	geom::bounding_box_t bounds;
 
 	std::array< uint8_t, 8 > keysPressed;
@@ -59,7 +59,7 @@ struct input_client_t
 	void    EvalKeyRelease( input_key_t key );
 	void    EvalMouseMove( float x, float y, bool calcRelative );
 
-	void    Update( float time );
+	void    Update( void );
 
 	void	AddDir( const glm::vec3& dir, float scale );
 
@@ -101,14 +101,13 @@ INLINE glm::vec3 input_client_t::Up( void ) const
 
 INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 {
-	switch ( mode )
+	if ( body )
 	{
-		case MODE_SPEC:
-			viewParams.origin += dir * scale;
-			break;
-		case MODE_PLAY:
-			body.forceAccum += dir * scale;
-			break;
+		body->forceAccum += dir * scale;
+	}
+	else
+	{
+		viewParams.origin += dir * scale;
 	}
 }
 

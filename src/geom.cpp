@@ -59,25 +59,11 @@ half_space_t::half_space_t( void )
 {
 }
 
-bool half_space_t::TestPoint( const glm::vec3& point ) const
+bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
-	glm::vec3 originToP( point - origin );
+	UNUSEDPARAM( normal );
 
-	float d = glm::dot( originToP, extents[ 2 ] ); //TripleProduct( originToP, extents[ 1 ], extents[ 0 ] );
-
-	if ( glm::abs( d ) > 0.0004f )
-	{
-		return false;
-	}
-
-	glm::vec3 projP( PlaneProject( point, origin, extents[ 2 ] ) );
-
-	return PointInside( projP );
-}
-
-bool half_space_t::TestExtents( uint32_t& edge, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
-{
-	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] * 0.01f ) );
+	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) );
 
 	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
 	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );
@@ -87,99 +73,36 @@ bool half_space_t::TestExtents( uint32_t& edge, const glm::mat3& srcExtents, con
 	if ( glm::distance( origin, b ) > szLength ) return false;
 	if ( glm::distance( origin, c ) > szLength ) return false;
 
-	auto LIntersects = [ this, &edge, &srcOrigin, &srcExtents ]( const glm::vec3& p0, const glm::vec3& d0 ) -> bool
+	auto LIntersects = []( const glm::vec3& p0, const glm::vec3& d0, const glm::vec3& origin, const glm::mat3& extents ) -> bool
 	{
 		glm::vec3 a( origin + extents[ 0 ] ),
 				  b( origin + extents[ 1 ] ),
-				  c( origin + extents[ 2 ] ),
-				  d( srcOrigin + srcExtents[ 0 ] ),
-				  e( srcOrigin + srcExtents[ 1 ] ),
-				  f( srcOrigin + srcExtents[ 2 ] );
+				  c( origin + extents[ 2 ] );
 
 		float ax( glm::dot( a - p0, d0 ) );
 		float ay( glm::dot( b - p0, d0 ) );
-//		float az( glm::dot( c - p0, d0 ) );
-
-		float bx( glm::dot( d - p0, d0 ) );
-		float by( glm::dot( e - p0, d0 ) );
-		float bz( glm::dot( f - p0, d0 ) );
+		float az( glm::dot( c - p0, d0 ) );
 
 		float dlen = glm::length( d0 );
 
 		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
 		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
-		//if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
-
-		if ( d0 != srcExtents[ 0 ] && bx > 0.0f && bx <= dlen ) return true;
-		if ( d0 != srcExtents[ 1 ] && by > 0.0f && by <= dlen ) return true;
-		if ( d0 != srcExtents[ 2 ] && bz > 0.0f && bz <= dlen ) return true;
+		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
 
 		return false;
 	};
 
-	if ( !LIntersects( origin, extents[ 0 ] ) ) return false;
-	if ( !LIntersects( origin, extents[ 1 ] ) ) return false;
-	//if ( !LIntersects( origin, extents[ 2 ] ) ) return false;
+	normal = extents[ 0 ] + extents[ 1 ] + extents[ 2 ];
 
-	if ( !LIntersects( srcOrigin, srcExtents[ 0 ] ) ) return false;
-	if ( !LIntersects( srcOrigin, srcExtents[ 1 ] ) ) return false;
-	if ( !LIntersects( srcOrigin, srcExtents[ 2 ] ) ) return false;
+	if ( LIntersects( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
+	if ( LIntersects( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;
+	if ( LIntersects( origin, extents[ 2 ], srcOrigin, srcExtents ) ) return true;
 
-	edge = 0;
+	if ( LIntersects( srcOrigin, srcExtents[ 0 ], origin, extents ) ) return true;
+	if ( LIntersects( srcOrigin, srcExtents[ 1 ], origin, extents ) ) return true;
+	if ( LIntersects( srcOrigin, srcExtents[ 2 ], origin, extents ) ) return true;
 
-	return true;
-}
-
-bool half_space_t::PointInside( const glm::vec3& point ) const
-{
-	glm::vec3 rightToP( point - extents[ 0 ] );
-	if ( glm::dot( rightToP, -extents[ 0 ] ) < 0.0f )
-	{
-		return false;
-	}
-
-	glm::vec3 upToP( point - extents[ 1 ] );
-	if ( glm::dot( upToP, -extents[ 1 ] ) < 0.0f )
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool half_space_t::TestRay( const glm::vec3& dir, const glm::vec3& point ) const
-{
-	glm::vec3 ray( point + dir );
-
-	const float THRESHOLD = 0.01f;
-	const float dr = glm::dot( ray, extents[ 2 ] ) - distance;
-	const float dp = glm::dot( point, extents[ 2 ] ) - distance;
-
-	if ( dr > THRESHOLD && dp > THRESHOLD )
-	{
-		return false;
-	}
-
-	float lenUp = glm::length( extents[ 1 ] );
-	float lenRight = glm::length( extents[ 0 ] );
-	float lenPoint = glm::length( point - origin );
-
-	if ( lenPoint > lenUp && lenPoint > lenRight )
-	{
-		return false;
-	}
-
-	float dnorm = glm::dot( dir, extents[ 2 ] );
-/*
-	if ( dnorm == 0.0f && dp > THRESHOLD )
-	{
-		return false;
-	}
-	*/
-
-	float t = ( distance - glm::dot( point, extents[ 2 ] ) ) / dnorm;
-
-	return t >= 0.0f && t <= 1.0f;
+	return false;
 }
 
 void half_space_t::Draw( rend::imm_draw_t& drawer ) const
@@ -201,8 +124,6 @@ void half_space_t::Draw( rend::imm_draw_t& drawer ) const
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
-
-rend::imm_draw_t* bounding_box_t::drawer = nullptr;
 
 bounding_box_t::bounding_box_t( void )
 {
@@ -378,9 +299,9 @@ glm::vec3 bounding_box_t::GetCorner( corner_t index ) const
 // axes of the returned matrix.
 void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) const
 {
-	glm::vec3 origin( GetCornerIdentity( index ) );
+	glm::vec3 origin( GetCorner( index ) );
 
-	glm::mat3 axes( 1.0f );
+//	glm::mat3 axes( 1.0f );
 	glm::mat3 transform3( transform );
 
 	int32_t edgeCount = 0;
@@ -392,13 +313,13 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 			continue;
 		}
 
-		glm::vec3 edge( GetCornerIdentity( ( corner_t ) i ) - origin );
+		glm::vec3 edge( GetCorner( ( corner_t ) i ) - origin );
 
 		float edgeLen = glm::length( edge );
 
-		float dx = glm::abs( glm::dot( edge, axes[ 0 ] ) );
-		float dy = glm::abs( glm::dot( edge, axes[ 1 ] ) );
-		float dz = glm::abs( glm::dot( edge, axes[ 2 ] ) );
+		float dx = glm::abs( glm::dot( edge, transform3[ 0 ] ) );
+		float dy = glm::abs( glm::dot( edge, transform3[ 1 ] ) );
+		float dz = glm::abs( glm::dot( edge, transform3[ 2 ] ) );
 
 		// if any of the dot products are 1, then the rest are 0.
 		// If none of them are one, then we don't have an edge
@@ -425,8 +346,8 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 			axis = 2;
 		}
 
-		glm::vec3 tedge( transform3 * edge );
-		edges[ axis ] = std::move( tedge );
+		//glm::vec3 tedge( transform3 * edge );
+		edges[ axis ] = std::move( edge );
 		edgeCount++;
 
 		if ( edgeCount == 3 )
@@ -464,73 +385,30 @@ bool bounding_box_t::InPointRange( float k ) const
 // is less than zero, point is not within the half-space - test fails. Perform
 // the same process with the point against the up axis.
 // If these 3 tests pass, we has a winrar.
-bool bounding_box_t::IntersectsHalfSpace( const half_space_t& halfSpace ) const
+bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const
 {
-	glm::mat3 t( transform );
-	glm::vec3 origin( transform[ 3 ] );
+	//glm::mat3 t( transform );
+	//glm::vec3 origin( transform[ 3 ] );
 
-	uint32_t e;
 	static uint32_t count = 0;
-	if ( halfSpace.TestExtents( e, t, origin ) )
+
+	for ( uint32_t i = 0; i < 8; ++i )
 	{
-		printf( "YEAH: %iu\n", ++count );
-		return true;
+		corner_t corner = ( corner_t )i;
+
+		glm::vec3 pCorner( GetCorner( corner ) );
+
+		glm::mat3 edges;
+		GetEdgesFromCorner( corner, edges );
+
+		if ( halfSpace.TestBounds( normal, edges, pCorner ) )
+		{
+			printf( "YEAH: %iu\n", ++count );
+			return true;
+		}
 	}
 
 	return false;
-
-	//static int64_t edgeCount = 0;
-	//static int64_t pointCount = 0;
-
-	/*
-	std::array< glm::vec3, 8 > points;
-	GetPoints( points );
-
-	uint32_t corner = 0;
-	for ( const glm::vec3& p: points )
-	{
-		if ( halfSpace.TestPoint( p ) )
-		{
-			printf( "Point Collision: %li\n", ++pointCount );
-			return true;
-		}
-
-		glm::mat3 edges;
-		GetEdgesFromCorner( ( corner_t )corner, edges );
-
-		uint32_t edge;
-		if ( halfSpace.TestExtents( edge, edges, p ) )
-		{
-			if ( drawer )
-			{
-				drawer->Begin( GL_LINES );
-				drawer->Vertex( p );
-				drawer->Vertex( p + edges[ 0 ] );
-
-				drawer->Vertex( p );
-				drawer->Vertex( p + edges[ 1 ] );
-
-				drawer->Vertex( p );
-				drawer->Vertex( p + edges[ 2 ] );
-				drawer->End();
-
-				drawer->Begin( GL_POINTS );
-				drawer->Vertex( p );
-				drawer->End();
-
-				halfSpace.Draw( *drawer );
-			}
-
-			printf( "Edge Collision: %li\n", ++edgeCount );
-			return true;
-		}
-
-		corner++;
-	}
-
-	*/
-
-	//return false;
 }
 
 // Find the closest 3 faces
