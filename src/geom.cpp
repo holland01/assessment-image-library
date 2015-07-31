@@ -59,6 +59,13 @@ half_space_t::half_space_t( void )
 {
 }
 
+half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_, float distance_ )
+	: extents( extents_ ),
+	  origin( origin_ ),
+	  distance( distance_ )
+{
+}
+
 bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
 	UNUSEDPARAM( normal );
@@ -225,14 +232,13 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 	}
 }
 
-// test for a scalar triple product between the direction
-// from the translation origin to the point to test; if it's not 0 (or within an arbitrary range, if desired), then the point
-// isn't in the same plane and therefore fails.
-// Otherwise, take the direction from the right axis of the half-space to the point.
-// Then, negate the right axis and dot it with the direction just computed. If the result
-// is less than zero, point is not within the half-space - test fails. Perform
-// the same process with the point against the up axis.
-// If these 3 tests pass, we has a winrar.
+bool bounding_box_t::IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const
+{
+	half_space_t hs( glm::mat3( bounds.transform ), glm::vec3( bounds.transform[ 3 ] ), 0.0f );
+
+	return hs.TestBounds( normal, glm::mat3( transform ), glm::vec3( transform[ 3 ] ) );
+}
+
 bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const
 {
 	glm::mat3 t( transform );

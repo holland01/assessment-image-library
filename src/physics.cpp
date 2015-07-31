@@ -20,6 +20,12 @@ body_t::body_t( void )
 {
 }
 
+void body_t::ApplyCollision( const glm::vec3& normal )
+{
+	position += normal;
+	Reset();
+}
+
 void body_t::Integrate( float t )
 {
 	glm::vec3 accel( forceAccum * invMass );

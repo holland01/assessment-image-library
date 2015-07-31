@@ -151,6 +151,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 		return glm::length( va ) < glm::length( vb );
 	});
+
 	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
 	{
@@ -254,8 +255,7 @@ void Draw_Group( game_t& app,
 			{
 				if ( app.camera->body )
 				{
-					app.camera->body->position += normal;
-					app.camera->body->Reset();
+					app.camera->body->ApplyCollision( normal );
 				}
 			}
 		}
@@ -272,6 +272,15 @@ void Draw_Group( game_t& app,
 	for ( const map::tile_t* tile: billboards )
 	{
 		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
+
+		glm::vec3 normal;
+		if ( app.camera->bounds.IntersectsBounds( normal, *( tile->bounds ) ) )
+		{
+			if ( app.camera->body )
+			{
+				app.camera->body->ApplyCollision( normal );
+			}
+		}
 
 		app.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );

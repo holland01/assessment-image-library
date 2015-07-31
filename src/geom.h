@@ -28,6 +28,7 @@ struct half_space_t
 	float distance;
 
 	half_space_t( void );
+	half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
 
 	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
 	void Draw( rend::imm_draw_t& drawer ) const;

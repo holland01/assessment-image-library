@@ -19,6 +19,7 @@ struct body_t
 
 	body_t( void );
 
+	void ApplyCollision( const glm::vec3& normal );
 	void Integrate( float t );
 	void Reset( void );
 	std::string Info( void ) const;
