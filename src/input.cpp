@@ -46,7 +46,7 @@ input_client_t::input_client_t( void )
 input_client_t::input_client_t( const view::params_t& view )
 	: viewParams( view ),
 	  body( nullptr ),
-	  bounds( glm::vec3( 1.0f ), glm::vec3( -1.0f ), glm::mat4( 1.0f ), true ),
+	  bounds( glm::mat4( 1.0f ) ),
 	  mode( MODE_PLAY )
 {
 	keysPressed.fill( 0 );

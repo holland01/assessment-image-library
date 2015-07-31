@@ -230,11 +230,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<t
 		glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
 
-		tiles[ center ].bounds.reset( new geom::bounding_box_t(
-													 glm::vec3( 1.0f ),
-													 glm::vec3( -1.0f ),
-													 t * s,
-													 true ) );
+		tiles[ center ].bounds.reset( new geom::bounding_box_t( t * s ) );
 	}
 }
 
