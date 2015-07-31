@@ -92,7 +92,7 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 		return false;
 	};
 
-	normal = extents[ 0 ] + extents[ 1 ] + extents[ 2 ];
+	normal = /*extents[ 0 ] + extents[ 1 ] +*/ extents[ 2 ];
 
 	if ( LIntersects( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
 	if ( LIntersects( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;

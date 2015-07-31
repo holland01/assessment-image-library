@@ -662,7 +662,7 @@ pipeline_t::pipeline_t( void )
 
 		 {
 			"colored_cube",
-			GL_LINE_STRIP,
+			GL_TRIANGLES,
 			GL_STATIC_DRAW,
 			{
 			 // back

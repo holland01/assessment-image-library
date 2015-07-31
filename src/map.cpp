@@ -250,7 +250,7 @@ geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& 
 
 	hs.extents[ 0 ] = std::move( glm::cross( normal, upAxis ) ) * boundsSize[ 0 ];
 	hs.extents[ 1 ] = upAxis * boundsSize[ 1 ];
-	hs.extents[ 2 ] = normal;
+	hs.extents[ 2 ] = normal * 0.1f;
 
 	glm::vec3 faceCenter( std::move( boundsOrigin + normal * boundsSize * 0.5f ) );
 

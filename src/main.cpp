@@ -250,11 +250,12 @@ void Draw_Group( game_t& app,
 			glm::vec3 normal;
 			singleColor.LoadMat4( "modelToView",  vp.transform );
 			singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0, 0.0f, 1.0f ) );
-			if ( app.gen->CollidesWall( normal, *tile, app.player.bounds, hs ) )
+			if ( app.gen->CollidesWall( normal, *tile, app.camera->bounds, hs ) )
 			{
 				if ( app.camera->body )
 				{
-					app.camera->body->forceAccum += normal;
+					app.camera->body->position += normal;
+					app.camera->body->Reset();
 				}
 			}
 		}
