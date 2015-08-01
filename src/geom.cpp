@@ -2,6 +2,18 @@
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
+#include <glm/gtx/simd_mat4.hpp>
+#include <glm/gtx/simd_vec4.hpp>
+
+namespace {
+	INLINE void Mat3ToSimd( glm::simdMat4& out, const glm::mat3& in )
+	{
+		out[ 0 ] = glm::simdVec4( in[ 0 ], 0.0f );
+		out[ 1 ] = glm::simdVec4( in[ 1 ], 0.0f );
+		out[ 2 ] = glm::simdVec4( in[ 2 ], 0.0f );
+		out[ 3 ] = glm::simdVec4( 0.0f );
+	}
+}
 
 namespace geom {
 
@@ -70,7 +82,15 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 {
 	UNUSEDPARAM( normal );
 
-	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) );
+	glm::simdMat4 _srcExtents, _extents;
+	Mat3ToSimd( _srcExtents, srcExtents );
+	Mat3ToSimd( _extents, extents );
+
+	glm::simdVec4 _srcOrigin( srcOrigin, 1.0f );
+	glm::simdVec4 _origin( origin, 1.0f );
+
+
+	float szLength( glm::length( _extents[ 0 ] + _extents[ 1 ] + _extents[ 2 ] ) );
 
 	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
 	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );

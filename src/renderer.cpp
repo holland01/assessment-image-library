@@ -539,13 +539,19 @@ void draw_buffer_t::Render( const shader_program_t& program ) const
 std::unique_ptr< draw_buffer_t > imm_draw_t::buffer( nullptr );
 
 imm_draw_t::imm_draw_t( const shader_program_t& prog )
-	  : lastSize( 0 ),
+	  : enabled( true ),
+		lastSize( 0 ),
 		program( prog )
 {
 }
 
 void imm_draw_t::Begin( GLenum mode )
 {
+	if ( !enabled )
+	{
+		return;
+	}
+
 	if ( !buffer )
 	{
 		buffer.reset( new draw_buffer_t() );
@@ -557,16 +563,31 @@ void imm_draw_t::Begin( GLenum mode )
 
 void imm_draw_t::Vertex( const draw_vertex_t& v )
 {
+	if ( !enabled )
+	{
+		return;
+	}
+
 	vertices.push_back( v );
 }
 
 void imm_draw_t::Vertex( const glm::vec3& position )
 {
+	if ( !enabled )
+	{
+		return;
+	}
+
 	vertices.push_back( draw_vertex_t_Make( position ) );
 }
 
 void imm_draw_t::End( void )
 {
+	if ( !enabled )
+	{
+		return;
+	}
+
 	if ( lastSize != vertices.size() )
 	{
 		buffer->ReallocVertices( vertices );
@@ -579,6 +600,11 @@ void imm_draw_t::End( void )
 
 	vertices.clear();
 	buffer->Render( program );
+}
+
+void imm_draw_t::SetEnabled( bool value )
+{
+	enabled = value;
 }
 
 

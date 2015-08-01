@@ -217,7 +217,7 @@ void Draw_Group( game_t& app,
 	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
 
 	rend::imm_draw_t drawer( singleColor );
-	rend::immDrawer = &drawer;
+//	rend::immDrawer = &drawer;
 
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
 
@@ -238,16 +238,18 @@ void Draw_Group( game_t& app,
 		coloredCube.Render( singleColor );
 	};
 
+	// don't test collision unless distance is low
 	singleColor.Bind();
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const map::tile_t* tile: walls )
 	{
 		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
+
+		if ( glm::distance( glm::vec3( tile->bounds->transform[ 3 ] ), vp.origin ) <= 2.0f )
 		{
 			geom::half_space_t hs;
 			glm::vec3 normal;
-			singleColor.LoadMat4( "modelToView",  vp.transform );
-			singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0, 0.0f, 1.0f ) );
+			LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 			if ( app.gen->CollidesWall( normal, *tile, app.camera->bounds, hs ) )
 			{
 				if ( app.camera->body )
@@ -321,17 +323,6 @@ void App_Frame( void )
 
 		app.world.Update();
 		app.camera->Update();
-		std::array< glm::vec3, 8 > clipBounds;
-		app.camera->bounds.GetPoints( clipBounds );
-
-		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, app.groundPlane ) )
-		{
-			if ( app.camera->body )
-			{
-				app.camera->body->initialForce.y = 0.0f;
-			}
-		}
-
 		app.frustum.Update( vp );
 	}
 

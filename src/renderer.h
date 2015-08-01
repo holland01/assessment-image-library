@@ -363,6 +363,7 @@ struct imm_draw_t
 {
 private:
 	static std::unique_ptr< draw_buffer_t > buffer;
+	bool enabled;
 	size_t lastSize;
 	std::vector< draw_vertex_t > vertices;
 	const shader_program_t& program;
@@ -377,6 +378,8 @@ public:
 	void Vertex( const glm::vec3& position );
 
 	void End( void );
+
+	void SetEnabled( bool value );
 };
 
 extern imm_draw_t* immDrawer;

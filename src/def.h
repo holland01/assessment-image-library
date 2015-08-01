@@ -14,7 +14,7 @@
 #endif
 
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_PURE
+//#define GLM_FORCE_PURE
 
 #define INLINE inline
 
