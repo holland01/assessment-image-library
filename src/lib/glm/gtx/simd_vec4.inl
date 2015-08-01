@@ -284,6 +284,7 @@ GLM_FUNC_QUALIFIER vec4 vec4_cast
 //{
 //  return max(-a, a);
 //}
+
 GLM_FUNC_QUALIFIER detail::fvec4SIMD abs
 (
 	detail::fvec4SIMD const & x

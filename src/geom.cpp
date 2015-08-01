@@ -2,8 +2,8 @@
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
-#include <glm/gtx/simd_mat4.hpp>
 #include <glm/gtx/simd_vec4.hpp>
+#include <glm/gtx/simd_mat4.hpp>
 
 namespace {
 	INLINE void Mat3ToSimd( glm::simdMat4& out, const glm::mat3& in )
@@ -12,6 +12,35 @@ namespace {
 		out[ 1 ] = glm::simdVec4( in[ 1 ], 0.0f );
 		out[ 2 ] = glm::simdVec4( in[ 2 ], 0.0f );
 		out[ 3 ] = glm::simdVec4( 0.0f );
+	}
+}
+
+namespace {
+	bool operator==
+	(
+		glm::simdVec4 const & a,
+		glm::simdVec4 const & b
+	)
+	{
+		__m128 data = _mm_cmpeq_ps( a.Data, b.Data );
+
+		__m64 hi, lo;
+		_mm_storeh_pi( &hi, data );
+		_mm_storel_pi( &lo, data );
+
+		long long h64 = _m_to_int64( hi );
+		long long l64 = _m_to_int64( lo );
+
+		return ( ( l64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 ) && ( ( h64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 );
+	}
+
+	bool operator!=
+	(
+		glm::simdVec4 const & a,
+		glm::simdVec4 const & b
+	)
+	{
+		return !( a == b );
 	}
 }
 
@@ -80,8 +109,6 @@ half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_,
 
 bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
-	UNUSEDPARAM( normal );
-
 	glm::simdMat4 _srcExtents, _extents;
 	Mat3ToSimd( _srcExtents, srcExtents );
 	Mat3ToSimd( _extents, extents );
@@ -89,22 +116,21 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	glm::simdVec4 _srcOrigin( srcOrigin, 1.0f );
 	glm::simdVec4 _origin( origin, 1.0f );
 
-
 	float szLength( glm::length( _extents[ 0 ] + _extents[ 1 ] + _extents[ 2 ] ) );
 
-	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
-	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );
-	glm::vec3 c( srcOrigin + srcExtents[ 2 ] );
+	glm::simdVec4 a( _srcOrigin + _srcExtents[ 0 ] );
+	glm::simdVec4 b( _srcOrigin + _srcExtents[ 1 ] );
+	glm::simdVec4 c( _srcOrigin + _srcExtents[ 2 ] );
 
-	if ( glm::distance( origin, a ) > szLength ) return false;
-	if ( glm::distance( origin, b ) > szLength ) return false;
-	if ( glm::distance( origin, c ) > szLength ) return false;
+	if ( glm::distance( _origin, a ) > szLength ) return false;
+	if ( glm::distance( _origin, b ) > szLength ) return false;
+	if ( glm::distance( _origin, c ) > szLength ) return false;
 
-	auto LIntersects = []( const glm::vec3& p0, const glm::vec3& d0, const glm::vec3& origin, const glm::mat3& extents ) -> bool
+	auto LIntersects = []( const glm::simdVec4& p0, const glm::simdVec4& d0, const glm::simdVec4& origin, const glm::simdMat4& extents ) -> bool
 	{
-		glm::vec3 a( origin + extents[ 0 ] ),
-				  b( origin + extents[ 1 ] ),
-				  c( origin + extents[ 2 ] );
+		glm::simdVec4 a( origin + extents[ 0 ] ),
+					  b( origin + extents[ 1 ] ),
+					  c( origin + extents[ 2 ] );
 
 		float ax( glm::dot( a - p0, d0 ) );
 		float ay( glm::dot( b - p0, d0 ) );
@@ -112,22 +138,21 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 
 		float dlen = glm::length( d0 );
 
-		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
+		if ( d0 == extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
 		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
 		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
-
 		return false;
 	};
 
-	normal = /*extents[ 0 ] + extents[ 1 ] +*/ extents[ 2 ];
+	normal = std::move( glm::vec3( glm::vec4_cast( _extents[ 2 ] ) ) );
 
-	if ( LIntersects( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
-	if ( LIntersects( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;
-	if ( LIntersects( origin, extents[ 2 ], srcOrigin, srcExtents ) ) return true;
+	if ( LIntersects( _origin, _extents[ 0 ], _srcOrigin, _srcExtents ) ) return true;
+	if ( LIntersects( _origin, _extents[ 1 ], _srcOrigin, _srcExtents ) ) return true;
+	if ( LIntersects( _origin, _extents[ 2 ], _srcOrigin, _srcExtents ) ) return true;
 
-	if ( LIntersects( srcOrigin, srcExtents[ 0 ], origin, extents ) ) return true;
-	if ( LIntersects( srcOrigin, srcExtents[ 1 ], origin, extents ) ) return true;
-	if ( LIntersects( srcOrigin, srcExtents[ 2 ], origin, extents ) ) return true;
+	if ( LIntersects( _srcOrigin, _srcExtents[ 0 ], _origin, _extents ) ) return true;
+	if ( LIntersects( _srcOrigin, _srcExtents[ 1 ], _origin, _extents ) ) return true;
+	if ( LIntersects( _srcOrigin, _srcExtents[ 2 ], _origin, _extents ) ) return true;
 
 	return false;
 }
