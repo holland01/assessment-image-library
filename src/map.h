@@ -66,7 +66,7 @@ struct generator_t
 					  std::vector< const tile_t* >& walls,
 					  std::vector< const tile_t* >& freeSpace,
 					  const frustum_t& frustum,
-					  const params_t& viewParams ) const;
+					  const view_params_t& viewParams ) const;
 
 	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };

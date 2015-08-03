@@ -47,7 +47,7 @@
 #endif // __DEBUG_RENDERER__
 
 
-struct params_t;
+struct view_params_t;
 
 
 class shader_program_t;

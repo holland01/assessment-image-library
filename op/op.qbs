@@ -21,6 +21,7 @@ Product {
     ]
     cpp.linkerFlags: [
         "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
+        "-L/usr/lib/x86_64-linux-gnu",
         "-lGL",
         "-lGLU",
         "-lGLEW",

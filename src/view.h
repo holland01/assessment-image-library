@@ -6,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 
-struct params_t
+struct view_params_t
 {
     glm::vec3   forward;
     glm::vec3   up;
@@ -29,7 +29,7 @@ struct params_t
 
     glm::mat4   clipTransform;
 
-    params_t( void );
+    view_params_t( void );
 };
 
 
@@ -66,7 +66,7 @@ struct frustum_t
 
 	~frustum_t( void );
 
-	void    Update( const params_t& params );
+	void    Update( const view_params_t& params );
 
 	void	PrintMetrics( void ) const;
 

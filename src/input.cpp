@@ -16,7 +16,8 @@ static INLINE void NormalizeRotation( glm::vec3& r )
 
 	if ( r.y > 180.0f )
 	{
-		r.y -= 360.0f;
+        r.y -= 360.0f;
+
 	}
 	else if ( r.y < -180.0f )
 	{
@@ -39,11 +40,11 @@ enum
 };
 
 input_client_t::input_client_t( void )
-	: input_client_t( params_t() )
+    : input_client_t( view_params_t() )
 {
 }
 
-input_client_t::input_client_t( const params_t& view )
+input_client_t::input_client_t( const view_params_t& view )
 	: viewParams( view ),
 	  body( nullptr ),
 	  bounds( glm::mat4( 1.0f ) ),
@@ -53,7 +54,7 @@ input_client_t::input_client_t( const params_t& view )
 }
 
 input_client_t::input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
-	: input_client_t( params_t() )
+    : input_client_t( view_params_t() )
 {
 	viewParams.origin = glm::vec3( -viewTransform[ 3 ] );
 	viewParams.transform = viewTransform;

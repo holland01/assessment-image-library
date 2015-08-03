@@ -64,9 +64,6 @@ world_t::world_t( float time_, float dt_ )
 
 void world_t::Update( game_t& game )
 {
-	game.camera->viewParams.moveStep = 100.0f;
-	lt = t;
-
 	float measure = time;
 
 	while ( measure > 0.0f )

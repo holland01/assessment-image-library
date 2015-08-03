@@ -342,7 +342,7 @@ void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
 							   std::vector< const tile_t* >& outWalls,
 							   std::vector< const tile_t* >& outFreeSpace,
 							   const frustum_t& frustum,
-							   const params_t& viewParams ) const
+                               const view_params_t& viewParams ) const
 {
 	outBillboards.clear();
 	outWalls.clear();

@@ -20,7 +20,7 @@ enum class input_key_t : uint32_t
     E = 69,
 	Q = 81,
 	R = 82,
-	V
+    V = 86
 #else
     ESC = SDLK_ESCAPE,
     W = SDLK_w,
@@ -37,7 +37,7 @@ enum class input_key_t : uint32_t
 
 struct input_client_t
 {
-	params_t viewParams;
+    view_params_t viewParams;
 	body_t* body;
 	bounding_box_t bounds;
 
@@ -52,7 +52,7 @@ struct input_client_t
 	mode_t mode;
 
 	input_client_t( void );
-	input_client_t( const params_t& viewParams );
+    input_client_t( const view_params_t& viewParams );
 	input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
 	void    EvalKeyPress( input_key_t key );
@@ -74,7 +74,7 @@ struct input_client_t
 	glm::vec3   Up( void ) const;
 	glm::vec3   Right( void ) const;
 
-	const params_t& GetViewParams( void ) const;
+    const view_params_t& GetViewParams( void ) const;
 
 	void PrintOrigin( void ) const;
 };
@@ -145,7 +145,7 @@ INLINE void input_client_t::SetPosition( const glm::vec3& origin )
 	viewParams.origin = origin;
 }
 
-INLINE const params_t& input_client_t::GetViewParams( void ) const
+INLINE const view_params_t& input_client_t::GetViewParams( void ) const
 {
 	return viewParams;
 }

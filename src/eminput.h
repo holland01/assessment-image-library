@@ -8,19 +8,19 @@ void App_Frame( void );
 
 namespace {
 
-const std::unordered_map< std::string, input_key_t > emKeyMap =
+const std::vector< input_key_t > emKeyMap =
 {
-	{ "KeyW", input_key_t::W },
-	{ "KeyS", input_key_t::S },
-	{ "KeyA", input_key_t::A },
-	{ "KeyD", input_key_t::D },
-	{ "KeyE", input_key_t::E },
-	{ "KeyQ", input_key_t::Q },
-	{ "KeyR", input_key_t::R },
-	{ "KeyV", input_key_t::V },
-	{ "Escape", input_key_t::ESC },
-	{ "Space", input_key_t::SPACE },
-	{ "ShiftLeft", input_key_t::LSHIFT }
+    input_key_t::W,
+    input_key_t::S,
+    input_key_t::A,
+    input_key_t::D,
+    input_key_t::E,
+    input_key_t::Q,
+    input_key_t::R,
+    input_key_t::V,
+    input_key_t::ESC,
+    input_key_t::SPACE,
+    input_key_t::LSHIFT
 };
 
 INLINE std::string EmscriptenResultFromEnum( int32_t result )
@@ -61,14 +61,14 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 
 	game_t& app = game_t::GetInstance();
 
-	auto entry = emKeyMap.find( keyEvent->code );
+    auto entry = std::find( emKeyMap.begin(), emKeyMap.end(), ( input_key_t ) keyEvent->keyCode );
 
 	if ( entry == emKeyMap.end() )
 	{
 		return 0;
 	}
 
-	switch ( entry->second )
+    switch ( *entry )
 	{
 		case input_key_t::ESC:
 			app.running = false;
@@ -86,7 +86,7 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 			}
 			break;
 		default:
-			CALL_MEM_FNPTR( *app.camera, cameraKeyFunc )( entry->second );
+            CALL_MEM_FNPTR( *app.camera, cameraKeyFunc )( *entry );
 			break;
 	}
 

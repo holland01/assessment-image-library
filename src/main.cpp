@@ -1,10 +1,3 @@
-//#include "def.h"
-
-/*
-#ifndef EMSCRIPTEN
-#   define EMSCRIPTEN
-#endif
-*/
 #include "game.h"
 
 #include <iostream>
@@ -28,7 +21,7 @@ void Game_Frame( void );
 #include "eminput.h"
 
 void Draw_Group( game_t& game,
-				 const params_t& vp,
+                 const view_params_t& vp,
 				 const std::vector< const tile_t* >& billboards,
 				 const std::vector< const tile_t* >& walls,
 				 const std::vector< const tile_t* >& freeSpace );
@@ -173,7 +166,7 @@ void game_t::Tick( void )
 
 void game_t::Draw( void )
 {
-	const params_t& vp = camera->GetViewParams();
+    const view_params_t& vp = camera->GetViewParams();
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
@@ -188,7 +181,7 @@ void game_t::Draw( void )
 }
 
 void Draw_Group( game_t& game,
-				 const params_t& vp,
+                 const view_params_t& vp,
 				 const std::vector< const tile_t* >& billboards,
 				 const std::vector< const tile_t* >& walls,
 				 const std::vector< const tile_t* >& freeSpace )
@@ -294,7 +287,7 @@ void Game_Frame( void )
     }
 #endif
 
-	const params_t& vp = game.camera->GetViewParams();
+    const view_params_t& vp = game.camera->GetViewParams();
 
 	game.frustum.Update( vp );
 
@@ -309,7 +302,7 @@ void Game_Frame( void )
 
 	game.world.time = GetTime() - game.startTime;
 
-	printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
+    printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 }
 
 // temporary hack to get around the fact that querying for an game
