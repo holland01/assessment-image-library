@@ -208,8 +208,13 @@ INLINE void shader_program_t::LoadFloat( const std::string& name, float f ) cons
 }
 
 template < typename vertex_type_t >
-INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program, bool clientArray )
+INLINE void shader_program_t::LoadAttribLayout( const draw_buffer_t& buffer, const shader_program_t& program, bool clientArray )
 {
+    if ( lastAttribLoad == &program && lastDrawBuffer == &buffer )
+    {
+        return;
+    }
+
     for ( const auto& attrib: program.attribs )
     {
         if ( attrib.second != -1 )
@@ -239,6 +244,9 @@ INLINE void shader_program_t::LoadAttribLayout( const shader_program_t& program,
 			attrib_loader_t< vertex_type_t >::functions[ attrib.first ]( program, offset );
         }
     }
+
+    lastAttribLoad = &program;
+    lastDrawBuffer = &buffer;
 }
 
 //-------------------------------------------------------------------------------------------------------

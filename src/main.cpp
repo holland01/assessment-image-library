@@ -265,7 +265,7 @@ void Draw_Group( game_t& game,
 	}
 	billboard.Release();
 
-	singleColor.Bind();
+    singleColor.Bind();
 	for ( const tile_t* tile: freeSpace )
 	{
 		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.0f, 0.5f ) );
@@ -302,7 +302,7 @@ void Game_Frame( void )
 
 	game.world.time = GetTime() - game.startTime;
 
-    printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
+   // printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 }
 
 // temporary hack to get around the fact that querying for an game

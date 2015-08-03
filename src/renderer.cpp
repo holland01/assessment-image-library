@@ -299,8 +299,12 @@ bool texture_t::DetermineFormats( void )
 }
 
 //-------------------------------------------------------------------------------------------------
-// Program
+// shader_program_t
 //-------------------------------------------------------------------------------------------------
+
+const shader_program_t* shader_program_t::lastAttribLoad = nullptr;
+const draw_buffer_t* shader_program_t::lastDrawBuffer = nullptr;
+
 shader_program_t::shader_program_t( void )
     : program( 0 )
 {
@@ -515,7 +519,7 @@ void draw_buffer_t::Update( const std::vector< draw_vertex_t >& vertexData, size
 void draw_buffer_t::Render( const shader_program_t& program ) const
 {
 	Bind();
-	shader_program_t::LoadAttribLayout< draw_vertex_t >( program );
+    shader_program_t::LoadAttribLayout< draw_vertex_t >( *this, program );
 
 	if ( ibo )
 	{

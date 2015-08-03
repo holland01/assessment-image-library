@@ -50,6 +50,7 @@
 struct view_params_t;
 
 
+struct draw_buffer_t;
 class shader_program_t;
 
 //---------------------------------------------------------------------
@@ -215,10 +216,13 @@ public:
 	void Bind( void ) const;
 	void Release( void ) const;
 
+    static const shader_program_t* lastAttribLoad;
+    static const draw_buffer_t* lastDrawBuffer;
+
 	static std::vector< std::string > ArrayLocationNames( const std::string& name, int32_t length );
 
     template < typename vertex_type_t >
-	static void LoadAttribLayout( const shader_program_t& program, bool clientArray = false );
+    static void LoadAttribLayout( const draw_buffer_t& buffer, const shader_program_t& program, bool clientArray = false );
 };
 
 //---------------------------------------------------------------------
