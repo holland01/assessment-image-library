@@ -44,8 +44,6 @@ namespace {
 	}};
 }
 
-namespace map {
-
 tile_t::tile_t( void )
 	: bounds( nullptr ),
 	  type( tile_t::EMPTY ),
@@ -87,7 +85,7 @@ generator_t::generator_t( void )
 	auto LAddHalfSpace = [ this, &halfSpaceNormals ]( const tile_t& t, int32_t& index, faceIndex_t face )
 	{
 		index = halfSpaces.size();
-		geom::half_space_t hs = GenHalfSpace( t, halfSpaceNormals[ face ] );
+		half_space_t hs = GenHalfSpace( t, halfSpaceNormals[ face ] );
 		halfSpaces.push_back( std::move( hs ) );
 	};
 
@@ -230,19 +228,19 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<t
 		glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
 
-		tiles[ center ].bounds.reset( new geom::bounding_box_t( t * s ) );
+		tiles[ center ].bounds.reset( new bounding_box_t( t * s ) );
 	}
 }
 
-geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal )
+half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal )
 {
-	using corner_t = geom::bounding_box_t::corner_t;
+	using corner_t = bounding_box_t::corner_t;
 
 	glm::vec3 upAxis( t.bounds->transform[ 1 ] );
 	glm::vec3 boundsOrigin( t.bounds->transform[ 3 ] );
 	glm::vec3 boundsSize( t.bounds->GetSize() );
 
-	geom::half_space_t hs;
+	half_space_t hs;
 
 	hs.extents[ 0 ] = std::move( glm::cross( normal, upAxis ) ) * boundsSize[ 0 ];
 	hs.extents[ 1 ] = upAxis * boundsSize[ 1 ];
@@ -253,10 +251,10 @@ geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& 
 	// TODO: take into account ALL points
 	std::array< corner_t, 4 > lowerPoints =
 	{{
-		geom::bounding_box_t::CORNER_MIN,
-		geom::bounding_box_t::CORNER_NEAR_DOWN_RIGHT,
-		geom::bounding_box_t::CORNER_FAR_DOWN_RIGHT,
-		geom::bounding_box_t::CORNER_FAR_DOWN_LEFT
+		bounding_box_t::CORNER_MIN,
+		bounding_box_t::CORNER_NEAR_DOWN_RIGHT,
+		bounding_box_t::CORNER_FAR_DOWN_RIGHT,
+		bounding_box_t::CORNER_FAR_DOWN_LEFT
 	}};
 
 	for ( corner_t face: lowerPoints )
@@ -265,7 +263,7 @@ geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& 
 		glm::vec3 pointToCenter( faceCenter - point );
 
 		// Not in same plane; move on
-		if ( geom::TripleProduct( pointToCenter, hs.extents[ 0 ], hs.extents[ 1 ] ) != 0.0f )
+		if ( TripleProduct( pointToCenter, hs.extents[ 0 ], hs.extents[ 1 ] ) != 0.0f )
 		{
 			continue;
 		}
@@ -286,8 +284,8 @@ geom::half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& 
 }
 
 bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
-								const geom::bounding_box_t& bounds,
-								geom::half_space_t& outHalfSpace )
+								const bounding_box_t& bounds,
+								half_space_t& outHalfSpace )
 {
 	if ( t.halfSpaceIndex < 0 )
 	{
@@ -296,11 +294,11 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 
 	const half_space_table_t& halfSpaceFaces = halfSpaceTable[ t.halfSpaceIndex ];
 
-	for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
+	/*for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
 	{
 		if ( halfSpaceFaces[ i ] >= 0 )
 		{	
-			const geom::half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];
+			const half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];
 
 			if ( bounds.IntersectsHalfSpace( normal, hs ) )
 			{
@@ -314,16 +312,42 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 			}
 		}
 	}
+	*/
+
+#define LOL_OPTIMIZED( i ) \
+	if ( halfSpaceFaces[ i ] >= i ) \
+	{\
+		const half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];\
+		if ( bounds.IntersectsHalfSpace( normal, hs ) )\
+		{\
+			outHalfSpace = hs;\
+			return true;\
+		}\
+		if ( immDrawer )\
+		{\
+			hs.Draw( *immDrawer );\
+		}\
+	}
+
+	LOL_OPTIMIZED( 0 );
+	LOL_OPTIMIZED( 1 );
+	LOL_OPTIMIZED( 2 );
+	LOL_OPTIMIZED( 3 );
 
 	return false;
+#undef LOL_OPTIMIZED
 }
 
 void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
 							   std::vector< const tile_t* >& outWalls,
 							   std::vector< const tile_t* >& outFreeSpace,
-							   const view::frustum_t& frustum,
-							   const view::params_t& viewParams ) const
+							   const frustum_t& frustum,
+							   const params_t& viewParams ) const
 {
+	outBillboards.clear();
+	outWalls.clear();
+	outFreeSpace.clear();
+
 	int32_t centerX = ( int32_t )( viewParams.origin.x * 0.5f );
 	int32_t centerZ = ( int32_t )( viewParams.origin.z * 0.5f );
 
@@ -332,7 +356,7 @@ void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
 		return;
 	}
 
-	const int32_t RADIUS = 20;
+	const int32_t RADIUS = 10;
 	const int32_t startX = centerX - RADIUS;
 	const int32_t startZ = centerZ - RADIUS;
 	const int32_t endX = centerX + RADIUS;
@@ -377,5 +401,3 @@ void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
 
 	// do view-space depth sort on each vector
 }
-
-} // namespace map

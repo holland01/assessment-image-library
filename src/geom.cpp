@@ -5,6 +5,7 @@
 #include <glm/gtx/simd_vec4.hpp>
 #include <glm/gtx/simd_mat4.hpp>
 
+#if GLM_ARCH != GLM_ARCH_PURE
 namespace {
 	INLINE void Mat3ToSimd( glm::simdMat4& out, const glm::mat3& in )
 	{
@@ -43,8 +44,7 @@ namespace {
 		return !( a == b );
 	}
 }
-
-namespace geom {
+#endif // GLM_ARCH_PURE
 
 const float DISTANCE_THRESH = 0.03125f;
 
@@ -109,6 +109,46 @@ half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_,
 
 bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
+#if GLM_ARCH == GLM_ARCH_PURE
+	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) );
+
+	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
+	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );
+	glm::vec3 c( srcOrigin + srcExtents[ 2 ] );
+
+	if ( glm::distance( origin, a ) > szLength ) return false;
+	if ( glm::distance( origin, b ) > szLength ) return false;
+	if ( glm::distance( origin, c ) > szLength ) return false;
+
+	auto LIntersects = []( const glm::vec3& p0, const glm::vec3& d0, const glm::vec3& origin, const glm::mat3& extents ) -> bool
+	{
+		glm::vec3     a( origin + extents[ 0 ] ),
+					  b( origin + extents[ 1 ] ),
+					  c( origin + extents[ 2 ] );
+
+		float ax( glm::dot( a - p0, d0 ) );
+		float ay( glm::dot( b - p0, d0 ) );
+		float az( glm::dot( c - p0, d0 ) );
+
+		float dlen = glm::length( d0 );
+
+		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
+		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
+		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
+
+		return false;
+	};
+
+	normal = std::move( extents[ 2 ] );
+
+	if ( LIntersects( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
+	if ( LIntersects( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;
+	if ( LIntersects( origin, extents[ 2 ], srcOrigin, srcExtents ) ) return true;
+
+	if ( LIntersects( srcOrigin, srcExtents[ 0 ], origin, extents ) ) return true;
+	if ( LIntersects( srcOrigin, srcExtents[ 1 ], origin, extents ) ) return true;
+	if ( LIntersects( srcOrigin, srcExtents[ 2 ], origin, extents ) ) return true;
+#else
 	glm::simdMat4 _srcExtents, _extents;
 	Mat3ToSimd( _srcExtents, srcExtents );
 	Mat3ToSimd( _extents, extents );
@@ -138,7 +178,7 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 
 		float dlen = glm::length( d0 );
 
-		if ( d0 == extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
+		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
 		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
 		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
 		return false;
@@ -153,11 +193,12 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	if ( LIntersects( _srcOrigin, _srcExtents[ 0 ], _origin, _extents ) ) return true;
 	if ( LIntersects( _srcOrigin, _srcExtents[ 1 ], _origin, _extents ) ) return true;
 	if ( LIntersects( _srcOrigin, _srcExtents[ 2 ], _origin, _extents ) ) return true;
+#endif // GLM_ARCH_PURE
 
 	return false;
 }
 
-void half_space_t::Draw( rend::imm_draw_t& drawer ) const
+void half_space_t::Draw( imm_draw_t& drawer ) const
 {
 	drawer.Begin( GL_LINES );
 
@@ -289,10 +330,8 @@ bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t&
 	glm::mat3 t( transform );
 	glm::vec3 origin( transform[ 3 ] );
 
-	static uint32_t count = 0;
 	if ( halfSpace.TestBounds( normal, t, origin ) )
 	{
-		printf( "YEAH: %iu\n", ++count );
 		return true;
 	}
 
@@ -438,5 +477,3 @@ void bounding_box_t::SetDrawable( const glm::vec4& color_ )
 {
     color = color_;
 }
-
-} // namespace geom

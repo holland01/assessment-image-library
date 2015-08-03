@@ -7,8 +7,6 @@
 #include <stdio.h>
 #include <memory>
 
-namespace geom {
-
 struct plane_t
 {
     float       d;
@@ -31,7 +29,7 @@ struct half_space_t
 	half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
 
 	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
-	void Draw( rend::imm_draw_t& drawer ) const;
+	void Draw( imm_draw_t& drawer ) const;
 };
 
 using point_predicate_t = bool ( * )( float );
@@ -182,6 +180,5 @@ INLINE void bounding_box_t::GetPoints( std::array< glm::vec3, 8 >& points ) cons
 	points[ 7 ] = GetCorner( ( corner_t ) 7 );
 }
 
-}
 
 

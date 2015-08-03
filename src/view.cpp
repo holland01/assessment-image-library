@@ -3,13 +3,10 @@
 #include "geom.h"
 
 #ifdef EMSCRIPTEN
-#	define DEFAULT_MOVE_STEP 10.0f
+#	define DEFAULT_MOVE_STEP 1.0f
 #else
 #	define DEFAULT_MOVE_STEP 1.0f
 #endif
-
-
-namespace view {
 
 params_t::params_t( void )
     : forward( 0.0f ), up( 0.0f ), right( 0.0f ),
@@ -34,7 +31,7 @@ frustum_t::frustum_t( void )
 		rejectCount( 0 ),
 		mvp( 1.0f )
 {
-	memset( frustPlanes, 0, sizeof( geom::plane_t ) * FRUST_NUM_PLANES );
+	memset( frustPlanes, 0, sizeof( plane_t ) * FRUST_NUM_PLANES );
 }
 
 frustum_t::~frustum_t( void )
@@ -59,7 +56,7 @@ glm::vec4 frustum_t::CalcPlaneFromOrigin( const glm::vec4& position, const glm::
 // Update the frustum by computing the world-relative frustum of the camera.
 // We calculaute the top, bottom, left, and right planes
 // by taking the basis vectors of the camera's world-relative orientation
-void frustum_t::Update( const view::params_t& view )
+void frustum_t::Update( const params_t& view )
 {
 	glm::mat4 inverseOrient(
 		glm::normalize( view.inverseOrient[ 0 ] ),
@@ -126,7 +123,7 @@ namespace {
 	}
 }
 
-bool frustum_t::IntersectsBox( const geom::bounding_box_t& box ) const
+bool frustum_t::IntersectsBox( const bounding_box_t& box ) const
 {
 	std::array< glm::vec3, 8 > clipBounds;
 	box.GetPoints( clipBounds );
@@ -134,7 +131,7 @@ bool frustum_t::IntersectsBox( const geom::bounding_box_t& box ) const
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-		if ( geom::PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
+		if ( PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
 		{
 			continue;
 		}
@@ -150,5 +147,3 @@ bool frustum_t::IntersectsBox( const geom::bounding_box_t& box ) const
 #ifdef F_PlaneSide
 #	undef F_PlaneSide
 #endif
-
-} // namespace view

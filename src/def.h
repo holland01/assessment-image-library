@@ -14,8 +14,13 @@
 #endif
 
 #define GLM_FORCE_RADIANS
-#define GLM_MESSAGES
-//#define GLM_FORCE_PURE
+
+#ifdef EMSCRIPTEN
+#	define GLM_FORCE_PURE
+#	define OP_CARRIAGE_RETURN "\n"
+#else
+#	define OP_CARRIAGE_RETURN "\r"
+#endif
 
 #define INLINE inline
 

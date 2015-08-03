@@ -4,11 +4,7 @@
 #include "geom.h"
 #include "renderer.h"
 
-namespace view {
-    struct frustum_t;
-}
-
-namespace map {
+struct frustum_t;
 
 struct tile_t
 {
@@ -19,7 +15,7 @@ struct tile_t
         EMPTY
     };
 
-	std::unique_ptr< geom::bounding_box_t > bounds;
+	std::unique_ptr< bounding_box_t > bounds;
     type_t type;
 	int32_t x, z, halfSpaceIndex;
 
@@ -47,10 +43,10 @@ struct generator_t
     std::vector< const tile_t* > walls;
 	std::vector< const tile_t* > freeSpace;
 
-	rend::texture_t billTexture;
+	texture_t billTexture;
 
 	std::vector< half_space_table_t > halfSpaceTable;
-	std::vector< geom::half_space_t > halfSpaces;
+	std::vector< half_space_t > halfSpaces;
 
 	generator_t( void );
 
@@ -64,15 +60,15 @@ struct generator_t
 	uint32_t TileIndex( uint32_t x, uint32_t z ) const;
 	uint32_t TileModIndex( uint32_t x, uint32_t z ) const;
 
-	bool CollidesWall( glm::vec3& normal, const tile_t& t, const geom::bounding_box_t& bounds, geom::half_space_t& outHalfSpace );
+	bool CollidesWall( glm::vec3& normal, const tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
 	void GetEntities( std::vector< const tile_t* >& billboards,
 					  std::vector< const tile_t* >& walls,
 					  std::vector< const tile_t* >& freeSpace,
-					  const view::frustum_t& frustum,
-					  const view::params_t& viewParams ) const;
+					  const frustum_t& frustum,
+					  const params_t& viewParams ) const;
 
-	geom::half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
+	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };
 
 INLINE uint32_t generator_t::TileIndex( uint32_t x, uint32_t z ) const
@@ -84,6 +80,4 @@ INLINE uint32_t generator_t::TileModIndex( uint32_t x, uint32_t z ) const
 {
 	return ( z % GRID_SIZE ) * GRID_SIZE + x % GRID_SIZE;
 }
-
-} // namespace mapgen
 

@@ -5,17 +5,11 @@
 #   define EMSCRIPTEN
 #endif
 */
+#include "game.h"
 
 #include <iostream>
 
 #include "renderer.h"
-#include "geom.h"
-#include "input.h"
-#include "map.h"
-#include "physics.h"
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_main.h>
 
 #ifdef OP_UNIX
 	#include <unistd.h>
@@ -29,41 +23,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
 
-struct game_t
-{
-	bool running = false, mouseShown = true, drawAll = false;
-    SDL_Window* window = nullptr;
-    SDL_Renderer* renderer = nullptr;
-    SDL_GLContext context = nullptr;
-
-    uint32_t width, height;
-
-	float frameTime, lastTime, startTime;
-
-	std::unique_ptr< map::generator_t > gen;
-	std::unique_ptr< rend::pipeline_t > pipeline;
-
-	geom::plane_t groundPlane;
-
-	input_client_t player, spec;
-	input_client_t* camera;
-	geom::bounding_box_t* drawBounds;
-
-	phys::world_t world;
-
-	view::frustum_t	frustum;
-
-	game_t( uint32_t width, uint32_t height );
-   ~game_t( void );
-
-	void ResetMap( void );
-	void ToggleCulling( void );
-	void Tick( void );
-
-	static game_t& GetInstance( void );
-};
+void Game_Frame( void );
 
 #include "eminput.h"
+
+void Draw_Group( game_t& game,
+				 const params_t& vp,
+				 const std::vector< const tile_t* >& billboards,
+				 const std::vector< const tile_t* >& walls,
+				 const std::vector< const tile_t* >& freeSpace );
 
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
@@ -73,7 +41,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	  startTime( 0.0f ),
 	  camera( nullptr ),
 	  drawBounds( nullptr ),
-	  world( 1.0f, 1.0f / 16.0f )
+	  world( 1.0f, 1.0f / 30.0f )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -114,9 +82,9 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 	SDL_RenderPresent( renderer );
 
-	pipeline.reset( new rend::pipeline_t() );
+	pipeline.reset( new pipeline_t() );
 
-	const rend::shader_program_t& program = pipeline->programs[ "single_color" ];
+	const shader_program_t& program = pipeline->programs[ "single_color" ];
 	program.Bind();
 
 	spec.SetPerspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
@@ -140,28 +108,28 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
 
-	gen.reset( new map::generator_t() );
+	gen.reset( new generator_t() );
 
-	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map::tile_t* a, const map::tile_t* b ) -> bool
+	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const tile_t* a, const tile_t* b ) -> bool
 	{
 		glm::vec2 va( a->x, a->z ), vb( b->x, b->z );
 
 		return glm::length( va ) < glm::length( vb );
 	});
 
-	const map::tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
+	const tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
 	{
-		phys::body_t* body = new phys::body_t();
+		body_t* body = new body_t();
 		body->position = glm::vec3( tile->x, 0.0f, tile->z );
 		body->invMass = 1.0f / 5.0f;
 
 		player.body = body;
-		std::unique_ptr< phys::body_t > bptr( body );
+		std::unique_ptr< body_t > bptr( body );
 		world.bodies.push_back( std::move( bptr ) );
 	}
 	{
-		phys::body_t* specBody = new phys::body_t();
+		body_t* specBody = new body_t();
 		specBody->position = glm::vec3( tile->x, 10.0f, tile->z );
 		specBody->invMass = 1.0f / 20.0f;
 
@@ -169,7 +137,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 		spec.body = specBody;
 		spec.Update();
 
-		world.bodies.push_back( std::unique_ptr< phys::body_t >( specBody ) );
+		world.bodies.push_back( std::unique_ptr< body_t >( specBody ) );
 	}
 	camera = &player;
 	drawBounds = &spec.bounds;
@@ -184,13 +152,13 @@ game_t::~game_t( void )
 
 game_t& game_t::GetInstance( void )
 {
-	static game_t app( 1366, 768 );
-	return app;
+	static game_t game( 1366, 768 );
+	return game;
 }
 
 void game_t::ResetMap( void )
 {
-	gen.reset( new map::generator_t() );
+	gen.reset( new generator_t() );
 }
 
 void game_t::ToggleCulling( void )
@@ -203,21 +171,37 @@ void game_t::Tick( void )
 	frameTime = startTime - lastTime;
 }
 
-void Draw_Group( game_t& app,
-				 const view::params_t& vp,
-				 const std::vector< const map::tile_t* >& billboards,
-				 const std::vector< const map::tile_t* >& walls,
-				 const std::vector< const map::tile_t* >& freeSpace )
+void game_t::Draw( void )
+{
+	const params_t& vp = camera->GetViewParams();
+
+	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+
+	if ( drawAll )
+	{
+		Draw_Group( *this, vp, gen->billboards, gen->walls, gen->freeSpace );
+	}
+	else
+	{
+		Draw_Group( *this, vp, billboards, walls, freeSpace );
+	}
+}
+
+void Draw_Group( game_t& game,
+				 const params_t& vp,
+				 const std::vector< const tile_t* >& billboards,
+				 const std::vector< const tile_t* >& walls,
+				 const std::vector< const tile_t* >& freeSpace )
 {
 
-	const rend::shader_program_t& singleColor = app.pipeline->programs.at( "single_color" );
-	const rend::shader_program_t& billboard = app.pipeline->programs.at( "billboard" );
+	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+	const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
 
-	const rend::draw_buffer_t& coloredCube = app.pipeline->drawBuffers.at( "colored_cube" );
-	const rend::draw_buffer_t& billboardBuffer = app.pipeline->drawBuffers.at( "billboard" );
+	const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
+	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
-	rend::imm_draw_t drawer( singleColor );
-//	rend::immDrawer = &drawer;
+	imm_draw_t drawer( singleColor );
+	immDrawer = &drawer;
 
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
 
@@ -231,36 +215,37 @@ void Draw_Group( game_t& app,
 		billboardBuffer.Render( singleColor );
 	};
 
-	auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const geom::bounding_box_t& bounds, const glm::vec3& color )
+	auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const bounding_box_t& bounds, const glm::vec3& color )
 	{
 		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
 		singleColor.LoadMat4( "modelToView",  vp.transform * bounds.transform );
 		coloredCube.Render( singleColor );
 	};
 
-	// don't test collision unless distance is low
+
 	singleColor.Bind();
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-	for ( const map::tile_t* tile: walls )
+	for ( const tile_t* tile: walls )
 	{
 		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
 
+		// don't test collision unless distance from player to object is within a certain range
 		if ( glm::distance( glm::vec3( tile->bounds->transform[ 3 ] ), vp.origin ) <= 2.0f )
 		{
-			geom::half_space_t hs;
+			half_space_t hs;
 			glm::vec3 normal;
 			LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-			if ( app.gen->CollidesWall( normal, *tile, app.camera->bounds, hs ) )
+			if ( game.gen->CollidesWall( normal, *tile, game.camera->bounds, hs ) )
 			{
-				if ( app.camera->body )
+				if ( game.camera->body )
 				{
-					app.camera->body->ApplyCollision( normal );
+					game.camera->body->ApplyCollision( normal * ( 1.0f - game.world.dt ) );
 				}
 			}
 		}
 	}
 
-	LDrawBounds( *( app.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
+	LDrawBounds( *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
 	singleColor.Release();
 
@@ -268,97 +253,82 @@ void Draw_Group( game_t& app,
 	billboard.LoadMat4( "modelToView", vp.transform );
 	billboard.LoadMat4( "viewToClip", vp.clipTransform );
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
-	for ( const map::tile_t* tile: billboards )
+	for ( const tile_t* tile: billboards )
 	{
 		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
 
 		glm::vec3 normal;
-		if ( app.camera->bounds.IntersectsBounds( normal, *( tile->bounds ) ) )
+		if ( game.camera->bounds.IntersectsBounds( normal, *( tile->bounds ) ) )
 		{
-			if ( app.camera->body )
+			if ( game.camera->body )
 			{
-				app.camera->body->ApplyCollision( normal );
+				game.camera->body->ApplyCollision( normal );
 			}
 		}
 
-		app.gen->billTexture.Bind( 0, "image", billboard );
+		game.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
-		app.gen->billTexture.Release( 0 );
+		game.gen->billTexture.Release( 0 );
 	}
 	billboard.Release();
 
 	singleColor.Bind();
-	for ( const map::tile_t* tile: freeSpace )
+	for ( const tile_t* tile: freeSpace )
 	{
 		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.0f, 0.5f ) );
 	}
 	singleColor.Release();
 }
 
-namespace  {
-	bool PointPlanePredicate( float value )
-	{
-		return value <= 0.0f;
-	}
-}
-
-void App_Frame( void )
+void Game_Frame( void )
 {
-	game_t& app = game_t::GetInstance();
+	game_t& game = game_t::GetInstance();
 
-	app.startTime = GetTime();
+	game.startTime = GetTime();
 
 #ifdef EMSCRIPTEN
-    if ( !app.running )
+	if ( !game.running )
     {
         emscripten_cancel_main_loop();
         std::exit( 0 );
     }
 #endif
 
-	const view::params_t& vp = app.camera->GetViewParams();
+	const params_t& vp = game.camera->GetViewParams();
 
+	game.frustum.Update( vp );
+
+	if ( !game.drawAll )
 	{
-		app.world.time = app.frameTime;
-
-		app.world.Update();
-		app.camera->Update();
-		app.frustum.Update( vp );
+		game.gen->GetEntities( game.billboards, game.walls, game.freeSpace, game.frustum, vp );
 	}
 
-	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+	game.world.Update( game );
 
-	if ( app.drawAll )
-	{
-		Draw_Group( app, vp, app.gen->billboards, app.gen->walls, app.gen->freeSpace );
-	}
-	else
-	{
-		std::vector< const map::tile_t* > billboards, walls, freeSpace;
-		app.gen->GetEntities( billboards, walls, freeSpace, app.frustum, vp );
-		Draw_Group( app, vp, billboards, walls, freeSpace );
-	}
+	game.Draw();
 
-	app.frameTime = GetTime() - app.startTime;
+	game.world.time = GetTime() - game.startTime;
+
+	printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 }
 
-// temporary hack to get around the fact that querying for an app
-// instance if an error is happening causes problems; we use this flag the exit.
+// temporary hack to get around the fact that querying for an game
+// instance if an error is hgameening causes problems; we use this flag the exit.
 static bool* runningPtr = nullptr;
 
-uint32_t App_Exec( void )
+uint32_t Game_Exec( void )
 {   	
-	game_t& app = game_t::GetInstance();
-	runningPtr = &app.running;
+	game_t& game = game_t::GetInstance();
+	runningPtr = &game.running;
 
 #ifdef EMSCRIPTEN
 	InitEmInput();
 #else
-    while ( app.running )
+	while ( game.running )
     {
-        App_Frame();
+		Game_Frame();
 
-        SDL_GL_SwapWindow( app.window );
+		SDL_GL_SwapWindow( game.window );
 
         SDL_Event e;
         while ( SDL_PollEvent( &e ) )
@@ -370,11 +340,11 @@ uint32_t App_Exec( void )
                     {
                         case SDLK_ESCAPE:
 							SDL_SetRelativeMouseMode( SDL_FALSE );
-                            app.running = false;
+							game.running = false;
                             break;
                         case SDLK_F1:
-                            app.mouseShown = !app.mouseShown;
-                            if ( app.mouseShown )
+							game.mouseShown = !game.mouseShown;
+							if ( game.mouseShown )
                             {
                                 SDL_SetRelativeMouseMode( SDL_FALSE );
                             }
@@ -384,38 +354,38 @@ uint32_t App_Exec( void )
                             }
                             break;
 						case SDLK_r:
-							app.ResetMap();
+							game.ResetMap();
 							break;
 						case SDLK_v:
-							app.ToggleCulling();
+							game.ToggleCulling();
 							break;
 						case SDLK_c:
-							if ( app.camera == &app.player )
+							if ( game.camera == &game.player )
 							{
-								app.drawBounds = &app.player.bounds;
-								app.camera = &app.spec;
+								game.drawBounds = &game.player.bounds;
+								game.camera = &game.spec;
 							}
 							else
 							{
-								app.drawBounds = &app.spec.bounds;
-								app.camera = &app.player;
+								game.drawBounds = &game.spec.bounds;
+								game.camera = &game.player;
 							}
 							break;
 
                         default:
-							app.camera->EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
+							game.camera->EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
                             break;
 
 
                     }
                     break;
                 case SDL_KEYUP:
-					app.camera->EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
+					game.camera->EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
                     break;
                 case SDL_MOUSEMOTION:
-                    if ( !app.mouseShown )
+					if ( !game.mouseShown )
                     {
-						app.camera->EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
+						game.camera->EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
                     }
                     break;
             }
@@ -433,7 +403,7 @@ void FlagExit( void )
 
 float GetTime( void )
 {
-	return ( float )SDL_GetTicks();
+	return ( float )SDL_GetTicks() * 0.001f;
 }
 
 // SDL2 defines main as a macro for some reason on Windows
@@ -443,6 +413,6 @@ float GetTime( void )
 
 int main( void ) 
 {
-    return App_Exec();
+	return Game_Exec();
 }
 

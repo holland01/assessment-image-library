@@ -6,8 +6,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 
-namespace view {
-
 struct params_t
 {
     glm::vec3   forward;
@@ -54,7 +52,7 @@ enum
 
 struct frustum_t
 {
-	geom::plane_t    frustPlanes[ FRUST_NUM_PLANES ];
+	plane_t    frustPlanes[ FRUST_NUM_PLANES ];
 
 	mutable uint32_t acceptCount;
 
@@ -74,12 +72,10 @@ struct frustum_t
 
 	void	ResetMetrics( void ) const { rejectCount = 0; acceptCount = 0; }
 
-	bool    IntersectsBox( const geom::bounding_box_t& box ) const;
+	bool    IntersectsBox( const bounding_box_t& box ) const;
 };
 
 INLINE void frustum_t::PrintMetrics( void ) const
 {
 	printf( "Reject Count: %iu; Accept Count: %iu\r", rejectCount, acceptCount );
 }
-
-} // namespace view

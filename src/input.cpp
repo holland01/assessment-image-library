@@ -39,11 +39,11 @@ enum
 };
 
 input_client_t::input_client_t( void )
-	: input_client_t( view::params_t() )
+	: input_client_t( params_t() )
 {
 }
 
-input_client_t::input_client_t( const view::params_t& view )
+input_client_t::input_client_t( const params_t& view )
 	: viewParams( view ),
 	  body( nullptr ),
 	  bounds( glm::mat4( 1.0f ) ),
@@ -53,7 +53,7 @@ input_client_t::input_client_t( const view::params_t& view )
 }
 
 input_client_t::input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
-	: input_client_t( view::params_t() )
+	: input_client_t( params_t() )
 {
 	viewParams.origin = glm::vec3( -viewTransform[ 3 ] );
 	viewParams.transform = viewTransform;
@@ -157,7 +157,7 @@ void input_client_t::EvalKeyRelease( input_key_t key )
 	}
 }
 
-void input_client_t::Update( void )
+void input_client_t::ApplyMovement( void )
 {
 	NormalizeRotation( viewParams.currRot );
 
@@ -175,7 +175,10 @@ void input_client_t::Update( void )
 	if ( keysPressed[ KEY_DOWN ] ) AddDir( viewParams.up, -viewParams.moveStep );
 	if ( keysPressed[ KEY_IN ] ) viewParams.currRot.z += viewParams.moveStep;
 	if ( keysPressed[ KEY_OUT ] ) viewParams.currRot.z -= viewParams.moveStep;
+}
 
+void input_client_t::Update( void )
+{
 	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( viewParams.currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );

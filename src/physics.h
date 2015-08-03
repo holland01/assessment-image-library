@@ -6,7 +6,7 @@
 #include <memory>
 #include <vector>
 
-namespace phys {
+struct game_t;
 
 const float INFINITE_MASS = 0.0f;
 
@@ -31,11 +31,11 @@ struct world_t
 
 	float time;
 	float dt;
+	float t;
+	float lt;
 
 	world_t( float time, float dt );
 
-	void Update( void );
+	void Update( game_t& game );
 };
-
-}
 

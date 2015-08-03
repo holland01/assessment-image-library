@@ -144,8 +144,6 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
 // Texture Utils
 //-----------------------------------------------------------
 
-namespace rend {
-
 void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program_t& program )
 {
 	GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
@@ -692,16 +690,16 @@ pipeline_t::pipeline_t( void )
 			GL_STATIC_DRAW,
 			{
 			 // back
-				rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
 
 			 // front
-				rend::draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
-				rend::draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
+				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
 			},
 
 			// Draw order:
@@ -771,5 +769,3 @@ pipeline_t::~pipeline_t( void )
 }
 
 imm_draw_t* immDrawer = nullptr;
-
-} // namespace glrend

@@ -1,7 +1,5 @@
 #define ATTRIB_OFFSET_VBO -1
 
-namespace rend {
-
 //-------------------------------------------------------------------------------------------------------
 // Global
 //-------------------------------------------------------------------------------------------------------
@@ -449,7 +447,5 @@ void debug_split_draw< predicate_type_t, renderable_t >::operator()(
 		draw.Render( program );
 	}
 }
-
-} // namespace glrend
 
 #undef ATTRIB_OFFSET_VBO

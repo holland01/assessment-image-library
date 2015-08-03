@@ -59,8 +59,6 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 {
 	UNUSEDPARAM( userData );
 
-	printf( "EMCode: %s, EMKey: %s\n", keyEvent->code, keyEvent->key );
-
 	game_t& app = game_t::GetInstance();
 
 	auto entry = emKeyMap.find( keyEvent->code );
@@ -100,8 +98,6 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 	UNUSEDPARAM( eventType );
 	UNUSEDPARAM( userData );
 
-	//printf( "Mouse { x: %ld, y: %ld\n }", mouseEvent->canvasX, mouseEvent->canvasY );
-
 	game_t& app = game_t::GetInstance();
 
 	EmscriptenPointerlockChangeEvent pl;
@@ -124,7 +120,7 @@ void InitEmInput( void )
 	SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyRelease > ) );
 	SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
 
-	emscripten_set_main_loop( ( em_callback_func )&App_Frame, 0, 1 );
+	emscripten_set_main_loop( ( em_callback_func )&Game_Frame, 0, 1 );
 }
 
 }

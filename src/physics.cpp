@@ -1,10 +1,9 @@
 #include "physics.h"
 #include "base.h"
+#include "game.h"
 #include <sstream>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/projection.hpp>
-
-namespace phys {
 
 //-------------------------------------------------------------------------------------------------------
 // body_t
@@ -57,26 +56,38 @@ void body_t::Reset( void )
 
 world_t::world_t( float time_, float dt_ )
 	: time( time_ ),
-	  dt( dt_ )
+	  dt( dt_ ),
+	  t( 0.0f ),
+	  lt( 0.0f )
 {
 }
 
-void world_t::Update( void )
+void world_t::Update( game_t& game )
 {
-	float t = 0.0f;
-	while ( t < time )
+	game.camera->viewParams.moveStep = 100.0f;
+	lt = t;
+
+	float measure = time;
+
+	while ( measure > 0.0f )
 	{
+		float delta = glm::min( measure, dt );
+
+		game.camera->ApplyMovement();
+
 		for ( std::unique_ptr< body_t >& body: bodies )
 		{
 			body->Integrate( dt );
 		}
-		t += dt;
+
+		measure -= delta;
+		t += delta;
 	}
+
+	game.camera->Update();
 
 	for ( std::unique_ptr< body_t >& body: bodies )
 	{
 		body->Reset();
 	}
-}
-
 }

@@ -46,11 +46,9 @@
 #   define GL_CHECK_WITH_NAME( expr, funcname ) ( expr )
 #endif // __DEBUG_RENDERER__
 
-namespace view {
-	struct params_t;
-}
 
-namespace rend {
+struct params_t;
+
 
 class shader_program_t;
 
@@ -383,8 +381,6 @@ public:
 };
 
 extern imm_draw_t* immDrawer;
-
-} // namespace rend
 
 #include "renderer.inl"
 

@@ -37,9 +37,9 @@ enum class input_key_t : uint32_t
 
 struct input_client_t
 {
-	view::params_t viewParams;
-	phys::body_t* body;
-	geom::bounding_box_t bounds;
+	params_t viewParams;
+	body_t* body;
+	bounding_box_t bounds;
 
 	std::array< uint8_t, 8 > keysPressed;
 
@@ -52,13 +52,14 @@ struct input_client_t
 	mode_t mode;
 
 	input_client_t( void );
-	input_client_t( const view::params_t& viewParams );
+	input_client_t( const params_t& viewParams );
 	input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
 	void    EvalKeyPress( input_key_t key );
 	void    EvalKeyRelease( input_key_t key );
 	void    EvalMouseMove( float x, float y, bool calcRelative );
 
+	void	ApplyMovement( void );
 	void    Update( void );
 
 	void	AddDir( const glm::vec3& dir, float scale );
@@ -73,7 +74,7 @@ struct input_client_t
 	glm::vec3   Up( void ) const;
 	glm::vec3   Right( void ) const;
 
-	const view::params_t& GetViewParams( void ) const;
+	const params_t& GetViewParams( void ) const;
 
 	void PrintOrigin( void ) const;
 };
@@ -144,7 +145,7 @@ INLINE void input_client_t::SetPosition( const glm::vec3& origin )
 	viewParams.origin = origin;
 }
 
-INLINE const view::params_t& input_client_t::GetViewParams( void ) const
+INLINE const params_t& input_client_t::GetViewParams( void ) const
 {
 	return viewParams;
 }
