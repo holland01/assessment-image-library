@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <array>
 #include <glm/gtc/matrix_transform.hpp>
+#include "entity.h"
 #include "physics.h"
 #include "view.h"
 
@@ -35,11 +36,9 @@ enum class input_key_t : uint32_t
 #endif
 };
 
-struct input_client_t
+struct input_client_t : public entity_t
 {
     view_params_t viewParams;
-	body_t* body;
-	bounding_box_t bounds;
 
 	std::array< uint8_t, 8 > keysPressed;
 
@@ -104,7 +103,7 @@ INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 {
 	if ( body )
 	{
-		body->forceAccum += dir * scale;
+        body->ApplyForce( dir * scale );
 	}
 	else
 	{

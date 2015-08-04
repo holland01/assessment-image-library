@@ -1,5 +1,6 @@
 #include "map.h"
 #include "view.h"
+#include <iostream>
 #include <random>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/projection.hpp>
@@ -45,11 +46,37 @@ namespace {
 }
 
 tile_t::tile_t( void )
-	: bounds( nullptr ),
-	  type( tile_t::EMPTY ),
+    : entity_t( entity_t::BODY_DEPENDENT ),
+      type( tile_t::EMPTY ),
 	  x( 0 ), z( 0 ),
 	  halfSpaceIndex( -1 )
 {
+}
+
+void tile_t::Set( const glm::mat4& transform )
+{
+    body.reset( new body_t );
+    bounds.reset( new bounding_box_t );
+
+    switch ( type )
+    {
+        case tile_t::BILLBOARD:
+            depType = entity_t::BODY_DEPENDENT;
+            body->SetFromTransform( transform );
+            body->SetMass( 100.0f );
+            Sync();
+            break;
+        default:
+            if ( type == tile_t::WALL )
+            {
+                body->SetMass( 100000.0f );
+            }
+
+            depType = entity_t::BOUNDS_DEPENDENT;
+            bounds->SetTransform( transform );
+            Sync();
+            break;
+    }
 }
 
 generator_t::generator_t( void )
@@ -172,7 +199,7 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 	return count;
 }
 
-void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<tile_t*>& mutWalls )
+void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< tile_t* >& mutWalls )
 {
 	bool isWall;
 	uint32_t center = TileIndex( x, z );
@@ -187,7 +214,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<t
 		isWall = RangeCount( x - 1, z - 1, 3 ) >= 5 || predicates[ pass - 1 ]( RangeCount( x - 2, z - 2, 5 ) );
 	}
 
-	tiles[ center ].bounds.reset( nullptr );
+    tiles[ center ].bounds.reset();
 	tiles[ center ].type = tile_t::EMPTY;
 	tiles[ center ].x = x;
 	tiles[ center ].z = z;
@@ -223,12 +250,11 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z , std::vector<t
 		}
 	}
 
-	//if ( tiles[ center ].type != tile_t::EMPTY )
 	{
 		glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
 
-		tiles[ center ].bounds.reset( new bounding_box_t( t * s ) );
+        tiles[ center ].Set( t * s );
 	}
 }
 
@@ -236,9 +262,9 @@ half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal
 {
 	using corner_t = bounding_box_t::corner_t;
 
-	glm::vec3 upAxis( t.bounds->transform[ 1 ] );
-	glm::vec3 boundsOrigin( t.bounds->transform[ 3 ] );
-	glm::vec3 boundsSize( t.bounds->GetSize() );
+    glm::vec3 upAxis( ( *t.bounds )[ 1 ] );
+    glm::vec3 boundsOrigin( ( *t.bounds )[ 3 ] );
+    glm::vec3 boundsSize( t.bounds->GetSize() );
 
 	half_space_t hs;
 
@@ -259,7 +285,7 @@ half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal
 
 	for ( corner_t face: lowerPoints )
 	{
-		glm::vec3 point( t.bounds->GetCorner( ( corner_t ) face ) );
+        glm::vec3 point( t.bounds->GetCorner( ( corner_t ) face ) );
 		glm::vec3 pointToCenter( faceCenter - point );
 
 		// Not in same plane; move on
@@ -269,7 +295,7 @@ half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal
 		}
 
 		// Half space axes will be outside of the bounds; move on
-		if ( !t.bounds->EnclosesPoint( point + hs.extents[ 0 ] ) || !t.bounds->EnclosesPoint( point + hs.extents[ 1 ] ) )
+        if ( !t.bounds->EnclosesPoint( point + hs.extents[ 0 ] ) || !t.bounds->EnclosesPoint( point + hs.extents[ 1 ] ) )
 		{
 			continue;
 		}
@@ -294,7 +320,7 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 
 	const half_space_table_t& halfSpaceFaces = halfSpaceTable[ t.halfSpaceIndex ];
 
-	/*for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
+    for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
 	{
 		if ( halfSpaceFaces[ i ] >= 0 )
 		{	
@@ -302,40 +328,23 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 
 			if ( bounds.IntersectsHalfSpace( normal, hs ) )
 			{
+                if ( glm::length( normal ) < 1.0f )
+                {
+                    normal = glm::normalize( normal );
+                }
+
 				outHalfSpace = hs;
 				return true;
 			}
 
-			if ( rend::immDrawer )
+            if ( immDrawer )
 			{
-				hs.Draw( *rend::immDrawer );
+                hs.Draw( *immDrawer );
 			}
 		}
-	}
-	*/
-
-#define LOL_OPTIMIZED( i ) \
-	if ( halfSpaceFaces[ i ] >= i ) \
-	{\
-		const half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];\
-		if ( bounds.IntersectsHalfSpace( normal, hs ) )\
-		{\
-			outHalfSpace = hs;\
-			return true;\
-		}\
-		if ( immDrawer )\
-		{\
-			hs.Draw( *immDrawer );\
-		}\
-	}
-
-	LOL_OPTIMIZED( 0 );
-	LOL_OPTIMIZED( 1 );
-	LOL_OPTIMIZED( 2 );
-	LOL_OPTIMIZED( 3 );
+    }
 
 	return false;
-#undef LOL_OPTIMIZED
 }
 
 void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,

@@ -65,9 +65,11 @@ bool RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 );
 
 struct bounding_box_t
 {
+private:
 	glm::mat4 transform;
     glm::vec4 color;
 
+public:
     enum face_t
     {
         FACE_TOP = 0,
@@ -110,7 +112,23 @@ struct bounding_box_t
 
 	glm::vec3       GetCornerIdentity( corner_t index ) const;
 
+    const glm::mat4& GetTransform( void ) const;
+
 	void			GetEdgesFromCorner( corner_t index, glm::mat3& edges ) const;
+
+    void            GetPoints( std::array< glm::vec3, 8 >& points ) const;
+
+    void			GetFacePlane( face_t face, plane_t& plane ) const;
+
+    void			SetDrawable( const glm::vec4& color );
+
+    void            SetCenter( const glm::vec3& position );
+
+    void            SetOrientation( const glm::mat3& orient );
+
+    void            SetTransform( const glm::mat4& t );
+
+    const glm::vec4& operator[]( uint32_t i ) const;
 
     bool			InXRange( const glm::vec3& v ) const;
 
@@ -126,11 +144,6 @@ struct bounding_box_t
 
 	bool			CalcIntersection( float& t0, const glm::vec3& ray, const glm::vec3& origin ) const;
 
-    void			GetFacePlane( face_t face, plane_t& plane ) const;
-
-    void			SetDrawable( const glm::vec4& color );
-
-    void            GetPoints( std::array< glm::vec3, 8 >& points ) const;
 };
 
 INLINE glm::vec3 bounding_box_t::GetCornerIdentity( corner_t index ) const
@@ -178,6 +191,35 @@ INLINE void bounding_box_t::GetPoints( std::array< glm::vec3, 8 >& points ) cons
 	points[ 5 ] = GetCorner( ( corner_t ) 5 );
 	points[ 6 ] = GetCorner( ( corner_t ) 6 );
 	points[ 7 ] = GetCorner( ( corner_t ) 7 );
+}
+
+INLINE const glm::mat4& bounding_box_t::GetTransform( void ) const
+{
+    return transform;
+}
+
+INLINE void bounding_box_t::SetCenter( const glm::vec3& position )
+{
+    transform[ 3 ] = glm::vec4( position, 1.0f );
+}
+
+INLINE void bounding_box_t::SetOrientation( const glm::mat3& orient )
+{
+    transform[ 0 ] = glm::vec4( orient[ 0 ], 0.0f );
+    transform[ 1 ] = glm::vec4( orient[ 1 ], 0.0f );
+    transform[ 2 ] = glm::vec4( orient[ 2 ], 0.0f );
+}
+
+INLINE void bounding_box_t::SetTransform( const glm::mat4& t )
+{
+    transform = t;
+}
+
+INLINE const glm::vec4& bounding_box_t::operator[]( uint32_t i ) const
+{
+    assert( i < 4 );
+
+    return transform[ i ];
 }
 
 

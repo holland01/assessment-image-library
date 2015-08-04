@@ -45,9 +45,8 @@ input_client_t::input_client_t( void )
 }
 
 input_client_t::input_client_t( const view_params_t& view )
-	: viewParams( view ),
-	  body( nullptr ),
-	  bounds( glm::mat4( 1.0f ) ),
+    : entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t ),
+      viewParams( view ),
 	  mode( MODE_PLAY )
 {
 	keysPressed.fill( 0 );
@@ -184,16 +183,16 @@ void input_client_t::Update( void )
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
 
-	viewParams.inverseOrient = glm::inverse( viewParams.orientation );
+    viewParams.inverseOrient = glm::inverse( viewParams.orientation );
 
 	viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
-	bounds.transform = viewParams.inverseOrient;
+    bounds->SetTransform( viewParams.inverseOrient );
 
 	if ( mode == MODE_PLAY )
 	{
 		if ( body )
 		{
-			body->position.y = 0.0f;
+            body->SetPositionAxis( 1, 0.0f );
 		}
 		else
 		{
@@ -203,13 +202,12 @@ void input_client_t::Update( void )
 
 	if ( body )
 	{
-		body->orientation = glm::mat3( viewParams.inverseOrient );
-		viewParams.origin = body->position;
-		bounds.transform[ 3 ] = glm::vec4( body->position, 1.0f );
+        viewParams.origin = body->GetPosition();
+        bounds->SetCenter( body->GetPosition() );
 	}
 	else
 	{
-		bounds.transform[ 3 ] = glm::vec4( viewParams.origin, 1.0f );
+        bounds->SetCenter( viewParams.origin );
 	}
 }
 

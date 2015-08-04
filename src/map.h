@@ -1,12 +1,14 @@
 #pragma once
 
 #include "def.h"
+#include "entity.h"
+#include "physics.h"
 #include "geom.h"
 #include "renderer.h"
 
 struct frustum_t;
 
-struct tile_t
+struct tile_t : public entity_t
 {
     enum type_t
     {
@@ -15,15 +17,17 @@ struct tile_t
         EMPTY
     };
 
-	std::unique_ptr< bounding_box_t > bounds;
     type_t type;
 	int32_t x, z, halfSpaceIndex;
 
 	tile_t( void );
+
+    void Set( const glm::mat4& transform );
 };
 
 struct generator_t
 {	
+public:
 	static const int32_t GRID_SIZE = 100;
 
 	enum faceIndex_t
@@ -48,7 +52,7 @@ struct generator_t
 	std::vector< half_space_table_t > halfSpaceTable;
 	std::vector< half_space_t > halfSpaces;
 
-	generator_t( void );
+    generator_t( void );
 
 	void SetTile( uint32_t pass,
 				  uint32_t x,

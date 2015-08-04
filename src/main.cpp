@@ -101,7 +101,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
 
-	gen.reset( new generator_t() );
+    gen.reset( new generator_t() );
 
 	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const tile_t* a, const tile_t* b ) -> bool
 	{
@@ -113,27 +113,26 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	const tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
 	{
-		body_t* body = new body_t();
-		body->position = glm::vec3( tile->x, 0.0f, tile->z );
-		body->invMass = 1.0f / 5.0f;
+        body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
+        body->SetCenter( glm::vec3( tile->x, 0.0f, tile->z ) );
+        body->SetMass( 80.0f );
 
-		player.body = body;
-		std::unique_ptr< body_t > bptr( body );
-		world.bodies.push_back( std::move( bptr ) );
+        player.body.reset( body );
+        world.bodies.push_back( player.body );
 	}
 	{
-		body_t* specBody = new body_t();
-		specBody->position = glm::vec3( tile->x, 10.0f, tile->z );
-		specBody->invMass = 1.0f / 20.0f;
+        body_t* specBody = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
+        specBody->SetCenter( glm::vec3( tile->x, 10.0f, tile->z ) );
+        specBody->SetMass( 5.0f );
 
 		spec.mode = input_client_t::MODE_SPEC;
-		spec.body = specBody;
+        spec.body.reset( specBody );
 		spec.Update();
 
-		world.bodies.push_back( std::unique_ptr< body_t >( specBody ) );
+        world.bodies.push_back( spec.body );
 	}
 	camera = &player;
-	drawBounds = &spec.bounds;
+    drawBounds = spec.bounds.get();
 
 	running = true;
 }
@@ -151,7 +150,7 @@ game_t& game_t::GetInstance( void )
 
 void game_t::ResetMap( void )
 {
-	gen.reset( new generator_t() );
+    gen.reset( new generator_t() );
 }
 
 void game_t::ToggleCulling( void )
@@ -211,7 +210,7 @@ void Draw_Group( game_t& game,
 	auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const bounding_box_t& bounds, const glm::vec3& color )
 	{
 		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
-		singleColor.LoadMat4( "modelToView",  vp.transform * bounds.transform );
+        singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
 		coloredCube.Render( singleColor );
 	};
 
@@ -220,19 +219,21 @@ void Draw_Group( game_t& game,
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const tile_t* tile: walls )
 	{
-		LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
+        LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
 
 		// don't test collision unless distance from player to object is within a certain range
-		if ( glm::distance( glm::vec3( tile->bounds->transform[ 3 ] ), vp.origin ) <= 2.0f )
+        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= 2.0f )
 		{
 			half_space_t hs;
 			glm::vec3 normal;
-			LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-			if ( game.gen->CollidesWall( normal, *tile, game.camera->bounds, hs ) )
+            LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+            if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
 			{
 				if ( game.camera->body )
 				{
-					game.camera->body->ApplyCollision( normal * ( 1.0f - game.world.dt ) );
+                    glm::vec3 v( normal * tile->body->GetMass() );
+
+                    game.camera->body->ApplyForce( v );
 				}
 			}
 		}
@@ -248,14 +249,14 @@ void Draw_Group( game_t& game,
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 	for ( const tile_t* tile: billboards )
 	{
-		billboard.LoadVec3( "origin", glm::vec3( tile->bounds->transform[ 3 ] ) );
+        billboard.LoadVec3( "origin", glm::vec3( ( *tile->bounds )[ 3 ] ) );
 
 		glm::vec3 normal;
-		if ( game.camera->bounds.IntersectsBounds( normal, *( tile->bounds ) ) )
+        if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
 		{
 			if ( game.camera->body )
 			{
-				game.camera->body->ApplyCollision( normal );
+                game.camera->body->ApplyForce( normal );
 			}
 		}
 
@@ -268,7 +269,7 @@ void Draw_Group( game_t& game,
     singleColor.Bind();
 	for ( const tile_t* tile: freeSpace )
 	{
-		LDrawQuad( tile->bounds->transform, glm::vec3( 0.0f, 0.0f, 0.5f ) );
+        LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f, 0.0f, 0.5f ) );
 	}
 	singleColor.Release();
 }
@@ -300,9 +301,11 @@ void Game_Frame( void )
 
 	game.Draw();
 
+    game.world.bodies.clear();
+
 	game.world.time = GetTime() - game.startTime;
 
-   // printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
+    printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 }
 
 // temporary hack to get around the fact that querying for an game
@@ -355,12 +358,12 @@ uint32_t Game_Exec( void )
 						case SDLK_c:
 							if ( game.camera == &game.player )
 							{
-								game.drawBounds = &game.player.bounds;
+                                game.drawBounds = game.player.bounds.get();
 								game.camera = &game.spec;
 							}
 							else
 							{
-								game.drawBounds = &game.spec.bounds;
+                                game.drawBounds = game.spec.bounds.get();
 								game.camera = &game.player;
 							}
 							break;
