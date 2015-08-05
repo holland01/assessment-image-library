@@ -127,7 +127,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 		spec.mode = input_client_t::MODE_SPEC;
         spec.body.reset( specBody );
-		spec.Update();
+        spec.Sync();
 
         world.bodies.push_back( spec.body );
 	}
@@ -177,6 +177,9 @@ void game_t::Draw( void )
 	{
 		Draw_Group( *this, vp, billboards, walls, freeSpace );
 	}
+
+    GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
+
 }
 
 void Draw_Group( game_t& game,
@@ -214,6 +217,13 @@ void Draw_Group( game_t& game,
 		coloredCube.Render( singleColor );
 	};
 
+    auto LApplyForce = [ &game ]( const glm::vec3& normal, const body_t& body )
+    {
+        if ( game.camera->body )
+        {
+            game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
+        }
+    };
 
 	singleColor.Bind();
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
@@ -229,12 +239,7 @@ void Draw_Group( game_t& game,
             LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
             if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
 			{
-				if ( game.camera->body )
-				{
-                    glm::vec3 v( normal * tile->body->GetMass() );
-
-                    game.camera->body->ApplyForce( v );
-				}
+                LApplyForce( normal, *( tile->body ) );
 			}
 		}
 	}
@@ -249,15 +254,12 @@ void Draw_Group( game_t& game,
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
 	for ( const tile_t* tile: billboards )
 	{
-        billboard.LoadVec3( "origin", glm::vec3( ( *tile->bounds )[ 3 ] ) );
+        billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
 		glm::vec3 normal;
         if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
 		{
-			if ( game.camera->body )
-			{
-                game.camera->body->ApplyForce( normal );
-			}
+            LApplyForce( normal, *( tile->body ) );
 		}
 
 		game.gen->billTexture.Bind( 0, "image", billboard );

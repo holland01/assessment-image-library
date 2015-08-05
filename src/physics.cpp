@@ -80,9 +80,8 @@ void body_t::Reset( void )
 
 world_t::world_t( float time_, float dt_ )
 	: time( time_ ),
-	  dt( dt_ ),
-	  t( 0.0f ),
-	  lt( 0.0f )
+      dt( dt_ ),
+      t( 0.0f )
 {
 }
 
@@ -105,13 +104,13 @@ void world_t::Update( game_t& game )
         }
     }
 
-    game.camera->ApplyMovement();
-
 	float measure = time;
 
 	while ( measure > 0.0f )
 	{
 		float delta = glm::min( measure, dt );
+
+        game.camera->ApplyMovement();
 
         for ( std::weak_ptr< body_t >& body: bodies )
 		{
@@ -127,7 +126,7 @@ void world_t::Update( game_t& game )
 		t += delta;
 	}
 
-	game.camera->Update();
+    game.camera->Sync();
 
     ClearAllAccum();
 }

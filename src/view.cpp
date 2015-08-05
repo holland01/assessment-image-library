@@ -3,9 +3,9 @@
 #include "geom.h"
 
 #ifdef EMSCRIPTEN
-#	define DEFAULT_MOVE_STEP 5000.0f
+#	define DEFAULT_MOVE_STEP 1.0f
 #else
-#	define DEFAULT_MOVE_STEP 500.0f
+#	define DEFAULT_MOVE_STEP 1.0f
 #endif
 
 view_params_t::view_params_t( void )

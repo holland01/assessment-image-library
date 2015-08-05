@@ -25,7 +25,7 @@ public:
 
     entity_t( dependent_t dep, bounding_box_t* bounds = nullptr, body_t* body = nullptr );
 
-    void Sync( void );
+    virtual void Sync( void );
 };
 
 

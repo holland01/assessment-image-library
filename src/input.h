@@ -60,6 +60,7 @@ struct input_client_t : public entity_t
 
 	void	ApplyMovement( void );
 	void    Update( void );
+    void    Sync( void ) override;
 
 	void	AddDir( const glm::vec3& dir, float scale );
 
@@ -80,22 +81,43 @@ struct input_client_t : public entity_t
 
 INLINE glm::vec3 input_client_t::Forward( void ) const
 {
-	glm::vec4 forward = viewParams.inverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
+    // If we have a body defined, then we're going to update its orientation
+    // with the inverse orientation transform computed from the camera already;
+    // this avoids a double transformation which screws things up.
+    if ( body )
+    {
+        return glm::vec3( 0.0f, 0.0f, -1.0f );
+    }
 
+	glm::vec4 forward = viewParams.inverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
 	return glm::normalize( glm::vec3( forward ) );
 }
 
 INLINE glm::vec3 input_client_t::Right( void ) const
 {
-	glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
+    // If we have a body defined, then we're going to update its orientation
+    // with the inverse orientation transform computed from the camera already;
+    // this avoids a double transformation which screws things up.
+    if ( body )
+    {
+        return glm::vec3( 1.0f, 0.0f, 0.0f );
+    }
 
+	glm::vec4 right = viewParams.inverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
 	return glm::normalize( glm::vec3( right ) );
 }
 
 INLINE glm::vec3 input_client_t::Up( void ) const
 {
-	glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
+    // If we have a body defined, then we're going to update its orientation
+    // with the inverse orientation transform computed from the camera already;
+    // this avoids a double transformation which screws things up.
+    if ( body )
+    {
+        return glm::vec3( 0.0f, 1.0f, 0.0f );
+    }
 
+	glm::vec4 up = viewParams.inverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
 	return glm::normalize( glm::vec3( up ) );
 }
 
@@ -103,7 +125,7 @@ INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 {
 	if ( body )
 	{
-        body->ApplyForce( dir * scale );
+        body->ApplyVelocity( dir * scale );
 	}
 	else
 	{

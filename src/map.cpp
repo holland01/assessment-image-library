@@ -69,7 +69,7 @@ void tile_t::Set( const glm::mat4& transform )
         default:
             if ( type == tile_t::WALL )
             {
-                body->SetMass( 100000.0f );
+                body->SetMass( 100.0f );
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;

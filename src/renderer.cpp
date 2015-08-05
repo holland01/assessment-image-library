@@ -654,6 +654,13 @@ pipeline_t::pipeline_t( void )
 			{ "color", "modelToView", "viewToClip" },
 			{ "position" }
 		},
+        {
+            "single_color_ss",
+            "single_color_ss.vert",
+            "single_color_ss.frag",
+            { "color" },
+            { "position" }
+        },
 		{
 			"billboard",
 			"billboard.vert",
@@ -741,7 +748,7 @@ pipeline_t::pipeline_t( void )
 				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
 			},
 			{}
-		}
+        }
 	}};
 
 	for ( const buffer_def_t& def: bufferDefs )

@@ -7,8 +7,20 @@
 #include <vector>
 
 struct game_t;
+struct body_t;
 
 const float INFINITE_MASS = 0.0f;
+
+//-------------------------------------------------------------------------------------------------------
+// util
+//-------------------------------------------------------------------------------------------------------
+
+static INLINE glm::vec3 P_GenericCollideNormal( const glm::vec3& normal, const body_t& a, const body_t& b );
+
+
+//-------------------------------------------------------------------------------------------------------
+// body_t
+//-------------------------------------------------------------------------------------------------------
 
 struct body_t
 {
@@ -111,14 +123,17 @@ INLINE void body_t::SetFromTransform( const glm::mat4& t )
     orientation = glm::mat3( t );
 }
 
+//-------------------------------------------------------------------------------------------------------
+// body_t
+//-------------------------------------------------------------------------------------------------------
+
 struct world_t
 {
     std::vector< std::weak_ptr< body_t > > bodies;
 
 	float time;
 	float dt;
-	float t;
-	float lt;
+    float t;
 
 	world_t( float time, float dt );
 
@@ -127,3 +142,4 @@ struct world_t
     void ClearAllAccum( void );
 };
 
+#include "physics.inl"
