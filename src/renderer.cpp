@@ -665,7 +665,7 @@ pipeline_t::pipeline_t( void )
 			"billboard",
 			"billboard.vert",
 			"billboard.frag",
-			{ "origin", "viewOrient", "modelToView", "viewToClip", "image" },
+            { "origin", "viewOrient", "modelToView", "viewToClip", "image", "color" },
 			{ "position", "texCoord" }
 		}
 	}};

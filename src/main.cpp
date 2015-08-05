@@ -114,7 +114,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
 	{
         body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        body->SetCenter( glm::vec3( tile->x, 0.0f, tile->z ) );
+        body->SetPosition( glm::vec3( tile->x, 0.0f, tile->z ) );
         body->SetMass( 80.0f );
 
         player.body.reset( body );
@@ -122,7 +122,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	}
 	{
         body_t* specBody = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        specBody->SetCenter( glm::vec3( tile->x, 10.0f, tile->z ) );
+        specBody->SetPosition( glm::vec3( tile->x, 10.0f, tile->z ) );
         specBody->SetMass( 5.0f );
 
 		spec.mode = input_client_t::MODE_SPEC;
@@ -262,6 +262,11 @@ void Draw_Group( game_t& game,
 		}
 	}
 
+    if ( game.bullet )
+    {
+        LDrawBounds( *( game.bullet->bounds ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+    }
+
     // Draw the bounds of the camera not currently being used
 	LDrawBounds( *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
@@ -289,9 +294,22 @@ void Draw_Group( game_t& game,
             LApplyForce( normal, *( tile->body ) );
 		}
 
-        // Clean up
-		game.gen->billTexture.Bind( 0, "image", billboard );
+        if ( game.bullet )
+        {
+            glm::vec3 normal;
+            if ( game.bullet->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
+            {
+                tile->SetColor( glm::vec3( 1.0f, 0.0f, 0.0f ) );
+                game.bullet.release();
+            }
+        }
+
+
+        billboard.LoadVec4( "color", tile->GetColor() );
+
+        game.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
+
 		game.gen->billTexture.Release( 0 );
 	}
 	billboard.Release();
@@ -414,6 +432,22 @@ uint32_t Game_Exec( void )
 					if ( !game.mouseShown )
                     {
 						game.camera->EvalMouseMove( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
+                    }
+                    break;
+                case SDL_MOUSEBUTTONDOWN:
+                    if ( e.button.button == SDL_BUTTON_LEFT )
+                    {
+                        // shoot weapon. Do hit testing first by casting a projectile body
+                        // out into the stratosphere. If its bounds collides with
+                        // one of the billboards, color the billboard red or something.
+
+                        if ( game.camera->body )
+                        {
+                            game.bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
+                            game.bullet->body->SetOrientation( game.camera->body->GetOrientation() );
+                            game.bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -1.0f ) );
+                            game.bullet->body->SetPosition( game.camera->GetViewParams().origin );
+                        }
                     }
                     break;
             }

@@ -2,8 +2,9 @@
 #include "physics.h"
 #include "geom.h"
 
-entity_t::entity_t( dependent_t dep, bounding_box_t* bounds_, body_t* body_ )
+entity_t::entity_t( dependent_t dep, bounding_box_t* bounds_, body_t* body_, const glm::vec4& color_ )
     : depType( dep ),
+      color( color_ ),
       bounds( bounds_ ),
       body( body_ )
 {

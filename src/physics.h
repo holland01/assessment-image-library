@@ -64,9 +64,10 @@ public:
     const glm::vec3& GetInitialVelocity( void ) const;
 
     void SetMass( float m );
-    void SetCenter( const glm::vec3& p );
+    void SetPosition( const glm::vec3& p );
     void SetPositionAxis( uint32_t axis, float v );
     void SetOrientation( const glm::mat4& orientation );
+    void SetOrientation( const glm::mat3& orientation );
     void SetFromTransform( const glm::mat4& t );
 };
 
@@ -100,7 +101,7 @@ INLINE void body_t::ApplyVelocity( const glm::vec3& v )
     initialVelocity += v;
 }
 
-INLINE void body_t::SetCenter( const glm::vec3& p )
+INLINE void body_t::SetPosition( const glm::vec3& p )
 {
     position = p;
 }
@@ -115,6 +116,11 @@ INLINE void body_t::SetPositionAxis( uint32_t axis, float v )
 INLINE void body_t::SetOrientation( const glm::mat4& orientation )
 {
     this->orientation = std::move( glm::mat3( orientation ) );
+}
+
+INLINE void body_t::SetOrientation( const glm::mat3& orientation )
+{
+    this->orientation = orientation;
 }
 
 INLINE void body_t::SetFromTransform( const glm::mat4& t )

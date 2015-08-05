@@ -1,7 +1,7 @@
-smooth in vec4 frag_Color;
 smooth in vec2 frag_TexCoord;
 
 uniform sampler2D image;
+uniform vec4 color;
 
 out vec4 fragment;
 void main( void )
@@ -13,5 +13,5 @@ void main( void )
         discard;
     }
 
-    fragment = tex;
+    fragment = tex * color;
 }

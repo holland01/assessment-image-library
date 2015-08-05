@@ -93,15 +93,20 @@ void world_t::Update( game_t& game )
     {
         for ( const tile_t* t: game.walls )
         {
-            game.world.bodies.push_back( t->body );
+            bodies.push_back( t->body );
         }
     }
     else
     {
         for ( const tile_t* t: game.gen->walls )
         {
-            game.world.bodies.push_back( t->body );
+            bodies.push_back( t->body );
         }
+    }
+
+    if ( game.bullet )
+    {
+        bodies.push_back( game.bullet->body );
     }
 
     game.camera->ApplyMovement();
@@ -125,6 +130,11 @@ void world_t::Update( game_t& game )
 		measure -= delta;
 		t += delta;
 	}
+
+    if ( game.bullet )
+    {
+        game.bullet->Sync();
+    }
 
     game.camera->Sync();
 

@@ -32,6 +32,8 @@ struct game_t
 	input_client_t* camera;
 	bounding_box_t* drawBounds;
 
+    std::unique_ptr< entity_t > bullet;
+
 	world_t world;
 
 	frustum_t frustum;
