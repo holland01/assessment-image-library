@@ -22,9 +22,9 @@ void Game_Frame( void );
 
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
-				 const std::vector< const tile_t* >& billboards,
-				 const std::vector< const tile_t* >& walls,
-				 const std::vector< const tile_t* >& freeSpace );
+                 billboard_list_t& billboards,
+                 wall_list_t& walls,
+                 freespace_list_t& freeSpace );
 
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
@@ -178,30 +178,47 @@ void game_t::Draw( void )
 		Draw_Group( *this, vp, billboards, walls, freeSpace );
 	}
 
+    // Clear depth buffer so the reticule renders over anything else it tests
+    // against by default
     GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
 
+    const shader_program_t& ssSingleColor = pipeline->programs.at( "single_color_ss" );
+
+    ssSingleColor.Bind();
+    ssSingleColor.LoadVec4( "color", glm::vec4( 1.0f ) );
+
+    imm_draw_t drawer( ssSingleColor );
+    drawer.Begin( GL_POINTS );
+    drawer.Vertex( glm::vec3( 0.0f, 0.0f, 0.0f ) );
+    drawer.End();
+
+    ssSingleColor.Release();
 }
 
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
-				 const std::vector< const tile_t* >& billboards,
-				 const std::vector< const tile_t* >& walls,
-				 const std::vector< const tile_t* >& freeSpace )
+                 billboard_list_t& billboards,
+                 wall_list_t& walls,
+                 freespace_list_t& freeSpace )
 {
 
+    // Programs from the global pipeline...
 	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
 	const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
 
 	const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
 	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
+    // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
+    // It's useful for debugging...
 	imm_draw_t drawer( singleColor );
 	immDrawer = &drawer;
 
+    // For empty tiles we care about...
 	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
-
 	quadTransform[ 3 ].y = -1.0f;
 
+    // Some lambda goodness
 	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
 			const glm::vec3& color )
 	{
@@ -225,6 +242,7 @@ void Draw_Group( game_t& game,
         }
     };
 
+    // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
 	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 	for ( const tile_t* tile: walls )
@@ -244,30 +262,41 @@ void Draw_Group( game_t& game,
 		}
 	}
 
+    // Draw the bounds of the camera not currently being used
 	LDrawBounds( *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
 	singleColor.Release();
 
+    // Draw all billboards
 	billboard.Bind();
 	billboard.LoadMat4( "modelToView", vp.transform );
 	billboard.LoadMat4( "viewToClip", vp.clipTransform );
+
+    // This load ensures that the billboard is always facing the viewer
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
-	for ( const tile_t* tile: billboards )
+    for ( tile_t* tile: billboards )
 	{
         billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
+        // Set orientation so collisions are properly computed regardless of direction
+        tile->body->SetOrientation( vp.inverseOrient );
+        tile->Sync();
+
+        // Check for an intersection...
 		glm::vec3 normal;
         if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
 		{
             LApplyForce( normal, *( tile->body ) );
 		}
 
+        // Clean up
 		game.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
 		game.gen->billTexture.Release( 0 );
 	}
 	billboard.Release();
 
+    // Mark all free spaces here
     singleColor.Bind();
 	for ( const tile_t* tile: freeSpace )
 	{
@@ -300,9 +329,10 @@ void Game_Frame( void )
 	}
 
 	game.world.Update( game );
-
 	game.Draw();
 
+    // clear bodies which are added in world.Update call,
+    // since we only want to integrate bodies which are in view
     game.world.bodies.clear();
 
 	game.world.time = GetTime() - game.startTime;

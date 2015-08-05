@@ -197,7 +197,6 @@ void input_client_t::Sync( void )
 		if ( body )
 		{
             body->SetPositionAxis( 1.0f, 0.0f );
-            body->SetOrientation( viewParams.inverseOrient );
 		}
 		else
 		{
@@ -208,6 +207,7 @@ void input_client_t::Sync( void )
 	if ( body )
 	{
         viewParams.origin = body->GetPosition();
+        body->SetOrientation( viewParams.inverseOrient );
         entity_t::Sync();
 	}
 	else

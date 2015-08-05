@@ -5,7 +5,7 @@
 #ifdef EMSCRIPTEN
 #	define DEFAULT_MOVE_STEP 1.0f
 #else
-#	define DEFAULT_MOVE_STEP 1.0f
+#	define DEFAULT_MOVE_STEP 0.5f
 #endif
 
 view_params_t::view_params_t( void )

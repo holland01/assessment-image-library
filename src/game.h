@@ -15,9 +15,9 @@ struct game_t
 	SDL_Renderer* renderer = nullptr;
 	SDL_GLContext context = nullptr;
 
-	std::vector< const tile_t* > billboards;
-	std::vector< const tile_t* > freeSpace;
-	std::vector< const tile_t* > walls;
+    billboard_list_t billboards;
+    freespace_list_t freeSpace;
+    wall_list_t walls;
 
 	uint32_t width, height;
 

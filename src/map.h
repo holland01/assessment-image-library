@@ -8,6 +8,12 @@
 
 struct frustum_t;
 
+struct tile_t;
+
+using billboard_list_t = std::vector< tile_t* >;
+using freespace_list_t = std::vector< const tile_t* >;
+using wall_list_t = std::vector< const tile_t* >;
+
 struct tile_t : public entity_t
 {
     enum type_t
@@ -43,9 +49,9 @@ public:
 
 	std::vector< tile_t > tiles;
 
-    std::vector< const tile_t* > billboards;
-    std::vector< const tile_t* > walls;
-	std::vector< const tile_t* > freeSpace;
+    billboard_list_t billboards;
+    wall_list_t walls;
+    freespace_list_t freeSpace;
 
 	texture_t billTexture;
 
@@ -66,11 +72,11 @@ public:
 
 	bool CollidesWall( glm::vec3& normal, const tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
-	void GetEntities( std::vector< const tile_t* >& billboards,
-					  std::vector< const tile_t* >& walls,
-					  std::vector< const tile_t* >& freeSpace,
+    void GetEntities( billboard_list_t& billboards,
+                      wall_list_t& walls,
+                      freespace_list_t& freeSpace,
 					  const frustum_t& frustum,
-					  const view_params_t& viewParams ) const;
+                      const view_params_t& viewParams );
 
 	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };

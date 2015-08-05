@@ -645,7 +645,7 @@ namespace {
 pipeline_t::pipeline_t( void )
 	: vao( 0 )
 {
-	std::array< program_def_t, 2 > defs =
+    std::array< program_def_t, 3 > defs =
 	{{
 		{
 			"single_color",

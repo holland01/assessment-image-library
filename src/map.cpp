@@ -347,11 +347,11 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 	return false;
 }
 
-void generator_t::GetEntities( std::vector< const tile_t* >& outBillboards,
-							   std::vector< const tile_t* >& outWalls,
-							   std::vector< const tile_t* >& outFreeSpace,
+void generator_t::GetEntities( billboard_list_t& outBillboards,
+                               wall_list_t& outWalls,
+                               freespace_list_t& outFreeSpace,
 							   const frustum_t& frustum,
-                               const view_params_t& viewParams ) const
+                               const view_params_t& viewParams )
 {
 	outBillboards.clear();
 	outWalls.clear();

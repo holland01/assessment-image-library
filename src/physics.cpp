@@ -23,7 +23,7 @@ body_t::body_t( uint32_t resetBits_ )
 
 void body_t::Integrate( float t )
 {
-	glm::vec3 accel( forceAccum * invMass );
+    glm::vec3 accel( forceAccum * invMass );
     totalVelocity = orientation * initialVelocity + accel * t;
     position += totalVelocity * t;
 }
@@ -104,13 +104,13 @@ void world_t::Update( game_t& game )
         }
     }
 
+    game.camera->ApplyMovement();
+
 	float measure = time;
 
 	while ( measure > 0.0f )
 	{
 		float delta = glm::min( measure, dt );
-
-        game.camera->ApplyMovement();
 
         for ( std::weak_ptr< body_t >& body: bodies )
 		{
