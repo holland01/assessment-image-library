@@ -45,6 +45,7 @@ struct game_t
 	void ToggleCulling( void );
 	void Tick( void );
 	void Draw( void );
+    void FireGun( void );
 
 	static game_t& GetInstance( void );
 };

@@ -195,6 +195,17 @@ void game_t::Draw( void )
     ssSingleColor.Release();
 }
 
+void game_t::FireGun( void )
+{
+    if ( camera->body )
+    {
+        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
+        bullet->body->SetOrientation( glm::mat3( 0.1f ) * camera->body->GetOrientation() );
+        bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
+        bullet->body->SetPosition( camera->GetViewParams().origin );
+    }
+}
+
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
                  billboard_list_t& billboards,
@@ -441,13 +452,7 @@ uint32_t Game_Exec( void )
                         // out into the stratosphere. If its bounds collides with
                         // one of the billboards, color the billboard red or something.
 
-                        if ( game.camera->body )
-                        {
-                            game.bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
-                            game.bullet->body->SetOrientation( game.camera->body->GetOrientation() );
-                            game.bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -1.0f ) );
-                            game.bullet->body->SetPosition( game.camera->GetViewParams().origin );
-                        }
+                        game.FireGun();
                     }
                     break;
             }

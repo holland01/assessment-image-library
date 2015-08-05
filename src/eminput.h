@@ -105,6 +105,7 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 
 	bool activePl = !!pl.isActive;
 
+    // If pointer lock is actually active, give a shit and do something about it...
 	if ( activePl )
 	{
 		app.camera->EvalMouseMove( ( float ) mouseEvent->movementX, ( float ) mouseEvent->movementY, false );
@@ -113,12 +114,28 @@ EM_BOOL MouseMoveFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 	return 1;
 }
 
+EM_BOOL MouseDownFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent, void* userData )
+{
+    UNUSEDPARAM( eventType );
+    UNUSEDPARAM( userData );
+
+    game_t& app = game_t::GetInstance();
+
+    if ( mouseEvent->button == 0 )
+    {
+        app.FireGun();
+    }
+
+    return 1;
+}
+
 void InitEmInput( void )
 {
 	int32_t ret;
 	SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyPress > ) );
 	SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyRelease > ) );
 	SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
+    SET_CALLBACK_RESULT( emscripten_set_mousedown_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseDownFunc ) );
 
 	emscripten_set_main_loop( ( em_callback_func )&Game_Frame, 0, 1 );
 }

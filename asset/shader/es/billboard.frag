@@ -1,6 +1,7 @@
-varying vec4 frag_Color;
+
 varying vec2 frag_TexCoord;
 uniform sampler2D image;
+uniform vec4 color;
 
 void main( void )
 {
@@ -10,5 +11,5 @@ void main( void )
         discard;
     }
 
-    gl_FragColor = tex;
+    gl_FragColor = tex * color;
 }
