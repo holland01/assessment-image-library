@@ -54,12 +54,12 @@ Product {
     ]
     files: [
         "../Makefile",
-        "../asset/shader/desktop/billboard.vert",
+       /* "../asset/shader/desktop/billboard.vert",
         "../asset/shader/desktop/billboard.frag",
         "../asset/shader/desktop/single_color.vert",
         "../asset/shader/desktop/single_color.frag",
         "../asset/shader/desktop/single_color_ss.frag",
-        "../asset/shader/desktop/single_color_ss.vert",
+        "../asset/shader/desktop/single_color_ss.vert",*/
         "../asset/shader/es/billboard.frag",
         "../asset/shader/es/billboard.vert",
         "../asset/shader/es/single_color.vert",
@@ -106,6 +106,12 @@ Product {
     Group {
         files: [ "../asset/*" ]
         qbs.installDir: "asset"
+        qbs.install: true
+    }
+
+    Group {
+        files: [ "../asset/shader/desktop/*" ]
+        qbs.installDir: "asset/shader/desktop"
         qbs.install: true
     }
 
