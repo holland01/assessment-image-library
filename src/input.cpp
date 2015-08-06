@@ -213,7 +213,7 @@ void input_client_t::Sync( void )
 	else
 	{
         bounds->SetCenter( viewParams.origin );
-        bounds->SetTransform( viewParams.inverseOrient );
+        bounds->SetOrientation( glm::mat3( viewParams.inverseOrient ) );
 	}
 }
 

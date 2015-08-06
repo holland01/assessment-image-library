@@ -89,19 +89,10 @@ void world_t::Update( game_t& game )
 {
     game.world.bodies.push_back( game.camera->body );
 
-    if ( !game.drawAll )
+    const wall_list_t& walls = ( game.drawAll )? game.gen->walls: game.walls;
+    for ( const tile_t* t: walls )
     {
-        for ( const tile_t* t: game.walls )
-        {
-            bodies.push_back( t->body );
-        }
-    }
-    else
-    {
-        for ( const tile_t* t: game.gen->walls )
-        {
-            bodies.push_back( t->body );
-        }
+        bodies.push_back( t->body );
     }
 
     if ( game.bullet )
@@ -111,11 +102,13 @@ void world_t::Update( game_t& game )
 
     game.camera->ApplyMovement();
 
-	float measure = time;
+    float measure = dt;
+
+    lastMeasureCount = 0;
 
 	while ( measure > 0.0f )
 	{
-		float delta = glm::min( measure, dt );
+        float delta = glm::max( glm::min( time, measure ), 0.1f );
 
         for ( std::weak_ptr< body_t >& body: bodies )
 		{
@@ -123,13 +116,14 @@ void world_t::Update( game_t& game )
 
             if ( p )
             {
-                p->Integrate( dt );
+                p->Integrate( delta );
             }
 		}
 
-		measure -= delta;
+        measure -= delta;
 		t += delta;
-	}
+        lastMeasureCount++;
+    }
 
     if ( game.bullet )
     {

@@ -18,8 +18,10 @@
 #ifdef EMSCRIPTEN
 #	define GLM_FORCE_PURE
 #	define OP_CARRIAGE_RETURN "\n"
+#   define OP_PHYSICS_DT ( 5.0f / 30.0f )
 #else
 #	define OP_CARRIAGE_RETURN "\r"
+#   define OP_PHYSICS_DT ( 1.0f / 30.0f )
 #endif
 
 #define INLINE inline

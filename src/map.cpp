@@ -69,7 +69,7 @@ void tile_t::Set( const glm::mat4& transform )
         default:
             if ( type == tile_t::WALL )
             {
-                body->SetMass( 100.0f );
+                body->SetMass( 10.0f );
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
@@ -251,7 +251,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< t
 
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
-        tiles[ center ].SetSize( ( tiles[ center ].type == tile_t::BILLBOARD )? 0.5f: 1.0f );
+        tiles[ center ].SetSize( ( tiles[ center ].type == tile_t::BILLBOARD )? 1.0f: 1.0f );
 
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
 

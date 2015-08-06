@@ -34,7 +34,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	  startTime( 0.0f ),
 	  camera( nullptr ),
 	  drawBounds( nullptr ),
-	  world( 1.0f, 1.0f / 30.0f )
+      world( 1.0f, OP_PHYSICS_DT )
 {
 	SDL_Init( SDL_INIT_VIDEO );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -248,7 +248,7 @@ void Draw_Group( game_t& game,
     {
         if ( game.camera->body )
         {
-            game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
+           game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
         }
     };
 
@@ -264,9 +264,10 @@ void Draw_Group( game_t& game,
 		{
 			half_space_t hs;
 			glm::vec3 normal;
-            LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+
             if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
 			{
+                LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
                 LApplyForce( normal, *( tile->body ) );
 			}
 		}
@@ -295,8 +296,24 @@ void Draw_Group( game_t& game,
     {
         billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
+        /*
+        glm::vec3 dirToCam( vp.origin - glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
+        dirToCam.y = 0.0f;
+        dirToCam = glm::normalize( dirToCam );
+
+        glm::vec3 axis( 0.0f, 0.0f, 1.0f );
+        //axis = tile->body->GetOrientation() * axis;
+        //axis.y = 0.0f;
+        //axis = glm::normalize( axis );
+
+        float rot = glm::acos( glm::dot( axis, dirToCam ) );
+
+        float sin = glm::sin( glm::normalize( glm::cross( axis, dirToCam ) ) );
+
+        glm::mat3 r( glm::rotate( glm::mat4( 1.0f ), rot, glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
+*/
         // Set orientation so collisions are properly computed regardless of direction
-        tile->body->SetOrientation( glm::mat4( vp.inverseOrient ) * tile->GenScaleTransform() );
+        tile->body->SetOrientation( vp.inverseOrient );
         tile->Sync();
 
         // Check for an intersection...
@@ -309,7 +326,14 @@ void Draw_Group( game_t& game,
         if ( game.bullet )
         {
             glm::vec3 normal;
-            if ( game.bullet->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
+
+            // Scale the initial bounds by a smaller size, since it will make hitting
+            // the enemies more challenging and not cause issues with enemies
+            // which are near each other with their overlapping bounds.
+            glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( 0.4f ) ) );
+            bounding_box_t bounds( tile->bounds->GetTransform() * s );
+
+            if ( game.bullet->bounds->IntersectsBounds( normal, bounds ) )
             {
                 tile->SetColor( glm::vec3( 1.0f, 0.0f, 0.0f ) );
                 game.bullet.release();
@@ -324,6 +348,14 @@ void Draw_Group( game_t& game,
 
         singleColor.Bind();
         LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
+
+        singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+        singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->GetTransform() );
+        drawer.Begin( GL_LINES );
+        drawer.Vertex( glm::vec3( 0.0f ) );
+        drawer.Vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
+        drawer.End();
+
         billboard.Bind();
 	}
 	billboard.Release();
@@ -357,6 +389,9 @@ void Game_Frame( void )
 
 	game.frustum.Update( vp );
 
+    printf( "DT: %f, measure count: %iu, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN,
+            game.world.time, game.world.lastMeasureCount, game.camera->viewParams.moveStep, 1.0f / game.world.time );
+
 	if ( !game.drawAll )
 	{
 		game.gen->GetEntities( game.billboards, game.walls, game.freeSpace, game.frustum, vp );
@@ -370,8 +405,6 @@ void Game_Frame( void )
     game.world.bodies.clear();
 
 	game.world.time = GetTime() - game.startTime;
-
-    printf( "DT: %f, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN, game.world.time, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 }
 
 // temporary hack to get around the fact that querying for an game
@@ -453,10 +486,6 @@ uint32_t Game_Exec( void )
                 case SDL_MOUSEBUTTONDOWN:
                     if ( e.button.button == SDL_BUTTON_LEFT )
                     {
-                        // shoot weapon. Do hit testing first by casting a projectile body
-                        // out into the stratosphere. If its bounds collides with
-                        // one of the billboards, color the billboard red or something.
-
                         game.FireGun();
                     }
                     break;

@@ -138,8 +138,10 @@ struct world_t
     std::vector< std::weak_ptr< body_t > > bodies;
 
 	float time;
-	float dt;
+    const float dt;
     float t;
+    uint32_t lastMeasureCount;
+
 
 	world_t( float time, float dt );
 
