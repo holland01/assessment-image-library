@@ -91,8 +91,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	GL_CHECK( glEnable( GL_DEPTH_TEST ) );
 	GL_CHECK( glDepthFunc( GL_LEQUAL ) );
 	GL_CHECK( glClearDepthf( 1.0f ) );
-	//GL_CHECK( glEnable( GL_BLEND ) );
-	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+    GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 #ifndef OP_GL_USE_ES
 	GL_CHECK( glPointSize( 10.0f ) );
@@ -238,9 +237,9 @@ void Draw_Group( game_t& game,
 		billboardBuffer.Render( singleColor );
 	};
 
-	auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const bounding_box_t& bounds, const glm::vec3& color )
+    auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
 	{
-		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
+        singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
         singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
 		coloredCube.Render( singleColor );
 	};
@@ -283,6 +282,8 @@ void Draw_Group( game_t& game,
 
 	singleColor.Release();
 
+    GL_CHECK( glEnable( GL_BLEND ) );
+
     // Draw all billboards
 	billboard.Bind();
 	billboard.LoadMat4( "modelToView", vp.transform );
@@ -291,12 +292,11 @@ void Draw_Group( game_t& game,
     // This load ensures that the billboard is always facing the viewer
 	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
     for ( tile_t* tile: billboards )
-	{
+    {
         billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
         // Set orientation so collisions are properly computed regardless of direction
-        tile->body->SetOrientation( vp.inverseOrient );
-        tile->Sync();
+        tile->body->SetOrientation( glm::mat3( vp.inverseOrient ) * tile->body->GetOrientation() );
 
         // Check for an intersection...
 		glm::vec3 normal;
@@ -315,15 +315,19 @@ void Draw_Group( game_t& game,
             }
         }
 
-
         billboard.LoadVec4( "color", tile->GetColor() );
 
         game.gen->billTexture.Bind( 0, "image", billboard );
 		billboardBuffer.Render( billboard );
+        game.gen->billTexture.Release( 0 );
 
-		game.gen->billTexture.Release( 0 );
+        singleColor.Bind();
+        LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
+        billboard.Bind();
 	}
 	billboard.Release();
+
+    GL_CHECK( glDisable( GL_BLEND ) );
 
     // Mark all free spaces here
     singleColor.Bind();

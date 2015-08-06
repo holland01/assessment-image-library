@@ -203,7 +203,6 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< t
 {
 	bool isWall;
 	uint32_t center = TileIndex( x, z );
-	const float size = 1.0f;
 
 	if ( pass == 0 )
 	{
@@ -250,8 +249,11 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< t
 		}
 	}
 
+    if ( pass == GEN_PASS_COUNT - 1 )
 	{
-		glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
+        float size = ( tiles[ center ].type == tile_t::BILLBOARD )? 0.1f: 1.0f;
+
+        glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) ) );
 		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
 
         tiles[ center ].Set( t * s );

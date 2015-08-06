@@ -18,8 +18,9 @@ public:
 
 protected:
     dependent_t depType;
-
     glm::vec4 color;
+
+    glm::vec3 orientation, scale, translation;
 
 public:
 

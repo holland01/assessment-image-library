@@ -2,10 +2,18 @@
 
 #include "def.h"
 #include "renderer.h"
+
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <memory>
+#include <stack>
+
+//-------------------------------------------------------------------------------------------------------
+// plane_t
+//-------------------------------------------------------------------------------------------------------
 
 struct plane_t
 {
@@ -13,11 +21,166 @@ struct plane_t
     glm::vec3   normal;
 };
 
+//-------------------------------------------------------------------------------------------------------
+// ray_t
+//-------------------------------------------------------------------------------------------------------
+
 struct ray_t
 {
 	glm::vec3 p;
 	glm::vec3 d;
 };
+
+//-------------------------------------------------------------------------------------------------------
+// transform_t
+//-------------------------------------------------------------------------------------------------------
+
+INLINE void G_RotateMatrixXYZ( glm::mat4& r, const glm::vec3& rotation )
+{
+    r = glm::rotate( glm::mat4( 1.0f ), rotation.x, glm::vec3( 1.0f, 0.0f, 0.0f ) );
+    r = glm::rotate( r, rotation.y, glm::vec3( 0.0f, 1.0f, 0.0f ) );
+    r = glm::rotate( r, rotation.z, glm::vec3( 0.0f, 0.0f, 1.0f ) );
+}
+
+struct transform_t
+{
+protected:
+    glm::vec3 scale;
+
+    glm::vec3 rotation;
+
+    glm::vec3 translation;
+
+    glm::mat4 top;
+
+    std::stack< glm::mat4 > matStack;
+
+public:
+    transform_t( void );
+
+    void PushTransform( void );
+
+    void PopTransform( void );
+
+    const glm::mat4& PeekTransform( void ) const;
+
+    void SetScale( const glm::vec3& s );
+
+    void SetRotation( const glm::vec3& r );
+
+    void SetTranslation( const glm::vec3& t );
+
+    void ApplyScale( void );
+
+    void ApplyRotation( void );
+
+    void ApplyTranslation( void );
+
+    void ApplyScale( const glm::vec3& s );
+
+    void ApplyRotation( const glm::vec3& r );
+
+    void ApplyTranslation( const glm::vec3& t );
+
+    glm::mat3 GetScale( void ) const;
+
+    glm::mat3 GetRotation3( void ) const;
+
+    glm::mat4 GetTranslation( void ) const;
+};
+
+INLINE transform_t::transform_t( void )
+    : scale( 0.0f ), rotation( 0.0f ),
+      translation( 0.0f ),
+      top( 1.0f )
+{
+}
+
+INLINE void transform_t::PushTransform( void )
+{
+    matStack.push( top );
+}
+
+INLINE void transform_t::PopTransform( void )
+{
+    matStack.pop();
+}
+
+INLINE const glm::mat4& transform_t::PeekTransform( void ) const
+{
+    return top;
+}
+
+INLINE void transform_t::SetScale( const glm::vec3& s )
+{
+    scale = s;
+}
+
+INLINE void transform_t::SetRotation( const glm::vec3& r )
+{
+    rotation = r;
+}
+
+INLINE void transform_t::SetTranslation( const glm::vec3& t )
+{
+    translation = t;
+}
+
+INLINE void transform_t::ApplyScale( void )
+{
+    top *= glm::scale( glm::mat4( 1.0f ), scale );
+}
+
+INLINE void transform_t::ApplyRotation( void )
+{
+    glm::mat4 r( 1.0f );
+    G_RotateMatrixXYZ( r, rotation );
+    top *= r;
+}
+
+INLINE void transform_t::ApplyTranslation( void )
+{
+    top *= glm::translate( glm::mat4( 1.0f ), translation );
+}
+
+INLINE void transform_t::ApplyScale( const glm::vec3& s )
+{
+    scale = s;
+    ApplyScale();
+}
+
+INLINE void transform_t::ApplyRotation( const glm::vec3& r )
+{
+    rotation = r;
+    ApplyRotation();
+}
+
+INLINE void transform_t::ApplyTranslation( const glm::vec3& t )
+{
+    translation = t;
+    ApplyTranslation();
+}
+
+INLINE glm::mat3 transform_t::GetScale( void ) const
+{
+    return std::move( glm::mat3( glm::scale( glm::mat4( 1.0f ), scale ) ) );
+}
+
+INLINE glm::mat3 transform_t::GetRotation3( void ) const
+{
+    glm::mat4 r;
+    G_RotateMatrixXYZ( r, rotation );
+    std::move( glm::mat3( r ) );
+}
+
+INLINE glm::mat4 transform_t::GetTranslation( void ) const
+{
+    return std::move( glm::translate( glm::mat4( 1.0f ), translation ) );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// half_space_t
+//-------------------------------------------------------------------------------------------------------
 
 struct half_space_t
 {
@@ -31,6 +194,11 @@ struct half_space_t
 	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
 	void Draw( imm_draw_t& drawer ) const;
 };
+
+//-------------------------------------------------------------------------------------------------------
+// util
+//-------------------------------------------------------------------------------------------------------
+
 
 using point_predicate_t = bool ( * )( float );
 
