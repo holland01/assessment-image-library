@@ -15,7 +15,7 @@ using freespace_list_t = std::vector< const tile_t* >;
 using wall_list_t = std::vector< const tile_t* >;
 
 struct tile_t : public entity_t
-{
+{    
     enum type_t
     {
         BILLBOARD,
@@ -25,6 +25,7 @@ struct tile_t : public entity_t
 
     type_t type;
 	int32_t x, z, halfSpaceIndex;
+    float size; // does not bear any relation to index lookup in the table at all.
 
 	tile_t( void );
 

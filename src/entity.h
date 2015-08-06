@@ -3,6 +3,7 @@
 #include "def.h"
 #include <memory>
 #include <glm/vec4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 struct bounding_box_t;
 struct body_t;
@@ -19,8 +20,7 @@ public:
 protected:
     dependent_t depType;
     glm::vec4 color;
-
-    glm::vec3 orientation, scale, translation;
+    float size;
 
 public:
 
@@ -33,7 +33,11 @@ public:
 
     const glm::vec4& GetColor( void ) const;
 
+    glm::mat4 GenScaleTransform( void ) const;
+
     void SetColor( const glm::vec3& color, float alpha = 1.0f );
+
+    void SetSize( float sz );
 };
 
 INLINE const glm::vec4& entity_t::GetColor( void ) const
@@ -41,10 +45,21 @@ INLINE const glm::vec4& entity_t::GetColor( void ) const
     return color;
 }
 
+INLINE glm::mat4 entity_t::GenScaleTransform( void ) const
+{
+    return glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) );
+}
+
 INLINE void entity_t::SetColor( const glm::vec3& color, float alpha )
 {
     this->color = std::move( glm::vec4( color, alpha ) );
 }
+
+INLINE void entity_t::SetSize( float sz )
+{
+    size = sz;
+}
+
 
 
 

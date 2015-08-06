@@ -170,7 +170,7 @@ INLINE glm::mat3 transform_t::GetRotation3( void ) const
 {
     glm::mat4 r;
     G_RotateMatrixXYZ( r, rotation );
-    std::move( glm::mat3( r ) );
+    return std::move( glm::mat3( r ) );
 }
 
 INLINE glm::mat4 transform_t::GetTranslation( void ) const

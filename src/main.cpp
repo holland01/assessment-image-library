@@ -296,7 +296,8 @@ void Draw_Group( game_t& game,
         billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
         // Set orientation so collisions are properly computed regardless of direction
-        tile->body->SetOrientation( glm::mat3( vp.inverseOrient ) * tile->body->GetOrientation() );
+        tile->body->SetOrientation( glm::mat4( vp.inverseOrient ) * tile->GenScaleTransform() );
+        tile->Sync();
 
         // Check for an intersection...
 		glm::vec3 normal;
