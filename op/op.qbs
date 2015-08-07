@@ -54,12 +54,6 @@ Product {
     ]
     files: [
         "../Makefile",
-       /* "../asset/shader/desktop/billboard.vert",
-        "../asset/shader/desktop/billboard.frag",
-        "../asset/shader/desktop/single_color.vert",
-        "../asset/shader/desktop/single_color.frag",
-        "../asset/shader/desktop/single_color_ss.frag",
-        "../asset/shader/desktop/single_color_ss.vert",*/
         "../asset/shader/es/billboard.frag",
         "../asset/shader/es/billboard.vert",
         "../asset/shader/es/single_color.vert",
@@ -76,6 +70,7 @@ Product {
         "../src/game.h",
         "../src/geom.cpp",
         "../src/geom.h",
+        "../src/geom.inl",
         "../src/input.cpp",
         "../src/input.h",
         "../src/lib/stb_image.c",

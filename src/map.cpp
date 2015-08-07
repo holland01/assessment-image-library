@@ -290,7 +290,7 @@ half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal
 		glm::vec3 pointToCenter( faceCenter - point );
 
 		// Not in same plane; move on
-		if ( TripleProduct( pointToCenter, hs.extents[ 0 ], hs.extents[ 1 ] ) != 0.0f )
+        if ( G_TripleProduct( pointToCenter, hs.extents[ 0 ], hs.extents[ 1 ] ) != 0.0f )
 		{
 			continue;
 		}

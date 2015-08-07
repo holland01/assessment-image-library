@@ -21,7 +21,7 @@
 #   define OP_PHYSICS_DT ( 5.0f / 30.0f )
 #else
 #	define OP_CARRIAGE_RETURN "\r"
-#   define OP_PHYSICS_DT ( 1.0f / 30.0f )
+#   define OP_PHYSICS_DT ( 1.0f / 60.0f )
 #endif
 
 #define INLINE inline

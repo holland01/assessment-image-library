@@ -292,30 +292,21 @@ void Draw_Group( game_t& game,
 	billboard.LoadMat4( "modelToView", vp.transform );
 	billboard.LoadMat4( "viewToClip", vp.clipTransform );
 
-    // This load ensures that the billboard is always facing the viewer
-	billboard.LoadMat3( "viewOrient", glm::mat3( vp.inverseOrient ) );
     for ( tile_t* tile: billboards )
     {
         billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
 
-        /*
         glm::vec3 dirToCam( vp.origin - glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
         dirToCam.y = 0.0f;
         dirToCam = glm::normalize( dirToCam );
 
-        glm::vec3 axis( 0.0f, 0.0f, 1.0f );
-        //axis = tile->body->GetOrientation() * axis;
-        //axis.y = 0.0f;
-        //axis = glm::normalize( axis );
+        glm::mat3 orient( G_OrientByDirection( dirToCam, glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( -1.0f, 0.0f, 0.0f ) ) );
 
-        float rot = glm::acos( glm::dot( axis, dirToCam ) );
+        // This load ensures that the billboard is always facing the viewer
+        billboard.LoadMat3( "viewOrient", orient );
 
-        float sin = glm::sin( glm::normalize( glm::cross( axis, dirToCam ) ) );
-
-        glm::mat3 r( glm::rotate( glm::mat4( 1.0f ), rot, glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-*/
         // Set orientation so collisions are properly computed regardless of direction
-        tile->body->SetOrientation( vp.inverseOrient );
+        tile->body->SetOrientation( orient );
         tile->Sync();
 
         if ( glm::distance( tile->body->GetPosition(), vp.origin ) <= DISTANCE_THRESHOLD )

@@ -48,7 +48,7 @@ namespace {
 
 const float DISTANCE_THRESH = 0.03125f;
 
-glm::vec3 PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
+glm::vec3 G_PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
 {
 	glm::vec3 originToP( p - origin );
 
@@ -56,7 +56,7 @@ glm::vec3 PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::
 	return std::move( glm::vec3( p - normal * dist ) );
 }
 
-bool RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
+bool G_RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
 {
 	glm::vec3 crossDir( glm::cross( r0.d, r1.d ) );
 

@@ -5,7 +5,7 @@
 #ifdef EMSCRIPTEN
 #	define DEFAULT_MOVE_STEP 0.5f
 #else
-#	define DEFAULT_MOVE_STEP 0.5f
+#	define DEFAULT_MOVE_STEP 0.1f
 #endif
 
 view_params_t::view_params_t( void )
@@ -131,7 +131,7 @@ bool frustum_t::IntersectsBox( const bounding_box_t& box ) const
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-		if ( PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
+        if ( G_PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
 		{
 			continue;
 		}
