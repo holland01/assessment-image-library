@@ -212,6 +212,8 @@ void Draw_Group( game_t& game,
                  freespace_list_t& freeSpace )
 {
 
+    const float DISTANCE_THRESHOLD = 2.0f;
+
     // Programs from the global pipeline...
 	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
 	const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
@@ -260,7 +262,7 @@ void Draw_Group( game_t& game,
         LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
 
 		// don't test collision unless distance from player to object is within a certain range
-        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= 2.0f )
+        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= DISTANCE_THRESHOLD )
 		{
 			half_space_t hs;
 			glm::vec3 normal;
@@ -316,12 +318,15 @@ void Draw_Group( game_t& game,
         tile->body->SetOrientation( vp.inverseOrient );
         tile->Sync();
 
-        // Check for an intersection...
-		glm::vec3 normal;
-        if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
-		{
-            LApplyForce( normal, *( tile->body ) );
-		}
+        if ( glm::distance( tile->body->GetPosition(), vp.origin ) <= DISTANCE_THRESHOLD )
+        {
+            // Check for an intersection...
+            glm::vec3 normal;
+            if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
+            {
+                LApplyForce( normal, *( tile->body ) );
+            }
+        }
 
         if ( game.bullet )
         {
@@ -389,8 +394,8 @@ void Game_Frame( void )
 
 	game.frustum.Update( vp );
 
-    printf( "DT: %f, measure count: %iu, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN,
-            game.world.time, game.world.lastMeasureCount, game.camera->viewParams.moveStep, 1.0f / game.world.time );
+    //rintf( "DT: %f, measure count: %iu, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN,
+   //         game.world.time, game.world.lastMeasureCount, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 
 	if ( !game.drawAll )
 	{
