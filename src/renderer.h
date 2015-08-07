@@ -228,10 +228,14 @@ public:
 //---------------------------------------------------------------------
 // loadBlend_t: saves current blend state in place of a new one and restores
 // the original on destruction
+// Setting "toggle" to true in the ctor will enable blending
+// and then turn it off on destruction, after the original functions
+// have been restored.
 //---------------------------------------------------------------------
 struct load_blend_t
 {
 	GLenum prevSrcFactor, prevDstFactor;
+    bool enabled;
 
     load_blend_t( GLenum srcFactor, GLenum dstFactor );
    ~load_blend_t( void );

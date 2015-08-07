@@ -404,9 +404,19 @@ std::vector< std::string > shader_program_t::ArrayLocationNames( const std::stri
 // loadBlend_t
 //-------------------------------------------------------------------------------------------------
 load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
+    : prevSrcFactor( 0 ),
+      prevDstFactor( 0 ),
+      enabled( true )
 {
+    GL_CHECK( enabled = !!glIsEnabled( GL_BLEND ) );
+
 	GL_CHECK( glGetIntegerv( GL_BLEND_SRC_RGB, ( GLint* ) &prevSrcFactor ) );
 	GL_CHECK( glGetIntegerv( GL_BLEND_DST_RGB, ( GLint* ) &prevDstFactor ) );
+
+    if ( !enabled )
+    {
+        GL_CHECK( glEnable( GL_BLEND ) );
+    }
 
 	GL_CHECK( glBlendFunc( srcFactor, dstFactor ) );
 }
@@ -414,6 +424,11 @@ load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
 load_blend_t::~load_blend_t( void )
 {
 	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
+
+    if ( !enabled )
+    {
+        GL_CHECK( glDisable( GL_BLEND ) );
+    }
 }
 
 //---------------------------------------------------------------------
@@ -692,49 +707,63 @@ pipeline_t::pipeline_t( void )
 		programs[ def.programName ] = std::move( shader_program_t( vertexBuf, fragmentBuf, def.uniforms, def.attribs ) );
 	}
 
-	std::array< buffer_def_t, 2 > bufferDefs =
+    std::vector< draw_vertex_t > cubeVertexData =
+    {
+     // back
+        draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
+
+     // front
+        draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+        draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
+    };
+
+
+    std::vector< GLuint > cubeIndexData =
+    // Draw order:
+    // back face, right face, front face, bottom face, left face, top face
+    {
+        0x00000002u, 0x00000003u, 0x00000000u,
+        0x00000000u, 0x00000001u, 0x00000002u,
+
+        0x00000003u, 0x00000005u, 0x00000006u,
+        0x00000006u, 0x00000000u, 0x00000003u,
+
+        0x00000005u, 0x00000004u, 0x00000007u,
+        0x00000007u, 0x00000006u, 0x00000005u,
+
+        0x00000003u, 0x00000002u, 0x00000004u,
+        0x00000004u, 0x00000005u, 0x00000003u,
+
+        0x00000002u, 0x00000001u, 0x00000007u,
+        0x00000007u, 0x00000004u, 0x00000002u,
+
+        0x00000001u, 0x00000000u, 0x00000006u,
+        0x00000006u, 0x00000007u, 0x00000001u
+    };
+
+    std::array< buffer_def_t, 3 > bufferDefs =
 	{{
 
-		 {
+        {
 			"colored_cube",
 			GL_TRIANGLES,
 			GL_STATIC_DRAW,
-			{
-			 // back
-				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
-
-			 // front
-				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
-				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
-			},
-
-			// Draw order:
-			// back face, right face, front face, bottom face, left face, top face
-			{
-				0x00000002u, 0x00000003u, 0x00000000u,
-				0x00000000u, 0x00000001u, 0x00000002u,
-
-				0x00000003u, 0x00000005u, 0x00000006u,
-				0x00000006u, 0x00000000u, 0x00000003u,
-
-				0x00000005u, 0x00000004u, 0x00000007u,
-				0x00000007u, 0x00000006u, 0x00000005u,
-
-				0x00000003u, 0x00000002u, 0x00000004u,
-				0x00000004u, 0x00000005u, 0x00000003u,
-
-				0x00000002u, 0x00000001u, 0x00000007u,
-				0x00000007u, 0x00000004u, 0x00000002u,
-
-				0x00000001u, 0x00000000u, 0x00000006u,
-				0x00000006u, 0x00000007u, 0x00000001u
-			}
+            cubeVertexData,
+            cubeIndexData
 		},
+
+        {
+            "lined_cube",
+             GL_LINE_STRIP,
+             GL_STATIC_DRAW,
+             cubeVertexData,
+             cubeIndexData
+        },
 
 		// billboard
 		{

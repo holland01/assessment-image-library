@@ -20,6 +20,10 @@ void Game_Frame( void );
 
 #include "eminput.h"
 
+namespace {
+    quad_hierarchy_t::node_t::ptr_t testNode( nullptr );
+}
+
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
                  billboard_list_t& billboards,
@@ -100,7 +104,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
 
-    gen.reset( new generator_t() );
+    gen.reset( new tile_generator_t() );
 
 	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const tile_t* a, const tile_t* b ) -> bool
 	{
@@ -133,6 +137,13 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	camera = &player;
     drawBounds = spec.bounds.get();
 
+    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( ( float ) tile_generator_t::GRID_SIZE, 1.0f, ( float ) tile_generator_t::GRID_SIZE ) ) );
+    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( ( float ) tile_generator_t::GRID_SIZE, 0.0f, ( float )tile_generator_t::GRID_SIZE ) ) );
+
+    glm::mat4 boundsT( t * s );
+
+    testNode.reset( new quad_hierarchy_t::node_t( 0, 2, std::move( bounding_box_t( boundsT ) ) ) );
+
 	running = true;
 }
 
@@ -149,7 +160,7 @@ game_t& game_t::GetInstance( void )
 
 void game_t::ResetMap( void )
 {
-    gen.reset( new generator_t() );
+    gen.reset( new tile_generator_t() );
 }
 
 void game_t::ToggleCulling( void )
@@ -167,6 +178,8 @@ void game_t::Draw( void )
     const view_params_t& vp = camera->GetViewParams();
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+
+    testNode->Draw( *pipeline, vp );
 
 	if ( drawAll )
 	{
@@ -294,9 +307,11 @@ void Draw_Group( game_t& game,
 
     for ( tile_t* tile: billboards )
     {
-        billboard.LoadVec3( "origin", glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
+        glm::vec3 boundsOrigin( ( *( tile->bounds ) )[ 3 ] );
 
-        glm::vec3 dirToCam( vp.origin - glm::vec3( ( *( tile->bounds ) )[ 3 ] ) );
+        billboard.LoadVec3( "origin", boundsOrigin );
+
+        glm::vec3 dirToCam( vp.origin - boundsOrigin );
         dirToCam.y = 0.0f;
         dirToCam = glm::normalize( dirToCam );
 

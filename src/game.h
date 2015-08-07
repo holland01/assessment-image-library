@@ -23,7 +23,7 @@ struct game_t
 
 	float frameTime, lastTime, startTime;
 
-	std::unique_ptr< generator_t > gen;
+	std::unique_ptr< tile_generator_t > gen;
 	std::unique_ptr< pipeline_t > pipeline;
 
 	plane_t groundPlane;

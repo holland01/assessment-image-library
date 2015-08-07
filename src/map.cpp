@@ -45,6 +45,10 @@ namespace {
 	}};
 }
 
+//-------------------------------------------------------------------------------------------------------
+// tile_t
+//-------------------------------------------------------------------------------------------------------
+
 tile_t::tile_t( void )
     : entity_t( entity_t::BODY_DEPENDENT ),
       type( tile_t::EMPTY ),
@@ -79,7 +83,11 @@ void tile_t::Set( const glm::mat4& transform )
     }
 }
 
-generator_t::generator_t( void )
+//-------------------------------------------------------------------------------------------------------
+// tile_generator_t
+//-------------------------------------------------------------------------------------------------------
+
+tile_generator_t::tile_generator_t( void )
 {
 	billTexture.mipmap = true;
 	billTexture.LoadFromFile( "asset/mooninite.png" );
@@ -167,7 +175,7 @@ generator_t::generator_t( void )
 	}
 }
 
-uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
+uint32_t tile_generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 {
 	if ( ( int32_t )x < 0 )
 	{
@@ -199,7 +207,7 @@ uint32_t generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
 	return count;
 }
 
-void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< tile_t* >& mutWalls )
+void tile_generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< tile_t* >& mutWalls )
 {
 	bool isWall;
 	uint32_t center = TileIndex( x, z );
@@ -259,7 +267,7 @@ void generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< t
 	}
 }
 
-half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal )
+half_space_t tile_generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal )
 {
 	using corner_t = bounding_box_t::corner_t;
 
@@ -310,7 +318,7 @@ half_space_t generator_t::GenHalfSpace( const tile_t& t, const glm::vec3& normal
 	return std::move( hs );
 }
 
-bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
+bool tile_generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 								const bounding_box_t& bounds,
 								half_space_t& outHalfSpace )
 {
@@ -348,7 +356,7 @@ bool generator_t::CollidesWall( glm::vec3& normal, const tile_t& t,
 	return false;
 }
 
-void generator_t::GetEntities( billboard_list_t& outBillboards,
+void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
                                wall_list_t& outWalls,
                                freespace_list_t& outFreeSpace,
 							   const frustum_t& frustum,
@@ -410,4 +418,60 @@ void generator_t::GetEntities( billboard_list_t& outBillboards,
 	}
 
 	// do view-space depth sort on each vector
+}
+
+
+//-------------------------------------------------------------------------------------------------------
+// quad_hierarchy_t
+//
+// | II.  | I. |
+// | III. | IV. |
+//----------------------------------------------------------------------------------------------------
+
+namespace {
+    const glm::vec3 PLANE_VEC( 1.0f, 0.0f, 1.0f );
+    const glm::vec3 CONST_AXIS_VEC( 0.0f, 1.0f, 0.0f );
+    const uint8_t CONST_AXIS = 1;
+}
+
+quad_hierarchy_t::node_t::node_t( uint32_t curDepth, const uint32_t maxDepth, bounding_box_t bounds_ )
+    : bounds( std::move( bounds_ ) )
+{
+    if ( curDepth >= maxDepth - 1 )
+    {
+        return;
+    }
+
+    glm::vec3 size( bounds.GetSize() * glm::vec3( 1.0f, 0.5f, 1.0f ) );
+    glm::vec3 quadSize( size * PLANE_VEC * 0.25f + CONST_AXIS_VEC * size[ CONST_AXIS ] );
+    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
+    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), bounds.GetCenter() + quadSize * PLANE_VEC ) );
+
+    glm::mat4 one( t * s );
+
+    children[ 0 ].reset( new node_t( curDepth + 1, maxDepth, std::move( bounding_box_t( one ) ) ) );
+}
+
+void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& vp ) const
+{
+    const shader_program_t& singleColor = pl.programs.at( "single_color" );
+    const draw_buffer_t& coloredCube = pl.drawBuffers.at( "lined_cube" );
+
+    {
+        load_blend_t b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+        singleColor.Bind();
+        singleColor.LoadVec4( "color", glm::vec4( 0.3f, 0.3f, 0.3f, 1.0f ) );
+        singleColor.LoadMat4( "modelToView", vp.transform * bounds.GetTransform() );
+        coloredCube.Render( singleColor );
+        singleColor.Release();
+    }
+
+    for ( const node_t::ptr_t& n: children )
+    {
+        if ( n )
+        {
+            n->Draw( pl, vp );
+        }
+    }
 }

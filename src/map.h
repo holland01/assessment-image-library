@@ -14,8 +14,14 @@ using billboard_list_t = std::vector< tile_t* >;
 using freespace_list_t = std::vector< const tile_t* >;
 using wall_list_t = std::vector< const tile_t* >;
 
+//-------------------------------------------------------------------------------------------------------
+// tile_t
+//-------------------------------------------------------------------------------------------------------
+
 struct tile_t : public entity_t
 {    
+    using ptr_t = std::shared_ptr< tile_t >;
+
     enum type_t
     {
         BILLBOARD,
@@ -32,7 +38,11 @@ struct tile_t : public entity_t
     void Set( const glm::mat4& transform );
 };
 
-struct generator_t
+//-------------------------------------------------------------------------------------------------------
+// tile_generator_t
+//-------------------------------------------------------------------------------------------------------
+
+struct tile_generator_t
 {	
 public:
 	static const int32_t GRID_SIZE = 100;
@@ -59,7 +69,7 @@ public:
 	std::vector< half_space_table_t > halfSpaceTable;
 	std::vector< half_space_t > halfSpaces;
 
-    generator_t( void );
+    tile_generator_t( void );
 
 	void SetTile( uint32_t pass,
 				  uint32_t x,
@@ -82,13 +92,44 @@ public:
 	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };
 
-INLINE uint32_t generator_t::TileIndex( uint32_t x, uint32_t z ) const
+INLINE uint32_t tile_generator_t::TileIndex( uint32_t x, uint32_t z ) const
 {
 	return z * GRID_SIZE + x;
 }
 
-INLINE uint32_t generator_t::TileModIndex( uint32_t x, uint32_t z ) const
+INLINE uint32_t tile_generator_t::TileModIndex( uint32_t x, uint32_t z ) const
 {
 	return ( z % GRID_SIZE ) * GRID_SIZE + x % GRID_SIZE;
 }
+
+//-------------------------------------------------------------------------------------------------------
+// quad_hierarchy_t
+//
+// | II.  | I. |
+// | III. | IV. |
+//-------------------------------------------------------------------------------------------------------
+
+struct quad_hierarchy_t
+{
+    static const uint8_t NODE_COUNT = 4;
+
+    using entity_list_t = std::vector< std::weak_ptr< entity_t > >;
+
+    struct node_t
+    {
+        using ptr_t = std::unique_ptr< node_t >;
+
+        bounding_box_t bounds;
+
+        entity_list_t entities;
+
+        std::array< ptr_t, NODE_COUNT > children;
+
+        node_t( uint32_t curDepth, const uint32_t maxDepth, bounding_box_t bounds );
+
+        void Draw( const pipeline_t& pl, const view_params_t& vp ) const;
+    };
+
+    node_t::ptr_t root;
+};
 
