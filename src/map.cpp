@@ -130,9 +130,6 @@ tile_generator_t::tile_generator_t( void )
 	// for the corresponding face.
 	for ( tile_t* wall: mutWalls )
 	{
-		// NOTE: While most of the generation appears to work, some half-spaces are being
-		// produced in areas they shouldn't be...
-
 		half_space_table_t halfSpaces;
 		halfSpaces.fill( -1 );
 
@@ -173,6 +170,57 @@ tile_generator_t::tile_generator_t( void )
 			halfSpaceTable.push_back( std::move( halfSpaces ) );
 		}
 	}
+
+    // Find regions
+
+    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    {
+        for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+        {
+            const tile_t& t = tiles[ z * GRID_SIZE + x ];
+
+            if ( t.halfSpaceIndex < 0 )
+            {
+                continue;
+            }
+
+            const half_space_table_t& hst = halfSpaceTable[ t.halfSpaceIndex ];
+
+            for ( int32_t i: hst )
+            {
+                if ( i < 0 )
+                {
+                    continue;
+                }
+
+                const half_space_t& hs = halfSpaces[ i ];
+
+                glm::vec3 normal( glm::normalize( hs.extents[ 2 ] ) );
+
+                // Ok, check +z
+                float d = glm::dot( normal, glm::vec3( 0.0f, 0.0f, 1.0f ) );
+
+                // TODO: iterate through + z-axis until another wall is found.
+                // If the wall's normal is opposite to the current normal (in this case, facing down -Z),
+                // then we have ourselves a winner, can continue our x iteration, and then repeat the process.
+                // If the closest wall in our direction does NOT have an opposing half space normal, then we have a new
+                // region to compute. When this occurs, we add the current region, which exists outside of the scope
+                // of the outer loops to the list, reset the placeholder region's values, and start anew with a fresh region.
+                // This approach will at least keep the indentation count lower.
+
+                // REMEMBER: don't worry about refactoring right now; it's going to be ugly anyway.
+
+                if ( d == 1.0f )
+                {
+                    uint32_t z0 = z + 1;
+                    for ( ; z0 < GRID_SIZE; ++z0 )
+                    {
+
+                    }
+                }
+            }
+        }
+    }
 }
 
 uint32_t tile_generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
@@ -420,6 +468,20 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 	// do view-space depth sort on each vector
 }
 
+//-------------------------------------------------------------------------------------------------------
+// tile_region_t
+//-------------------------------------------------------------------------------------------------------
+
+tile_region_t::tile_region_t( void )
+    : color( 0.0f )
+{
+}
+
+void tile_region_t::Draw( const pipeline_t& pl, const view_params_t& vp )
+{
+    UNUSEDPARAM( pl );
+    UNUSEDPARAM( vp );
+}
 
 //-------------------------------------------------------------------------------------------------------
 // quad_hierarchy_t
@@ -442,36 +504,47 @@ quad_hierarchy_t::node_t::node_t( uint32_t curDepth, const uint32_t maxDepth, bo
         return;
     }
 
-    glm::vec3 size( bounds.GetSize() * glm::vec3( 1.0f, 0.5f, 1.0f ) );
-    glm::vec3 quadSize( size * PLANE_VEC * 0.25f + CONST_AXIS_VEC * size[ CONST_AXIS ] );
-    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
-    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), bounds.GetCenter() + quadSize * PLANE_VEC ) );
+    //glm::vec3 size( );
+//    glm::vec3 quadSize( size * PLANE_VEC * 0.25f + CONST_AXIS_VEC * size[ CONST_AXIS ] );
 
-    glm::mat4 one( t * s );
+    glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
+    auto LMakeChild = [ & ]( uint8_t index, const glm::vec3& offset )
+    {
+        glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
+        glm::mat4 t( glm::translate( glm::mat4( 1.0f ), offset ) );
+        glm::mat4 m( t * s );
+        children[ index ].reset( new node_t( curDepth + 1, maxDepth, std::move( bounding_box_t( m ) ) ) );
+    };
 
-    children[ 0 ].reset( new node_t( curDepth + 1, maxDepth, std::move( bounding_box_t( one ) ) ) );
+    LMakeChild( 0, quadSize * PLANE_VEC );
+    LMakeChild( 1, quadSize * glm::vec3( -1.0f, 0.0f, 1.0f ) );
+    LMakeChild( 2, quadSize * glm::vec3( -1.0f , 0.0f, -1.0f ) );
+    LMakeChild( 3, quadSize * glm::vec3( 1.0f, 0.0f, -1.0f ) );
 }
 
-void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& vp ) const
+void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform ) const
 {
-    const shader_program_t& singleColor = pl.programs.at( "single_color" );
-    const draw_buffer_t& coloredCube = pl.drawBuffers.at( "lined_cube" );
+    //const shader_program_t& singleColor = pl.programs.at( "single_color" );
+    //const draw_buffer_t& coloredCube = pl.drawBuffers.at( "lined_cube" );
 
+    glm::mat4 t( rootTransform * bounds.GetTransform() );
+
+    /*
     {
         load_blend_t b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
         singleColor.Bind();
         singleColor.LoadVec4( "color", glm::vec4( 0.3f, 0.3f, 0.3f, 1.0f ) );
-        singleColor.LoadMat4( "modelToView", vp.transform * bounds.GetTransform() );
+        singleColor.LoadMat4( "modelToView", vp.transform * t );
         coloredCube.Render( singleColor );
         singleColor.Release();
-    }
+    }*/
 
     for ( const node_t::ptr_t& n: children )
     {
         if ( n )
         {
-            n->Draw( pl, vp );
+            n->Draw( pl, vp, t );
         }
     }
 }

@@ -22,6 +22,15 @@ void Game_Frame( void );
 
 namespace {
     quad_hierarchy_t::node_t::ptr_t testNode( nullptr );
+
+    enum
+    {
+        DRAW_BILLBOARDS = 0x1,
+        DRAW_HALFSPACES = 0x2
+    };
+
+    const float DISTANCE_THRESHOLD = 2.0f;
+    uint32_t drawFlags = 0;
 }
 
 void Draw_Group( game_t& game,
@@ -142,7 +151,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
     glm::mat4 boundsT( t * s );
 
-    testNode.reset( new quad_hierarchy_t::node_t( 0, 2, std::move( bounding_box_t( boundsT ) ) ) );
+    //testNode.reset( new quad_hierarchy_t::node_t( 0, 3, std::move( bounding_box_t( boundsT ) ) ) );
 
 	running = true;
 }
@@ -179,7 +188,10 @@ void game_t::Draw( void )
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
-    testNode->Draw( *pipeline, vp );
+    if ( testNode )
+    {
+        testNode->Draw( *pipeline, vp );
+    }
 
 	if ( drawAll )
 	{
@@ -194,17 +206,47 @@ void game_t::Draw( void )
     // against by default
     GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
 
-    const shader_program_t& ssSingleColor = pipeline->programs.at( "single_color_ss" );
 
-    ssSingleColor.Bind();
-    ssSingleColor.LoadVec4( "color", glm::vec4( 1.0f ) );
+    {
+        const shader_program_t& ssSingleColor = pipeline->programs.at( "single_color_ss" );
 
-    imm_draw_t drawer( ssSingleColor );
-    drawer.Begin( GL_POINTS );
-    drawer.Vertex( glm::vec3( 0.0f, 0.0f, 0.0f ) );
-    drawer.End();
+        ssSingleColor.Bind();
+        ssSingleColor.LoadVec4( "color", glm::vec4( 1.0f ) );
 
-    ssSingleColor.Release();
+        imm_draw_t drawer( ssSingleColor );
+
+        // Draw reticule
+        drawer.Begin( GL_POINTS );
+        drawer.Vertex( glm::vec3( 0.0f ) );
+        drawer.End();
+
+        ssSingleColor.Release();
+    }
+
+    {
+        const shader_program_t& singleColor = pipeline->programs.at( "single_color" );
+
+        singleColor.Bind();
+        singleColor.LoadMat4( "modelToView", vp.transform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
+        singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+
+        imm_draw_t drawer( singleColor );
+
+        const float AXIS_SIZE = 100.0f;
+
+        // Draw coordinate space axes
+        drawer.Begin( GL_LINES );
+        drawer.Vertex( glm::vec3( 0.0f ) );
+        drawer.Vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ) );
+        drawer.Vertex( glm::vec3( 0.0f ) );
+        drawer.Vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ) );
+        drawer.Vertex( glm::vec3( 0.0f ) );
+        drawer.Vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ) );
+        drawer.End();
+
+        singleColor.Release();
+    }
+
 }
 
 void game_t::FireGun( void )
@@ -218,92 +260,38 @@ void game_t::FireGun( void )
     }
 }
 
-void Draw_Group( game_t& game,
-                 const view_params_t& vp,
-                 billboard_list_t& billboards,
-                 wall_list_t& walls,
-                 freespace_list_t& freeSpace )
+void Draw_Bounds( game_t& game, const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
 {
+    const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+    const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
+    const view_params_t& vp = game.camera->GetViewParams();
 
-    const float DISTANCE_THRESHOLD = 2.0f;
+    singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
+    singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
+    coloredCube.Render( singleColor );
+}
 
-    // Programs from the global pipeline...
-	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
-	const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
-
-	const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
-	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
-
-    // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
-    // It's useful for debugging...
-	imm_draw_t drawer( singleColor );
-	immDrawer = &drawer;
-
-    // For empty tiles we care about...
-	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
-	quadTransform[ 3 ].y = -1.0f;
-
-    // Some lambda goodness
-	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
-			const glm::vec3& color )
-	{
-		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
-		singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
-		billboardBuffer.Render( singleColor );
-	};
-
-    auto LDrawBounds = [ &vp, &singleColor, &coloredCube ]( const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
-	{
-        singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
-        singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
-		coloredCube.Render( singleColor );
-	};
-
-    auto LApplyForce = [ &game ]( const glm::vec3& normal, const body_t& body )
+void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body )
+{
+    if ( game.camera->body )
     {
-        if ( game.camera->body )
-        {
-           game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
-        }
-    };
-
-    // Load a grey color so it looks somewhat fancy
-	singleColor.Bind();
-	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-	for ( const tile_t* tile: walls )
-	{
-        LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ) );
-
-		// don't test collision unless distance from player to object is within a certain range
-        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= DISTANCE_THRESHOLD )
-		{
-			half_space_t hs;
-			glm::vec3 normal;
-
-            if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
-			{
-                LDrawBounds( *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-                LApplyForce( normal, *( tile->body ) );
-			}
-		}
-	}
-
-    if ( game.bullet )
-    {
-        LDrawBounds( *( game.bullet->bounds ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+       game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
     }
+}
 
-    // Draw the bounds of the camera not currently being used
-	LDrawBounds( *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
+void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& billboards )
+{
+    const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+    const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
+    const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
-	singleColor.Release();
-
-    GL_CHECK( glEnable( GL_BLEND ) );
-
+    load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
     // Draw all billboards
-	billboard.Bind();
-	billboard.LoadMat4( "modelToView", vp.transform );
-	billboard.LoadMat4( "viewToClip", vp.clipTransform );
+    billboard.Bind();
+    billboard.LoadMat4( "modelToView", vp.transform );
+    billboard.LoadMat4( "viewToClip", vp.clipTransform );
+
+    imm_draw_t drawer( singleColor );
 
     for ( tile_t* tile: billboards )
     {
@@ -330,7 +318,7 @@ void Draw_Group( game_t& game,
             glm::vec3 normal;
             if ( game.camera->bounds->IntersectsBounds( normal, *( tile->bounds ) ) )
             {
-                LApplyForce( normal, *( tile->body ) );
+                Apply_Force( game, normal, *( tile->body ) );
             }
         }
 
@@ -354,11 +342,11 @@ void Draw_Group( game_t& game,
         billboard.LoadVec4( "color", tile->GetColor() );
 
         game.gen->billTexture.Bind( 0, "image", billboard );
-		billboardBuffer.Render( billboard );
+        billboardBuffer.Render( billboard );
         game.gen->billTexture.Release( 0 );
 
         singleColor.Bind();
-        LDrawBounds( *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
+        Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
 
         singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
         singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->GetTransform() );
@@ -368,10 +356,98 @@ void Draw_Group( game_t& game,
         drawer.End();
 
         billboard.Bind();
-	}
-	billboard.Release();
+    }
+    billboard.Release();
+}
 
-    GL_CHECK( glDisable( GL_BLEND ) );
+void Draw_Group( game_t& game,
+                 const view_params_t& vp,
+                 billboard_list_t& billboards,
+                 wall_list_t& walls,
+                 freespace_list_t& freeSpace )
+{
+	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
+
+    // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
+    // It's useful for debugging...
+	imm_draw_t drawer( singleColor );
+	immDrawer = &drawer;
+
+    // For empty tiles we care about...
+	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
+	quadTransform[ 3 ].y = -1.0f;
+
+    // Some lambda goodness
+	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
+			const glm::vec3& color )
+	{
+		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
+		singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
+		billboardBuffer.Render( singleColor );
+	};
+
+    // Load a grey color so it looks somewhat fancy
+	singleColor.Bind();
+	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+	for ( const tile_t* tile: walls )
+	{
+        Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ) );
+
+		// don't test collision unless distance from player to object is within a certain range
+        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= DISTANCE_THRESHOLD )
+		{
+			half_space_t hs;
+			glm::vec3 normal;
+
+            if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
+			{
+                Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+                Apply_Force( game, normal, *( tile->body ) );
+			}
+		}
+	}
+
+    if ( game.bullet )
+    {
+        Draw_Bounds( game, *( game.bullet->bounds ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+    }
+
+    if ( drawFlags & DRAW_BILLBOARDS )
+    {
+        Draw_Billboards( game, vp, billboards );
+    }
+
+    singleColor.Bind();
+    singleColor.LoadMat4( "modelToView", vp.transform );
+    singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+
+    if ( drawFlags & DRAW_HALFSPACES )
+    {
+        for ( const tile_t* wall: walls )
+        {
+            if ( wall->halfSpaceIndex < 0 )
+            {
+                continue;
+            }
+
+            const tile_generator_t::half_space_table_t& table =
+                    game.gen->halfSpaceTable[ wall->halfSpaceIndex ];
+
+            for ( int32_t i: table )
+            {
+                if ( i < 0 )
+                {
+                    continue;
+                }
+
+                game.gen->halfSpaces[ i ].Draw( drawer );
+            }
+        }
+    }
+
+    // Draw the bounds of the camera not currently being used
+    Draw_Bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
     // Mark all free spaces here
     singleColor.Bind();
@@ -416,6 +492,8 @@ void Game_Frame( void )
     game.world.bodies.clear();
 
 	game.world.time = GetTime() - game.startTime;
+
+    printf( "FPS: %f\r", 1.0f / game.world.time );
 }
 
 // temporary hack to get around the fact that querying for an game
@@ -477,6 +555,13 @@ uint32_t Game_Exec( void )
 								game.camera = &game.player;
 							}
 							break;
+                        case SDLK_b:
+                            drawFlags ^= DRAW_BILLBOARDS;
+                            break;
+
+                        case SDLK_h:
+                            drawFlags ^= DRAW_HALFSPACES;
+                            break;
 
                         default:
 							game.camera->EvalKeyPress( ( input_key_t ) e.key.keysym.sym );

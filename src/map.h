@@ -9,6 +9,7 @@
 struct frustum_t;
 
 struct tile_t;
+struct tile_region_t;
 
 using billboard_list_t = std::vector< tile_t* >;
 using freespace_list_t = std::vector< const tile_t* >;
@@ -59,6 +60,7 @@ public:
 	using half_space_table_t = std::array< int32_t, NUM_FACES >;
 
 	std::vector< tile_t > tiles;
+    std::vector< tile_region_t > regions;
 
     billboard_list_t billboards;
     wall_list_t walls;
@@ -103,6 +105,20 @@ INLINE uint32_t tile_generator_t::TileModIndex( uint32_t x, uint32_t z ) const
 }
 
 //-------------------------------------------------------------------------------------------------------
+// tile_region_t
+//-------------------------------------------------------------------------------------------------------
+
+struct tile_region_t
+{
+    std::vector< const tile_t* > tiles;
+    glm::vec4 color;
+
+    tile_region_t( void );
+
+    void Draw( const pipeline_t& pl, const view_params_t& vp );
+};
+
+//-------------------------------------------------------------------------------------------------------
 // quad_hierarchy_t
 //
 // | II.  | I. |
@@ -127,7 +143,7 @@ struct quad_hierarchy_t
 
         node_t( uint32_t curDepth, const uint32_t maxDepth, bounding_box_t bounds );
 
-        void Draw( const pipeline_t& pl, const view_params_t& vp ) const;
+        void Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
     };
 
     node_t::ptr_t root;
