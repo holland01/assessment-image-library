@@ -9,7 +9,7 @@ namespace {
 	std::random_device randDevice;
 	std::mt19937 randEngine( randDevice() );
 	std::uniform_int_distribution< uint32_t > wallDet( 0, 100 );
-	std::uniform_int_distribution< uint16_t > randByte( 0, 255 );
+    std::uniform_int_distribution< uint16_t > randByte( 0, 255 );
 
 	INLINE glm::vec4 RandomColor( void )
 	{
@@ -171,54 +171,145 @@ tile_generator_t::tile_generator_t( void )
 		}
 	}
 
-    // Find regions
+    std::array< uint8_t, GRID_SIZE * GRID_SIZE > regioned;
+    regioned.fill( 0 );
 
-    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    tile_region_t r;
+    r.color = RandomColor();
+
+    auto LResetRegion = [ & ]( void )
     {
-        for ( uint32_t x = 0; x < GRID_SIZE; ++x )
-        {
-            const tile_t& t = tiles[ z * GRID_SIZE + x ];
+        regions.push_back( r );
+        r.tiles.clear();
+        r.color = RandomColor();
+    };
 
-            if ( t.halfSpaceIndex < 0 )
+    const uint32_t Z_COMP = 0;
+    //const uint32_t X_COMP = 1;
+
+    using comp_index_fn_t = std::function< uint32_t( uint32_t k, uint32_t x, uint32_t z ) >;
+
+    std::array< comp_index_fn_t, 2 > indexComputeTable =
+    {{
+        []( uint32_t k, uint32_t x, uint32_t z ) -> uint32_t
+        {
+            UNUSEDPARAM( z );
+            return k * GRID_SIZE + x;
+        },
+
+        []( uint32_t k, uint32_t x, uint32_t z ) -> uint32_t
+        {
+            UNUSEDPARAM( x );
+            return z * GRID_SIZE + k;
+        }
+    }};
+
+    auto LMatchColumn = [ & ]( const tile_t& t,
+            uint32_t x, uint32_t z, uint32_t base,
+            uint32_t indexComp,
+            faceIndex_t startFace,
+            faceIndex_t endFace )
+    {
+        const half_space_table_t& hst = halfSpaceTable[ t.halfSpaceIndex ];
+
+        if ( hst[ startFace ] < 0 )
+        {
+            return;
+        }
+
+        const half_space_t& hs = halfSpaces[ startFace ];
+
+        glm::vec3 normal( glm::normalize( hs.extents[ 2 ] ) );
+
+        const glm::vec3& match = halfSpaceNormals[ startFace ];
+
+        float d = glm::dot( normal, match );
+
+        if ( d == 1.0f )
+        {
+            for ( uint32_t k = base + 1; k < GRID_SIZE; ++k )
+            {
+                uint32_t index = indexComputeTable[ indexComp ]( k, x, z );
+
+                const tile_t& t0 = tiles[ index ];
+
+                if ( t0.type == tile_t::WALL )
+                {
+                    // This should not happen, see below comment...
+                    assert( t0.halfSpaceIndex >= 0 );
+                    assert( halfSpaceTable[ t0.halfSpaceIndex ][ endFace ] >= 0 );
+
+
+                    // No need to check for a half-space index, here: we only can only
+                    // get to this point if the previous checked half-space ( in the scope outside of this loop )
+                    // has a normal which faces +z. This is only possible if there is a tile in front of its +zface
+                    // which is not a wall.
+                    /*{
+                        const half_space_table_t& hst0 = halfSpaceTable[ t0.halfSpaceIndex ];
+                        for ( int32_t i: hst0 )
+                        {
+                            if ( i < 0 )
+                            {
+                                continue;
+                            }
+
+                            if ( glm::dot( normal, glm::normalize( halfSpaces[ i ].extents[ 2 ] ) ) == -1.0f )
+                            {
+                                break;
+                            }
+                        }
+                    }*/
+
+                    // We've found a wall, here: since we're moving downward,
+                    // there's no way a tile could have a valid half space after this, regardless of what's current. So, we're done.
+                    break;
+                }
+
+                regioned[ index ] = 1;
+                r.tiles.push_back( &t0 );
+            }
+        }
+    };
+
+    // Find regions
+    for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+    {
+        if ( ( ( x + 1 ) % 5 ) == 0 )
+        {
+            LResetRegion();
+        }
+
+        for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+        {
+            uint32_t zSave = z;
+
+            if ( regioned[ z * GRID_SIZE + x ] )
             {
                 continue;
             }
 
-            const half_space_table_t& hst = halfSpaceTable[ t.halfSpaceIndex ];
+            const tile_t* t = &tiles[ z * GRID_SIZE + x ];
 
-            for ( int32_t i: hst )
+            // Try once to find a wall with a halfspace if we don't have anything yet.
+            if ( t->halfSpaceIndex < 0 )
             {
-                if ( i < 0 )
+                z++;
+                while ( z < GRID_SIZE )
                 {
-                    continue;
-                }
+                    t = &tiles[ z * GRID_SIZE + x ];
 
-                const half_space_t& hs = halfSpaces[ i ];
-
-                glm::vec3 normal( glm::normalize( hs.extents[ 2 ] ) );
-
-                // Ok, check +z
-                float d = glm::dot( normal, glm::vec3( 0.0f, 0.0f, 1.0f ) );
-
-                // TODO: iterate through + z-axis until another wall is found.
-                // If the wall's normal is opposite to the current normal (in this case, facing down -Z),
-                // then we have ourselves a winner, can continue our x iteration, and then repeat the process.
-                // If the closest wall in our direction does NOT have an opposing half space normal, then we have a new
-                // region to compute. When this occurs, we add the current region, which exists outside of the scope
-                // of the outer loops to the list, reset the placeholder region's values, and start anew with a fresh region.
-                // This approach will at least keep the indentation count lower.
-
-                // REMEMBER: don't worry about refactoring right now; it's going to be ugly anyway.
-
-                if ( d == 1.0f )
-                {
-                    uint32_t z0 = z + 1;
-                    for ( ; z0 < GRID_SIZE; ++z0 )
+                    if ( t->halfSpaceIndex >= 0 )
                     {
+                        LMatchColumn( *t, x, z, z, Z_COMP, FACE_BACK, FACE_FORWARD );
 
+                        break;
                     }
+
+                    z++;
                 }
             }
+
+            z = zSave;
         }
     }
 }

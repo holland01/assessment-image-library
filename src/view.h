@@ -6,6 +6,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 
+#ifdef EMSCRIPTEN
+#	define OP_DEFAULT_MOVE_STEP 0.5f
+#else
+#	define OP_DEFAULT_MOVE_STEP 0.1f
+#endif
+
 struct view_params_t
 {
     glm::vec3   forward;

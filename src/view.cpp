@@ -2,18 +2,12 @@
 #include "base.h"
 #include "geom.h"
 
-#ifdef EMSCRIPTEN
-#	define DEFAULT_MOVE_STEP 0.5f
-#else
-#	define DEFAULT_MOVE_STEP 0.1f
-#endif
-
 view_params_t::view_params_t( void )
     : forward( 0.0f ), up( 0.0f ), right( 0.0f ),
       origin( 0.0f ),
       fovy( 0.0f ), aspect( 0.0f ), zNear( 0.0f ), zFar( 0.0f ),
       width( 0.0f ), height( 0.0f ),
-	  moveStep( DEFAULT_MOVE_STEP ),
+      moveStep( OP_DEFAULT_MOVE_STEP ),
       transform( 1.0f ),
       orientation( 1.0f ),
       inverseOrient( 1.0f ),

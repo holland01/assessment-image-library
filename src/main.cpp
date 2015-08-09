@@ -175,6 +175,15 @@ void game_t::ResetMap( void )
 void game_t::ToggleCulling( void )
 {
 	drawAll = !drawAll;
+
+    if ( !drawAll )
+    {
+        camera->viewParams.moveStep = OP_DEFAULT_MOVE_STEP;
+    }
+    else
+    {
+        camera->viewParams.moveStep = OP_DEFAULT_MOVE_STEP * 100.0f;
+    }
 }
 
 void game_t::Tick( void )
@@ -366,6 +375,8 @@ void Draw_Group( game_t& game,
                  wall_list_t& walls,
                  freespace_list_t& freeSpace )
 {
+    UNUSEDPARAM( freeSpace );
+
 	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
 	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
@@ -380,7 +391,7 @@ void Draw_Group( game_t& game,
 
     // Some lambda goodness
 	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
-			const glm::vec3& color )
+            const glm::vec3& color )
 	{
 		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
 		singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
@@ -451,10 +462,15 @@ void Draw_Group( game_t& game,
 
     // Mark all free spaces here
     singleColor.Bind();
-	for ( const tile_t* tile: freeSpace )
-	{
-        LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f, 0.0f, 0.5f ) );
-	}
+
+    for ( const tile_region_t& region: game.gen->regions )
+    {
+        for ( const tile_t* tile: region.tiles )
+        {
+            LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region.color ) );
+        }
+    }
+
 	singleColor.Release();
 }
 
