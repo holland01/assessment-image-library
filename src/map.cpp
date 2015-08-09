@@ -186,133 +186,182 @@ tile_generator_t::tile_generator_t( void )
     };
 
     const uint32_t Z_COMP = 0;
-    //const uint32_t X_COMP = 1;
+    const uint32_t X_COMP = 1;
 
-    using comp_index_fn_t = std::function< uint32_t( uint32_t k, uint32_t x, uint32_t z ) >;
+    using comp_index_fn_t = std::function< int32_t( int32_t k, int32_t x, int32_t z ) >;
 
     std::array< comp_index_fn_t, 2 > indexComputeTable =
     {{
-        []( uint32_t k, uint32_t x, uint32_t z ) -> uint32_t
+        []( int32_t k, int32_t x, int32_t z ) -> int32_t
         {
             UNUSEDPARAM( z );
             return k * GRID_SIZE + x;
         },
 
-        []( uint32_t k, uint32_t x, uint32_t z ) -> uint32_t
+        []( int32_t k, int32_t x, int32_t z ) -> int32_t
         {
             UNUSEDPARAM( x );
             return z * GRID_SIZE + k;
         }
     }};
 
-    auto LMatchColumn = [ & ]( const tile_t& t,
-            uint32_t x, uint32_t z, uint32_t base,
-            uint32_t indexComp,
-            faceIndex_t startFace,
-            faceIndex_t endFace )
-    {
-        const half_space_table_t& hst = halfSpaceTable[ t.halfSpaceIndex ];
+    using upper_bound_fn_t = std::function< bool( int32_t k ) >;
 
-        if ( hst[ startFace ] < 0 )
+    std::array< upper_bound_fn_t, 4 > upperBoundTable =
+    {{
+        []( int32_t k ) -> bool
         {
-            return;
+            return k >= 0;
+        },
+        []( int32_t k ) -> bool
+        {
+            return k >= 0;
+        },
+        []( int32_t k ) -> bool
+        {
+            return k < GRID_SIZE;
+        },
+        []( int32_t k ) -> bool
+        {
+            return k < GRID_SIZE;
         }
+    }};
 
-        const half_space_t& hs = halfSpaces[ hst[ startFace ] ];
-
-        glm::vec3 normal( glm::normalize( hs.extents[ 2 ] ) );
-
-        const glm::vec3& match = halfSpaceNormals[ startFace ];
-
-        printf( "normal: %s, match: %s\n", glm::to_string( normal ).c_str(), glm::to_string( match ).c_str() );
-
-        float d = glm::dot( normal, match );
-
-        if ( d == 1.0f )
+    auto LMatchColumn = [ & ]( int32_t x, int32_t z, int32_t base, int32_t kAdd, uint32_t indexComp, faceIndex_t startFace )
+    {
+        for ( uint32_t k = base + kAdd; upperBoundTable[ startFace ]( k ); k += kAdd )
         {
-            for ( uint32_t k = base + 1; k < GRID_SIZE; ++k )
+            int32_t index = indexComputeTable[ indexComp ]( k, x, z );
+
+            if ( regioned[ index ] )
             {
-                uint32_t index = indexComputeTable[ indexComp ]( k, x, z );
+                continue;
+            }
 
-                const tile_t& t0 = tiles[ index ];
+            const tile_t& t0 = tiles[ index ];
 
-                if ( t0.type == tile_t::WALL )
+            r.tiles.push_back( &t0 );
+
+            if ( t0.type == tile_t::WALL )
+            {
+                // These assertions should pass:
+                // there's no need to check for a half-space index, here: we only can only
+                // get to this point if the previous checked half-space ( in the scope outside of this function )
+                // has a normal which faces the starting face direction. This is only possible if there is a tile in front of its starting face
+                // which is not a wall
+#ifdef DEBUG
+
+                faceIndex_t endFace;
+                switch ( startFace )
                 {
-                    // This should not happen, see below comment...
-                    assert( t0.halfSpaceIndex >= 0 );
-                    assert( halfSpaceTable[ t0.halfSpaceIndex ][ endFace ] >= 0 );
-
-
-                    // No need to check for a half-space index, here: we only can only
-                    // get to this point if the previous checked half-space ( in the scope outside of this loop )
-                    // has a normal which faces +z. This is only possible if there is a tile in front of its +zface
-                    // which is not a wall.
-                    /*{
-                        const half_space_table_t& hst0 = halfSpaceTable[ t0.halfSpaceIndex ];
-                        for ( int32_t i: hst0 )
-                        {
-                            if ( i < 0 )
-                            {
-                                continue;
-                            }
-
-                            if ( glm::dot( normal, glm::normalize( halfSpaces[ i ].extents[ 2 ] ) ) == -1.0f )
-                            {
-                                break;
-                            }
-                        }
-                    }*/
-
-                    // We've found a wall, here: since we're moving downward,
-                    // there's no way a tile could have a valid half space after this, regardless of what's current. So, we're done.
-                    break;
+                    case FACE_FORWARD: endFace = FACE_BACK; break;
+                    case FACE_LEFT: endFace = FACE_RIGHT; break;
+                    case FACE_BACK: endFace = FACE_FORWARD; break;
+                    case FACE_RIGHT: endFace = FACE_LEFT; break;
+                    default:
+                        break; // compiler...
                 }
 
+                assert( t0.halfSpaceIndex >= 0 );
+                assert( halfSpaceTable[ t0.halfSpaceIndex ][ endFace ] >= 0 );
+#endif
+                // We've found a wall, here: since we're moving toward a wall,
+                // there's no way a tile could have a valid half space after this, regardless of what's current. So, we're done.
+                break;
+            }
+            else
+            {
                 regioned[ index ] = 1;
-                r.tiles.push_back( &t0 );
             }
         }
     };
 
-    // Find regions
-    for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+    auto LFillRegion = [ & ]( int32_t x,
+                              int32_t z,
+                              int32_t base,
+                              int32_t kAdd,
+                              uint32_t indexComp,
+                              faceIndex_t startFace )
+    {
+        if ( tiles[ z * GRID_SIZE + x ].type != tile_t::WALL )
+        {
+            return;
+        }
+
+        for ( int32_t k = base; upperBoundTable[ startFace ]( k ); k += kAdd )
+        {
+            const tile_t& t = tiles[ indexComputeTable[ indexComp ]( k, x, z ) ];
+
+            if ( t.halfSpaceIndex >= 0 && halfSpaceTable[ t.halfSpaceIndex ][ startFace ] >= 0 )
+            {
+                if ( indexComp == Z_COMP )
+                {
+                    LMatchColumn( x, k, k, kAdd, indexComp, startFace );
+                }
+                else
+                {
+                    LMatchColumn( k, z, k, kAdd, indexComp, startFace );
+                }
+
+                break;
+            }
+        }
+    };
+
+    // BACK->FORWARD Z-pass
+    for ( int32_t x = 0; x < GRID_SIZE; ++x )
+    {
+        // This is a dummy heuristic which needs to be replaced...
+        if ( ( ( x + 1 ) % 5 ) == 0 )
+        {
+            LResetRegion();
+        }
+
+        for ( int32_t z = 0; z < GRID_SIZE; ++z )
+        {
+            LFillRegion( x, z, z, 1, Z_COMP, FACE_BACK );
+        }
+    }
+
+    // FORWARD->BACK Z-pass
+    for ( int32_t x = 0; x < GRID_SIZE; ++x )
     {
         if ( ( ( x + 1 ) % 5 ) == 0 )
         {
             LResetRegion();
         }
 
-        for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+        for ( int32_t z = GRID_SIZE - 1; z >= 0; --z )
         {
-            uint32_t zSave = z;
+            LFillRegion( x, z, z, -1, Z_COMP, FACE_FORWARD );
+        }
+    }
 
-            if ( regioned[ z * GRID_SIZE + x ] )
-            {
-                continue;
-            }
+    // RIGHT->LEFT X-pass
+    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    {
+        if ( ( ( z + 1 ) % 5 ) == 0 )
+        {
+            LResetRegion();
+        }
 
-            const tile_t* t = &tiles[ z * GRID_SIZE + x ];
+        for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+        {
+            LFillRegion( x, z, x, 1, X_COMP, FACE_RIGHT );
+        }
+    }
 
-            // Try once to find a wall with a halfspace if we don't have anything yet.
-            if ( t->halfSpaceIndex < 0 )
-            {
-                z++;
-                while ( z < GRID_SIZE )
-                {
-                    t = &tiles[ z * GRID_SIZE + x ];
+    // LEFT->RIGHT X-pass
+    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    {
+        if ( ( ( z + 1 ) % 5 ) == 0 )
+        {
+            LResetRegion();
+        }
 
-                    if ( t->halfSpaceIndex >= 0 && halfSpaceTable[ t->halfSpaceIndex ][ FACE_BACK ] >= 0 )
-                    {
-                        LMatchColumn( *t, x, z, z, Z_COMP, FACE_BACK, FACE_FORWARD );
-
-                        break;
-                    }
-
-                    z++;
-                }
-            }
-
-            z = zSave;
+        for ( uint32_t x = GRID_SIZE - 1; x >= 0; --x )
+        {
+            LFillRegion( x, z, x, -1, X_COMP, FACE_LEFT );
         }
     }
 }

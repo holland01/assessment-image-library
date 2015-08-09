@@ -10,7 +10,7 @@ Product {
         "../src/lib",
         qbs.getEnv("DEVLIB_ROOT") + "/sdl2/include"
     ]
-    cpp.defines: ["__DEBUG_RENDERER__"]
+    cpp.defines: ["__DEBUG_RENDERER__", "DEBUG"]
     cpp.treatWarningsAsErrors: true
     cpp.cxxFlags:[
         "-Wno-unused-function",
