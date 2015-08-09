@@ -338,28 +338,28 @@ tile_generator_t::tile_generator_t( void )
     }
 
     // RIGHT->LEFT X-pass
-    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    for ( int32_t z = 0; z < GRID_SIZE; ++z )
     {
         if ( ( ( z + 1 ) % 5 ) == 0 )
         {
             LResetRegion();
         }
 
-        for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+        for ( int32_t x = 0; x < GRID_SIZE; ++x )
         {
             LFillRegion( x, z, x, 1, X_COMP, FACE_RIGHT );
         }
     }
 
     // LEFT->RIGHT X-pass
-    for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+    for ( int32_t z = 0; z < GRID_SIZE; ++z )
     {
         if ( ( ( z + 1 ) % 5 ) == 0 )
         {
             LResetRegion();
         }
 
-        for ( uint32_t x = GRID_SIZE - 1; x >= 0; --x )
+        for ( int32_t x = GRID_SIZE - 1; x >= 0; --x )
         {
             LFillRegion( x, z, x, -1, X_COMP, FACE_LEFT );
         }
