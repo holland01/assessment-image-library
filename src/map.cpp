@@ -4,6 +4,7 @@
 #include <random>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/projection.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 namespace {
 	std::random_device randDevice;
@@ -217,11 +218,13 @@ tile_generator_t::tile_generator_t( void )
             return;
         }
 
-        const half_space_t& hs = halfSpaces[ startFace ];
+        const half_space_t& hs = halfSpaces[ hst[ startFace ] ];
 
         glm::vec3 normal( glm::normalize( hs.extents[ 2 ] ) );
 
         const glm::vec3& match = halfSpaceNormals[ startFace ];
+
+        printf( "normal: %s, match: %s\n", glm::to_string( normal ).c_str(), glm::to_string( match ).c_str() );
 
         float d = glm::dot( normal, match );
 
@@ -298,7 +301,7 @@ tile_generator_t::tile_generator_t( void )
                 {
                     t = &tiles[ z * GRID_SIZE + x ];
 
-                    if ( t->halfSpaceIndex >= 0 )
+                    if ( t->halfSpaceIndex >= 0 && halfSpaceTable[ t->halfSpaceIndex ][ FACE_BACK ] >= 0 )
                     {
                         LMatchColumn( *t, x, z, z, Z_COMP, FACE_BACK, FACE_FORWARD );
 
