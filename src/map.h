@@ -60,7 +60,7 @@ public:
 	using half_space_table_t = std::array< int32_t, NUM_FACES >;
 
 	std::vector< tile_t > tiles;
-    std::vector< tile_region_t > regions;
+    std::vector< std::shared_ptr< tile_region_t > > regions;
 
     billboard_list_t billboards;
     wall_list_t walls;

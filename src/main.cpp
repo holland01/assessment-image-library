@@ -463,11 +463,11 @@ void Draw_Group( game_t& game,
     // Mark all free spaces here
     singleColor.Bind();
 
-    for ( const tile_region_t& region: game.gen->regions )
+    for ( std::shared_ptr< tile_region_t >& region: game.gen->regions )
     {
-        for ( const tile_t* tile: region.tiles )
+        for ( const tile_t* tile: region->tiles )
         {
-            LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region.color ) );
+            LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region->color ) );
         }
     }
 
