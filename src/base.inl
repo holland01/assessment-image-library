@@ -38,3 +38,22 @@ static INLINE void Pixels_24BitTo32Bit( uint8_t* destination, const uint8_t* sou
 		destination[ i * 4 + 2 ] = source[ i * 3 + 2 ];
 	}
 }
+
+template < typename T >
+static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
+{
+    static_assert( std::is_pointer< T >::value, "Vector_RemovePtr can only be called on vectors storing a pointer to object type" );
+
+    auto del = [ &t ]( T& p )
+    {
+        if ( t == p )
+        {
+            p = nullptr;
+        }
+    };
+
+    std::for_each( v.begin(), v.end(), del );
+    auto beginRange = std::remove( v.begin(), v.end(), static_cast< T >( nullptr ) );
+    v.erase( beginRange, v.end() );
+
+}

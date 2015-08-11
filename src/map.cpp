@@ -44,6 +44,16 @@ namespace {
 			return false;
 		}
 	}};
+
+    bool GridBounds( int32_t k, int32_t p )
+    {
+        if ( k == 1 )
+        {
+            return p < tile_generator_t::GRID_SIZE;
+        }
+
+        return k >= 0;
+    }
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -172,357 +182,168 @@ tile_generator_t::tile_generator_t( void )
 		}
 	}
 
+    std::vector< const tile_t* > halfSpaceTiles;
+    for ( const tile_t& tile: tiles )
+    {
+        if ( tile.halfSpaceIndex >= 0 )
+        {
+            halfSpaceTiles.push_back( &tile );
+        }
+    }
+
     std::array< tile_region_t*, GRID_SIZE * GRID_SIZE > regionTable;
     regionTable.fill( nullptr );
 
-    tile_region_t* r = nullptr;
-
-    auto LTableHasRegion = [ this ]( const tile_region_t* r ) -> bool
+    for ( const tile_t* hst: halfSpaceTiles )
     {
-        for ( std::weak_ptr< tile_region_t > region: regions )
+        bool res = FindRegions( hst, regionTable );
+        assert( res );
+    }
+}
+
+bool tile_generator_t::HasRegion( const tile_region_t* r ) const
+{
+    for ( std::weak_ptr< tile_region_t > region: regions )
+    {
+        if ( auto p = region.lock() )
         {
-            if ( auto p = region.lock() )
+            if ( r == p.get() )
             {
-                if ( r == p.get() )
-                {
-                    return true;
-                }
+                return true;
             }
         }
+    }
 
+    return false;
+}
+
+bool tile_generator_t::FindRegions( const tile_t* tile,
+                                    std::array< tile_region_t*, GRID_SIZE * GRID_SIZE >& regionTable )
+{
+    if ( !tile )
+    {
         return false;
-    };
+    }
 
-    std::array< int32_t, GRID_SIZE > distances;
-    distances.fill( -1 );
-
-    const uint32_t Z_COMP = 0;
-    //const uint32_t X_COMP = 1;
-    const int32_t MAX_DIFF = 10;
-    const int32_t NO_DISTANCE = -1;
-
-    using comp_index_fn_t = std::function< int32_t( int32_t k, int32_t x, int32_t z ) >;
-
-    std::array< comp_index_fn_t, 2 > indexComputeTable =
-    {{
-        []( int32_t k, int32_t x, int32_t z ) -> int32_t
-        {
-            UNUSEDPARAM( z );
-            return k * GRID_SIZE + x;
-        },
-
-        []( int32_t k, int32_t x, int32_t z ) -> int32_t
-        {
-            UNUSEDPARAM( x );
-            return z * GRID_SIZE + k;
-        }
-    }};
-
-    using bound_fn_t = std::function< bool( int32_t k ) >;
-
-    /*
-    std::array< bound_fn_t, 4 > lowerBoundTable =
-    {{
-         // Left
-        []( int32_t k ) -> bool
-        {
-            return k < GRID_SIZE - 1;
-        },
-         // Forward
-        []( int32_t k ) -> bool
-        {
-            return k < GRID_SIZE - 1;
-        },
-         // Right
-        []( int32_t k ) -> bool
-        {
-            return k > 0;
-        },
-         // Back
-        []( int32_t k ) -> bool
-        {
-            return k > 0;
-        }
-    }};
-    */
-
-    std::array< bound_fn_t, 4 > upperBoundTable =
-    {{
-         // Left
-        []( int32_t k ) -> bool
-        {
-            return k >= 0;
-        },
-         // Forward
-        []( int32_t k ) -> bool
-        {
-            return k >= 0;
-        },
-         // Right
-        []( int32_t k ) -> bool
-        {
-            return k < GRID_SIZE;
-        },
-         // Back
-        []( int32_t k ) -> bool
-        {
-            return k < GRID_SIZE;
-        }
-    }};
-
-    std::array< std::function< bool( int32_t k, int32_t x, int32_t z ) >, 4 > distanceComputeTable =
-    {{
-        // Left
-        [ & ]( int32_t k, int32_t x, int32_t z ) -> bool
-        {
-            UNUSEDPARAM( x );
-
-            if ( z < GRID_SIZE - 1 && distances[ z + 1 ] != NO_DISTANCE )
-            {
-                if ( /*glm::abs( distances[ z + 1 ] - k ) > MAX_DIFF*/ k > MAX_DIFF )
-                {
-                    return true;
-                }
-            }
-
-            distances[ z ] = k;
-
-            return false;
-        },
-
-        // Forward
-        [ & ]( int32_t k, int32_t x, int32_t z ) -> bool
-        {
-            UNUSEDPARAM( z );
-
-            if ( x < GRID_SIZE - 1 && distances[ x + 1 ] != NO_DISTANCE )
-            {
-                if ( /*glm::abs( distances[ x + 1 ] - k ) > MAX_DIFF*/ k > MAX_DIFF )
-                {
-                    return true;
-                }
-            }
-
-            distances[ x ] = k;
-
-            return false;
-        },
-
-        // Right
-
-        [ & ]( int32_t k, int32_t x, int32_t z ) -> bool
-        {
-            UNUSEDPARAM( x );
-
-            if ( z > 0 && distances[ z - 1 ] != NO_DISTANCE )
-            {
-                if ( /*glm::abs( distances[ z - 1 ] - k ) > MAX_DIFF*/ k > MAX_DIFF )
-                {
-                    return true;
-                }
-            }
-
-            distances[ z ] = k;
-
-            return false;
-        },
-
-        // Back
-
-        [ & ]( int32_t k, int32_t x, int32_t z ) -> bool
-        {
-            UNUSEDPARAM( z );
-
-            if ( x > 0 && distances[ x - 1 ] != NO_DISTANCE )
-            {
-               if ( /*glm::abs( distances[ x - 1 ] - k ) > MAX_DIFF*/ k > MAX_DIFF )
-               {
-                   return true;
-               }
-            }
-
-            distances[ x ] = k;
-
-            return false;
-        }
-    }};
-
-    auto LMatchColumn = [ & ]( int32_t x, int32_t z, int32_t base, int32_t kAdd, uint32_t indexComp, faceIndex_t startFace ) -> int32_t
+    if ( tile->halfSpaceIndex < 0 )
     {
-        int32_t k;
-        for ( k = base + kAdd; upperBoundTable[ startFace ]( k ); k += kAdd )
-        {
-            int32_t index = indexComputeTable[ indexComp ]( k, x, z );
+        return false;
+    }
 
-            if ( regionTable[ index ] )
-            {
-                continue;
-            }
+    const half_space_table_t& hst = halfSpaceTable[ tile->halfSpaceIndex ];
 
-            const tile_t& t0 = tiles[ index ];
+    tile_region_t* regionPtr = new tile_region_t( tile );
 
-            if ( t0.type == tile_t::WALL )
-            {
-                // These assertions should pass:
-                // there's no need to check for a half-space index, here: we only can only
-                // get to this point if the previous checked half-space ( in the scope outside of this function )
-                // has a normal which faces the starting face direction. This is only possible if there is a tile in front of its starting face
-                // which is not a wall
-#ifdef DEBUG
-                faceIndex_t endFace;
-                switch ( startFace )
-                {
-                    case FACE_FORWARD: endFace = FACE_BACK; break;
-                    case FACE_LEFT: endFace = FACE_RIGHT; break;
-                    case FACE_BACK: endFace = FACE_FORWARD; break;
-                    case FACE_RIGHT: endFace = FACE_LEFT; break;
-                    default:
-                        break; // compiler...
-                }
-
-                assert( t0.halfSpaceIndex >= 0 );
-                assert( halfSpaceTable[ t0.halfSpaceIndex ][ endFace ] >= 0 );
-#endif
-                // We've found a wall, here: since we're moving toward a wall,
-                // there's no way a tile could have a valid half space after this, regardless of what's current. So, we're done.
-                int32_t dist = glm::abs( k - base );
-
-                // When a region is added to the generator's region list,
-                // we no longer can add tiles to it again.
-                if ( dist > MAX_DIFF && !r->tiles.empty() )
-                {
-                    if ( !LTableHasRegion( r ) )
-                    {
-                        regions.push_back( std::shared_ptr< tile_region_t >( r ) );
-                    }
-                    r = nullptr;
-                }
-
-                break;
-            }
-            else
-            {
-                r->tiles.push_back( &t0 );
-                regionTable[ index ] = r;
-            }
-        }
-
-        return glm::abs( k - base );
-    };
-
-    auto LFillRegion = [ & ]( int32_t x,
-                              int32_t z,
-                              int32_t base,
-                              int32_t kAdd,
-                              uint32_t indexComp,
-                              faceIndex_t startFace ) -> int32_t
+    for ( int32_t i = 0; i < ( int32_t ) hst.size(); ++i )
     {
-        if ( tiles[ z * GRID_SIZE + x ].type != tile_t::WALL )
+        if ( hst[ i ] < 0 )
         {
-            return 0;
+            continue;
         }
 
-        for ( int32_t k = base; upperBoundTable[ startFace ]( k ); k += kAdd )
+        int32_t j = ( i + 1 ) % hst.size();
+
+        if ( hst[ j ] < 0 )
         {
-            const tile_t& t = tiles[ indexComputeTable[ indexComp ]( k, x, z ) ];
+            continue;
+        }
 
-            if ( t.halfSpaceIndex >= 0 && halfSpaceTable[ t.halfSpaceIndex ][ startFace ] >= 0 )
+        const glm::vec3& e1 = halfSpaces[ hst[ i ] ].extents[ 2 ] * 10.0f;
+        const glm::vec3& e2 = halfSpaces[ hst[ j ] ].extents[ 2 ] * 10.0f;
+
+        int32_t zp, xp;
+
+        if ( e1.x != 0.0f )
+        {
+            xp = int32_t( e1.x );
+        }
+        else
+        {
+            zp = int32_t( e1.z );
+        }
+
+        if ( e2.x != 0.0f )
+        {
+            xp = int32_t( e2.x );
+        }
+        else
+        {
+            zp = int32_t( e2.z );
+        }
+
+        const tile_t* zWall = nullptr;
+        const tile_t* xWall = nullptr;
+
+        int32_t endZ = ( zp > 0 )? GRID_SIZE: -1;
+        int32_t endX = ( xp > 0 )? GRID_SIZE: -1;
+
+        for ( int32_t z = tile->z; z != endZ; z += zp )
+        {
+            const tile_t& ztest = tiles[ z * GRID_SIZE + tile->x ];
+
+            if ( ztest.type == tile_t::WALL && !zWall && &ztest != tile )
             {
-                printf( "(BEGIN) X: %i, Z: %i\n", x, k );
+                zWall = &ztest;
+            }
 
-                // adjacent region check for BACK->FORWARD z-pass only
-                if ( !r )
+            for ( int32_t x = tile->x; x != endX; x += xp )
+            {
+                const tile_t& xtest = tiles[ tile->z * GRID_SIZE + x ];
+
+                if ( xtest.type == tile_t::WALL && !xWall && &xtest != tile )
                 {
-                    int32_t z0 = k;
-                    int32_t x0 = x - 1;
-
-                    if ( x0 >= 0 )
-                    {
-                        // Walls currently aren't associated with regions, so
-                        // we skip them before searching a nearby region that's adjacent
-                        const tile_t* t = &tiles[ z0 * GRID_SIZE + x0 ];
-                        while ( t->type == tile_t::WALL && z0 < GRID_SIZE - 1 )
-                        {
-                            t = &tiles[ z0 * GRID_SIZE + x0 ];
-                            z0++;
-                        }
-
-                        int32_t index = z0 * GRID_SIZE + x0;
-                        if ( regionTable[ index ] )
-                        {
-                            r = regionTable[ index ];
-                        }
-                        else
-                        {
-                            r = new tile_region_t();
-                        }
-                    }
-                    else
-                    {
-                        r = new tile_region_t();
-                    }
+                    xWall = &xtest;
                 }
 
-                if ( indexComp == Z_COMP )
+                int32_t index = z * GRID_SIZE + x;
+
+                const tile_t& t = tiles[ index ];
+
+                if ( &t == xWall )
                 {
-                    return LMatchColumn( x, k, k, kAdd, indexComp, startFace ) + glm::abs( k - base );
+                    break;
+                }
+
+                if ( &t == tile )
+                {
+                    continue;
+                }
+
+                if ( t.type == tile_t::WALL )
+                {
+                    continue;
+                }
+
+                if ( regionTable[ index ] )
+                {
+                    glm::vec2 o0( regionTable[ index ]->origin->x, regionTable[ index ]->origin->z );
+                    glm::vec2 o1( regionPtr->origin->x, regionPtr->origin->z );
+                    glm::vec2 p( x, z );
+
+                    if ( glm::distance( o1, p ) < glm::distance( o0, p ) )
+                    {
+                        Vector_RemovePtr< const tile_t* >( regionTable[ index ]->tiles, &t );
+                        regionTable[ index ] = regionPtr;
+                        regionPtr->tiles.push_back( &t );
+                    }
                 }
                 else
                 {
-                    return LMatchColumn( k, z, k, kAdd, indexComp, startFace ) + glm::abs( k - base );
+                    regionPtr->tiles.push_back( &t );
+                    regionTable[ index ] = regionPtr;
                 }
             }
-        }
 
-        return 0;
-    };
-
-    // BACK->FORWARD Z-pass
-    for ( int32_t x = 0; x < GRID_SIZE; ++x )
-    {
-        for ( int32_t z = 0; z < GRID_SIZE; ++z )
-        {
-            size_t s = regions.size();
-
-            LFillRegion( x, z, z, 1, Z_COMP, FACE_BACK );
-            //z += LFillRegion( x, z, z, 1, Z_COMP, FACE_BACK );
-            r = nullptr;
-
-            if ( regions.size() > s )
+            if ( zWall )
             {
-                puts( "" );
+                break;
             }
         }
     }
 
-    /*
-    // FORWARD->BACK Z-pass
-    for ( int32_t x = GRID_SIZE - 1; x >= 0; --x )
-    {
-        for ( int32_t z = GRID_SIZE - 1; z >= 0; --z )
-        {
-            LFillRegion( x, z, z, -1, Z_COMP, FACE_FORWARD );
-        }
-    }
+    regions.push_back( std::shared_ptr< tile_region_t >( regionPtr ) );
 
-    // RIGHT->LEFT X-pass
-    for ( int32_t z = 0; z < GRID_SIZE; ++z )
-    {
-        for ( int32_t x = 0; x < GRID_SIZE; ++x )
-        {
-            LFillRegion( x, z, x, 1, X_COMP, FACE_RIGHT );
-        }
-    }
-
-    // LEFT->RIGHT X-pass
-    for ( int32_t z = GRID_SIZE - 1; z >= 0; --z )
-    {
-        for ( int32_t x = GRID_SIZE - 1; x >= 0; --x )
-        {
-            LFillRegion( x, z, x, -1, X_COMP, FACE_LEFT );
-        }
-    }
-    */
+    return true;
 }
 
 uint32_t tile_generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
@@ -774,8 +595,9 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 // tile_region_t
 //-------------------------------------------------------------------------------------------------------
 
-tile_region_t::tile_region_t( void )
-    : color( RandomColor() )
+tile_region_t::tile_region_t( const tile_t* origin_ )
+    : origin( origin_ ),
+      color( RandomColor() )
 {
 }
 

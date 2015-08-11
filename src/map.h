@@ -73,6 +73,10 @@ public:
 
     tile_generator_t( void );
 
+    bool HasRegion( const tile_region_t* r ) const;
+
+    bool FindRegions( const tile_t* tile, std::array< tile_region_t*, GRID_SIZE * GRID_SIZE >& regionTable );
+
 	void SetTile( uint32_t pass,
 				  uint32_t x,
 				  uint32_t z,
@@ -110,10 +114,12 @@ INLINE uint32_t tile_generator_t::TileModIndex( uint32_t x, uint32_t z ) const
 
 struct tile_region_t
 {
-    std::vector< const tile_t* > tiles;
+    const tile_t* origin;
     glm::vec4 color;
 
-    tile_region_t( void );
+    std::vector< const tile_t* > tiles;
+
+    tile_region_t( const tile_t* origin );
 
     void Draw( const pipeline_t& pl, const view_params_t& vp );
 };

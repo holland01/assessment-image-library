@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 extern void FlagExit( void ); // should be defined by the user in a different source file
 extern float GetTime( void );
@@ -16,6 +17,9 @@ void MyPrintf( const char* header, const char* fmt, ... );
 void MyFprintf( FILE* f, const char* header, const char* fmt, ... );
 void MyDateTime( const char* format, char* outBuffer, int32_t length );
 void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc );
+
+template < typename T >
+static INLINE void Vector_Remove( std::vector< T >& v, const T& t );
 
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)
