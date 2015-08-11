@@ -369,6 +369,8 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
     billboard.Release();
 }
 
+static uint32_t regionIter = 0;
+
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
                  billboard_list_t& billboards,
@@ -469,6 +471,13 @@ void Draw_Group( game_t& game,
         {
             LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region->color ) );
         }
+    }
+
+    regionIter++;
+
+    if ( regionIter == tile_generator_t::TABLE_SIZE )
+    {
+        regionIter = 0;
     }
 
 	singleColor.Release();

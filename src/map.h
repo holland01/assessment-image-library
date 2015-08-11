@@ -47,6 +47,9 @@ struct tile_generator_t
 {	
 public:
 	static const int32_t GRID_SIZE = 100;
+    static const int32_t TABLE_SIZE = GRID_SIZE * GRID_SIZE;
+    static const int32_t GRID_START = 0;
+    static const int32_t GRID_END = GRID_SIZE;
 
 	enum faceIndex_t
 	{
@@ -75,17 +78,17 @@ public:
 
     bool HasRegion( const tile_region_t* r ) const;
 
-    bool FindRegions( const tile_t* tile, std::array< tile_region_t*, GRID_SIZE * GRID_SIZE >& regionTable );
+    bool FindRegions( const tile_t* tile, std::array< tile_region_t*, TABLE_SIZE >& regionTable );
 
-	void SetTile( uint32_t pass,
-				  uint32_t x,
-				  uint32_t z,
+    void SetTile( int32_t pass,
+                  int32_t x,
+                  int32_t z,
 				  std::vector< tile_t* >& mutWalls );
 
-	uint32_t RangeCount( uint32_t x, uint32_t z, uint32_t offsetEnd );
+    int32_t RangeCount( int32_t x, int32_t z, int32_t offsetEnd );
 
-	uint32_t TileIndex( uint32_t x, uint32_t z ) const;
-	uint32_t TileModIndex( uint32_t x, uint32_t z ) const;
+    int32_t TileIndex( int32_t x, int32_t z ) const;
+    int32_t TileModIndex( int32_t x, int32_t z ) const;
 
 	bool CollidesWall( glm::vec3& normal, const tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
@@ -98,14 +101,14 @@ public:
 	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };
 
-INLINE uint32_t tile_generator_t::TileIndex( uint32_t x, uint32_t z ) const
+INLINE int32_t tile_generator_t::TileIndex( int32_t x, int32_t z ) const
 {
 	return z * GRID_SIZE + x;
 }
 
-INLINE uint32_t tile_generator_t::TileModIndex( uint32_t x, uint32_t z ) const
+INLINE int32_t tile_generator_t::TileModIndex( int32_t x, int32_t z ) const
 {
-	return ( z % GRID_SIZE ) * GRID_SIZE + x % GRID_SIZE;
+    return ( glm::abs( z ) % GRID_SIZE ) * GRID_SIZE + glm::abs( x ) % GRID_SIZE;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -118,6 +121,7 @@ struct tile_region_t
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
+    std::vector< const tile_region_t* > adjacent;
 
     tile_region_t( const tile_t* origin );
 

@@ -1,7 +1,10 @@
 #include "map.h"
 #include "view.h"
+
 #include <iostream>
 #include <random>
+#include <set>
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/projection.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -191,13 +194,63 @@ tile_generator_t::tile_generator_t( void )
         }
     }
 
-    std::array< tile_region_t*, GRID_SIZE * GRID_SIZE > regionTable;
+    // Generate regions
+    std::array< tile_region_t*, TABLE_SIZE > regionTable;
     regionTable.fill( nullptr );
 
+    // First pass: fill basic regions
     for ( const tile_t* hst: halfSpaceTiles )
     {
         bool res = FindRegions( hst, regionTable );
         assert( res );
+    }
+
+    // Second pass: find all adjacent regions
+    for ( int32_t z = 0; z < GRID_SIZE; ++z )
+    {
+        for ( int32_t x = 0; x < GRID_SIZE; ++x )
+        {
+            std::set< tile_region_t* > unique;
+
+            int32_t zStart = glm::max( z - 1, 0 );
+            int32_t zEnd = glm::min( GRID_SIZE, z + 1 );
+
+            int32_t xStart = glm::max( x - 1, 0 );
+            int32_t xEnd = glm::min( GRID_SIZE, x + 1 );
+
+            tile_region_t* r0 = regionTable[ z * GRID_SIZE + x ];
+
+            if ( !r0 )
+            {
+                continue;
+            }
+
+            if ( r0->adjacent.size() )
+            {
+                continue;
+            }
+
+            for ( int32_t z0 = zStart; z0 < zEnd; ++z0 )
+            {
+                for ( int32_t x0 = xStart; x0 < xEnd; ++x0 )
+                {
+                    tile_region_t* r1 = regionTable[ z0 * GRID_SIZE + x0 ];
+
+                    if ( r1 != r0 )
+                    {
+                        unique.insert( r1 );
+                    }
+                }
+            }
+
+            r0->adjacent.resize( unique.size() );
+
+            int32_t i = 0;
+            for ( const tile_region_t* r: unique )
+            {
+                r0->adjacent[ i++ ] = r;
+            }
+        }
     }
 }
 
@@ -218,7 +271,7 @@ bool tile_generator_t::HasRegion( const tile_region_t* r ) const
 }
 
 bool tile_generator_t::FindRegions( const tile_t* tile,
-                                    std::array< tile_region_t*, GRID_SIZE * GRID_SIZE >& regionTable )
+                                    std::array< tile_region_t*, TABLE_SIZE >& regionTable )
 {
     if ( !tile )
     {
@@ -274,12 +327,12 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
         const tile_t* zWall = nullptr;
         const tile_t* xWall = nullptr;
 
-        int32_t endZ = ( zp > 0 )? GRID_SIZE: -1;
-        int32_t endX = ( xp > 0 )? GRID_SIZE: -1;
+        int32_t endZ = ( zp > 0 )? GRID_END: GRID_START - 1;
+        int32_t endX = ( xp > 0 )? GRID_END: GRID_START - 1;
 
         for ( int32_t z = tile->z; z != endZ; z += zp )
         {
-            const tile_t& ztest = tiles[ z * GRID_SIZE + tile->x ];
+            const tile_t& ztest = tiles[ TileIndex( tile->x, z ) ];
 
             if ( ztest.type == tile_t::WALL && !zWall && &ztest != tile )
             {
@@ -288,14 +341,14 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
 
             for ( int32_t x = tile->x; x != endX; x += xp )
             {
-                const tile_t& xtest = tiles[ tile->z * GRID_SIZE + x ];
+                const tile_t& xtest = tiles[ TileIndex( x, tile->z ) ];
 
                 if ( xtest.type == tile_t::WALL && !xWall && &xtest != tile )
                 {
                     xWall = &xtest;
                 }
 
-                int32_t index = z * GRID_SIZE + x;
+                int32_t index = TileIndex( x, z );
 
                 const tile_t& t = tiles[ index ];
 
@@ -334,6 +387,8 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
                 }
             }
 
+            // finding zWall implies a last iteration;
+            // Since the x has finished, we're pretty much done here
             if ( zWall )
             {
                 break;
@@ -346,27 +401,27 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
     return true;
 }
 
-uint32_t tile_generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffset )
+int32_t tile_generator_t::RangeCount( int32_t x, int32_t z, int32_t endOffset )
 {
-	if ( ( int32_t )x < 0 )
+    if ( x < GRID_START )
 	{
-		x = 0;
+        x = GRID_START;
 	}
 
-	if ( ( int32_t )z < 0  )
+    if ( z < GRID_START )
 	{
-		z = 0;
+        z = GRID_START;
 	}
 
-	uint32_t ex = ( x + endOffset );
-	uint32_t ez = ( z + endOffset );
+    int32_t ex = ( x + endOffset );
+    int32_t ez = ( z + endOffset );
 
-	uint32_t count = 0;
-	for ( uint32_t iz = z; iz < ez; ++iz )
+    int32_t count = 0;
+    for ( int32_t iz = z; iz < ez; ++iz )
 	{
-		for ( uint32_t ix = x; ix < ex; ++ix )
+        for ( int32_t ix = x; ix < ex; ++ix )
 		{
-			uint32_t i = TileModIndex( ix, iz );
+            int32_t i = TileModIndex( ix, iz );
 
 			if ( tiles[ i ].type != tile_t::EMPTY )
 			{
@@ -378,10 +433,10 @@ uint32_t tile_generator_t::RangeCount( uint32_t x, uint32_t z, uint32_t endOffse
 	return count;
 }
 
-void tile_generator_t::SetTile( uint32_t pass, uint32_t x, uint32_t z, std::vector< tile_t* >& mutWalls )
+void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z, std::vector< tile_t* >& mutWalls )
 {
 	bool isWall;
-	uint32_t center = TileIndex( x, z );
+    int32_t center = TileIndex( x, z );
 
 	if ( pass == 0 )
 	{
@@ -567,6 +622,8 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 
 			int32_t index = TileModIndex( x, z );
 
+
+            // cull frustum, insert into appropriate type, etc.
 			if ( !frustum.IntersectsBox( *tiles[ index ].bounds ) )
 			{
 				continue;
@@ -584,11 +641,10 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 					outFreeSpace.push_back( &tiles[ index ] );
 					break;
 			}
-			// cull frustum, insert into appropriate type, etc.
 		}
 	}
 
-	// do view-space depth sort on each vector
+    // TODO: do view-space depth sort on each vector
 }
 
 //-------------------------------------------------------------------------------------------------------
