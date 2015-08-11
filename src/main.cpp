@@ -370,6 +370,7 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
 }
 
 static uint32_t regionIter = 0;
+static float frameCount = 0.0f;
 
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
@@ -465,17 +466,44 @@ void Draw_Group( game_t& game,
     // Mark all free spaces here
     singleColor.Bind();
 
-    for ( std::shared_ptr< tile_region_t >& region: game.gen->regions )
+    for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
     {
-        for ( const tile_t* tile: region->tiles )
+        std::shared_ptr< tile_region_t >& region = game.gen->regions[ i ];
+
+        if ( i == regionIter )
         {
-            LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region->color ) );
+            for ( const tile_region_t* adj: region->adjacent )
+            {
+                for ( const tile_t* tile: adj->tiles )
+                {
+                    LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+                }
+            }
+
+            for ( const tile_t* tile: region->tiles )
+            {
+                LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f ) );
+            }
+
+        }
+        else
+        {
+            for ( const tile_t* tile: region->tiles )
+            {
+                LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region->color ) );
+            }
         }
     }
 
-    regionIter++;
+    frameCount += 1.0f;
 
-    if ( regionIter == tile_generator_t::TABLE_SIZE )
+    if ( frameCount >= ( 1.0f / game.world.time ))
+    {
+        regionIter++;
+        frameCount = 0.0f;
+    }
+
+    if ( regionIter == game.gen->regions.size() )
     {
         regionIter = 0;
     }

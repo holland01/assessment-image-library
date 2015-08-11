@@ -57,3 +57,19 @@ static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
     v.erase( beginRange, v.end() );
 
 }
+
+template < typename T >
+static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t )
+{
+    static_assert( std::is_pointer< T >::value, "Vector_Contains can only be called on vectors storing a pointer to object type" );
+
+    for ( const T& e: v )
+    {
+        if ( e == t )
+        {
+            return true;
+        }
+    }
+
+    return false;
+}

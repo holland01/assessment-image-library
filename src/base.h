@@ -19,7 +19,10 @@ void MyDateTime( const char* format, char* outBuffer, int32_t length );
 void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc );
 
 template < typename T >
-static INLINE void Vector_Remove( std::vector< T >& v, const T& t );
+static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t );
+
+template < typename T >
+static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t );
 
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)

@@ -206,49 +206,46 @@ tile_generator_t::tile_generator_t( void )
     }
 
     // Second pass: find all adjacent regions
-    for ( int32_t z = 0; z < GRID_SIZE; ++z )
+    for ( int32_t z = GRID_START; z < GRID_END; ++z )
     {
-        for ( int32_t x = 0; x < GRID_SIZE; ++x )
+        for ( int32_t x = GRID_START; x < GRID_END; ++x )
         {
             std::set< tile_region_t* > unique;
 
-            int32_t zStart = glm::max( z - 1, 0 );
-            int32_t zEnd = glm::min( GRID_SIZE, z + 1 );
+            int32_t zStart = glm::max( z - 1, GRID_START );
+            int32_t zEnd = glm::min( GRID_END - 1, z + 1 );
 
-            int32_t xStart = glm::max( x - 1, 0 );
-            int32_t xEnd = glm::min( GRID_SIZE, x + 1 );
+            int32_t xStart = glm::max( x - 1, GRID_START );
+            int32_t xEnd = glm::min( GRID_END - 1, x + 1 );
 
-            tile_region_t* r0 = regionTable[ z * GRID_SIZE + x ];
+            tile_region_t* r0 = regionTable[ TileIndex( x, z ) ];
 
             if ( !r0 )
             {
                 continue;
             }
 
-            if ( r0->adjacent.size() )
+            for ( int32_t z0 = zStart; z0 <= zEnd; ++z0 )
             {
-                continue;
-            }
-
-            for ( int32_t z0 = zStart; z0 < zEnd; ++z0 )
-            {
-                for ( int32_t x0 = xStart; x0 < xEnd; ++x0 )
+                for ( int32_t x0 = xStart; x0 <= xEnd; ++x0 )
                 {
-                    tile_region_t* r1 = regionTable[ z0 * GRID_SIZE + x0 ];
+                    tile_region_t* r1 = regionTable[ TileIndex( x0, z0 ) ];
 
-                    if ( r1 != r0 )
+                    if ( r1 && r1 != r0 )
                     {
+                        if ( Vector_Contains< const tile_region_t* >( r0->adjacent, r1 ) )
+                        {
+                            continue;
+                        }
+
                         unique.insert( r1 );
                     }
                 }
             }
 
-            r0->adjacent.resize( unique.size() );
-
-            int32_t i = 0;
             for ( const tile_region_t* r: unique )
             {
-                r0->adjacent[ i++ ] = r;
+                r0->adjacent.push_back( r );
             }
         }
     }
