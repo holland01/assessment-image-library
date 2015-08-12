@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <memory>
 
 extern void FlagExit( void ); // should be defined by the user in a different source file
 extern float GetTime( void );
@@ -26,6 +27,15 @@ static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t );
 
 template < typename T >
 static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vector< T >& src );
+
+template< typename T >
+static INLINE bool operator == ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b );
+
+template< typename T >
+static INLINE bool operator != ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b );
+
+template< typename T >
+static INLINE bool operator < ( const std::weak_ptr< T >& a, const std::weak_ptr< T >& b );
 
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)

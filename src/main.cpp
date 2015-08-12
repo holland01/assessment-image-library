@@ -466,27 +466,47 @@ void Draw_Group( game_t& game,
     // Mark all free spaces here
     singleColor.Bind();
 
+    auto endRegionIterator =  game.gen->regions[ regionIter ]->adjacent.end();
+
+
+
     for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
     {
-        std::shared_ptr< tile_region_t >& region = game.gen->regions[ i ];
+        std::weak_ptr< tile_region_t > weakRegion  = game.gen->regions[ i ];
+
+        auto region = weakRegion.lock();
+
+        if ( !region )
+        {
+            continue;
+        }
+
+        bool canDraw = game.gen->regions[ regionIter ]->adjacent.find( weakRegion ) == endRegionIterator
+                && game.gen->regions[ regionIter ] != region;
 
         if ( i == regionIter )
         {
-            for ( const tile_region_t* adj: region->adjacent )
-            {
-                for ( const tile_t* tile: adj->tiles )
-                {
-                    LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-                }
-            }
-
             for ( const tile_t* tile: region->tiles )
             {
                 LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f ) );
             }
 
+            for ( ref_tile_region_t a: region->adjacent )
+            {
+                auto adj = a.lock();
+
+                if ( !adj )
+                {
+                    continue;
+                }
+
+                for ( const tile_t* tile: adj->tiles )
+                {
+                    LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+                }
+            }
         }
-        else if ( !Vector_Contains< const tile_region_t* >( game.gen->regions[ regionIter ]->adjacent, region.get() ) )
+        else if ( canDraw )
         {
             for ( const tile_t* tile: region->tiles )
             {

@@ -83,3 +83,21 @@ static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vecto
         }
     }
 }
+
+template< typename T >
+static INLINE bool operator == ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b )
+{
+    return !a.owner_before( b ) && !b.owner_before( a );
+}
+
+template< typename T >
+static INLINE bool operator != ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b )
+{
+    return !( a == b );
+}
+
+template< typename T >
+static INLINE bool operator < ( const std::weak_ptr< T >& a, const std::weak_ptr< T >& b )
+{
+    return a.owner_before( b );
+}

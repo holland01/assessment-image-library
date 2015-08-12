@@ -6,6 +6,8 @@
 #include "geom.h"
 #include "renderer.h"
 
+#include <set>
+
 struct frustum_t;
 
 struct tile_t;
@@ -15,6 +17,11 @@ using billboard_list_t = std::vector< tile_t* >;
 using freespace_list_t = std::vector< const tile_t* >;
 using wall_list_t = std::vector< const tile_t* >;
 
+using ref_tile_region_t = std::weak_ptr< tile_region_t >;
+using shared_tile_region_t = std::shared_ptr< tile_region_t >;
+
+using ref_tile_region_set_t = std::set< ref_tile_region_t, std::owner_less< ref_tile_region_t > >;
+
 //-------------------------------------------------------------------------------------------------------
 // tile_t
 //-------------------------------------------------------------------------------------------------------
@@ -22,6 +29,14 @@ using wall_list_t = std::vector< const tile_t* >;
 struct tile_t : public entity_t
 {    
     using ptr_t = std::shared_ptr< tile_t >;
+
+    friend struct tile_generator_t;
+
+private:
+
+    ref_tile_region_t owner;
+
+public:
 
     enum type_t
     {
@@ -37,7 +52,21 @@ struct tile_t : public entity_t
 	tile_t( void );
 
     void Set( const glm::mat4& transform );
+
+    void SetOwner( shared_tile_region_t& r );
+
+    bool HasOwner( void ) const;
 };
+
+INLINE void tile_t::SetOwner( shared_tile_region_t& r )
+{
+    owner = r;
+}
+
+INLINE bool tile_t::HasOwner( void ) const
+{
+    return !owner.expired();
+}
 
 //-------------------------------------------------------------------------------------------------------
 // tile_generator_t
@@ -63,13 +92,15 @@ public:
 	using half_space_table_t = std::array< int32_t, NUM_FACES >;
 
 	std::vector< tile_t > tiles;
-    std::vector< std::shared_ptr< tile_region_t > > regions;
+    std::vector< shared_tile_region_t > regions;
 
     billboard_list_t billboards;
     wall_list_t walls;
     freespace_list_t freeSpace;
 
 	texture_t billTexture;
+
+    using region_table_t =  std::array< ref_tile_region_t, TABLE_SIZE >;
 
 	std::vector< half_space_table_t > halfSpaceTable;
 	std::vector< half_space_t > halfSpaces;
@@ -78,7 +109,7 @@ public:
 
     bool HasRegion( const tile_region_t* r ) const;
 
-    bool FindRegions( const tile_t* tile, std::array< tile_region_t*, TABLE_SIZE >& regionTable );
+    bool FindRegions( const tile_t* tile, region_table_t& regionTable );
 
     void SetTile( int32_t pass,
                   int32_t x,
@@ -125,7 +156,7 @@ public:
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
-    std::vector< const tile_region_t* > adjacent;
+    ref_tile_region_set_t adjacent;
 
     tile_region_t( const tile_t* origin = nullptr );
 

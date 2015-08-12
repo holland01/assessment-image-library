@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <random>
-#include <set>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/projection.hpp>
@@ -48,23 +47,70 @@ namespace {
 		}
 	}};
 
-    tile_region_t* MergeRegions( tile_region_t* merged, const tile_region_t* r0 )
+    tile_region_t* MergeRegions( tile_region_t* merged, tile_region_t* r0 )
     {
-        if ( !merged )
-        {
-            return nullptr;
-        }
-        if ( !r0 )
-        {
-            return merged;
-        }
+        if ( !merged ) return nullptr;
 
-        Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );;
-        Vector_InsertUnique< const tile_region_t* >( merged->adjacent, r0->adjacent );
+        if ( !r0 ) return merged;
 
-        r0->Destroy();
+        Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );
+        merged->adjacent.insert( r0->adjacent.begin(), r0->adjacent.end() );
+
+        r0->tiles.clear();
+        //r0->Destroy();
 
         return merged;
+    }
+
+    void Merge( tile_region_t* merged, ref_tile_region_t region, const uint32_t limit )
+    {
+        if ( !merged ) return;
+        if ( merged->tiles.size() >= limit ) return;
+
+        auto r = region.lock();
+
+        if ( !r || r->ShouldDestroy() )
+        {
+            return;
+        }
+
+        if ( merged->tiles.size() < r->tiles.size() )
+        {
+            merged->origin = r->origin;
+        }
+
+        MergeRegions( merged, r.get() );
+
+        std::vector< ref_tile_region_t > checkList;
+
+        for ( ref_tile_region_t a: r->adjacent )
+        {
+            auto adj = a.lock();
+
+            if ( !adj )
+            {
+                continue;
+            }
+
+            if ( merged->tiles.size() < adj->tiles.size() )
+            {
+                merged->origin = adj->origin;
+            }
+
+            MergeRegions( merged, adj.get() );
+
+            checkList.push_back( adj );
+        }
+
+        for ( ref_tile_region_t a: checkList )
+        {
+            Merge( merged, a, limit );
+
+            if ( auto adj = a.lock() )
+            {
+                adj->Destroy();
+            }
+        }
     }
 }
 
@@ -204,8 +250,7 @@ tile_generator_t::tile_generator_t( void )
     }
 
     // Generate regions
-    std::array< tile_region_t*, TABLE_SIZE > regionTable;
-    regionTable.fill( nullptr );
+    region_table_t regionTable;
 
     // First pass: fill basic regions
     for ( const tile_t* hst: halfSpaceTiles )
@@ -219,7 +264,7 @@ tile_generator_t::tile_generator_t( void )
     {
         for ( int32_t x = GRID_START; x < GRID_END; ++x )
         {
-            std::set< tile_region_t* > unique;
+            ref_tile_region_set_t unique;
 
             int32_t zStart = glm::max( z - 1, GRID_START );
             int32_t zEnd = glm::min( GRID_END - 1, z + 1 );
@@ -227,7 +272,7 @@ tile_generator_t::tile_generator_t( void )
             int32_t xStart = glm::max( x - 1, GRID_START );
             int32_t xEnd = glm::min( GRID_END - 1, x + 1 );
 
-            tile_region_t* r0 = regionTable[ TileIndex( x, z ) ];
+            auto r0 = regionTable[ TileIndex( x, z ) ].lock();
 
             if ( !r0 )
             {
@@ -238,63 +283,39 @@ tile_generator_t::tile_generator_t( void )
             {
                 for ( int32_t x0 = xStart; x0 <= xEnd; ++x0 )
                 {
-                    tile_region_t* r1 = regionTable[ TileIndex( x0, z0 ) ];
+                    auto r1 = regionTable[ TileIndex( x0, z0 ) ].lock();
 
                     if ( r1 && r1 != r0 )
                     {
-                        if ( Vector_Contains< const tile_region_t* >( r0->adjacent, r1 ) )
-                        {
-                            continue;
-                        }
-
                         unique.insert( r1 );
                     }
                 }
             }
 
-            for ( const tile_region_t* r: unique )
+            for ( ref_tile_region_t r: unique )
             {
-                r0->adjacent.push_back( r );
+                r0->adjacent.insert( r );
             }
         }
     }
 
     // Third pass, merge regions with low tile count..
 
-    const size_t LOW_BOUND = size_t( float( TABLE_SIZE ) * 0.05f );
-    const size_t HIGH_BOUND = size_t( float( TABLE_SIZE ) * 0.2f ); // anything exceeding this should not be merged
+    const size_t LOW_BOUND = size_t( float( TABLE_SIZE ) * 0.15f );
+    //const size_t HIGH_BOUND = size_t( float( TABLE_SIZE ) * 0.3f ); // anything exceeding this should not be merged
 
     std::vector< std::shared_ptr< tile_region_t > > merged;
 
     for ( std::weak_ptr< tile_region_t > region: regions )
     {
-        auto r = region.lock();
+        tile_region_t* merge = new tile_region_t();
 
-        if ( !r ) continue;
-        if ( r->tiles.size() >= LOW_BOUND ) continue;
-        if ( r->tiles.size() > HIGH_BOUND ) continue;
-        if ( r->ShouldDestroy() ) continue;
+        Merge( merge, region, LOW_BOUND );
 
-        tile_region_t* merge = new tile_region_t( r->origin );
-
-        MergeRegions( merge, r.get() );
-
-        for ( const tile_region_t* adj: r->adjacent )
+        if ( merge->tiles.empty() )
         {
-            if ( adj->tiles.size() <= HIGH_BOUND )
-            {
-                if ( merge->tiles.size() < adj->tiles.size() )
-                {
-                    merge->origin = adj->origin;
-                }
-
-                MergeRegions( merge, adj );
-            }
-
-            if ( merge->tiles.size() >= HIGH_BOUND )
-            {
-                break;
-            }
+            delete merge;
+            continue;
         }
 
         merged.push_back( std::move( std::shared_ptr< tile_region_t >( merge ) ) );
@@ -305,7 +326,7 @@ tile_generator_t::tile_generator_t( void )
     {
         std::shared_ptr< tile_region_t >& p = *r;
 
-        if ( p.get() && p->ShouldDestroy() )
+        if ( p && p->ShouldDestroy() )
         {
             r = regions.erase( r );
         }
@@ -337,7 +358,7 @@ bool tile_generator_t::HasRegion( const tile_region_t* r ) const
 }
 
 bool tile_generator_t::FindRegions( const tile_t* tile,
-                                    std::array< tile_region_t*, TABLE_SIZE >& regionTable )
+                                    region_table_t& regionTable )
 {
     if ( !tile )
     {
@@ -351,7 +372,7 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
 
     const half_space_table_t& hst = halfSpaceTable[ tile->halfSpaceIndex ];
 
-    tile_region_t* regionPtr = new tile_region_t( tile );
+    shared_tile_region_t regionPtr( new tile_region_t( tile ) );
 
     for ( int32_t i = 0; i < ( int32_t ) hst.size(); ++i )
     {
@@ -433,23 +454,39 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
                     continue;
                 }
 
-                if ( regionTable[ index ] )
-                {
-                    glm::vec2 o0( regionTable[ index ]->origin->x, regionTable[ index ]->origin->z );
-                    glm::vec2 o1( regionPtr->origin->x, regionPtr->origin->z );
-                    glm::vec2 p( x, z );
+                bool doRegionSwap = false;
 
-                    if ( glm::distance( o1, p ) < glm::distance( o0, p ) )
+                // If a region is already active here,
+                // it's important that we only swap tiles
+                // if our regionPtr is closer to the tile than
+                // the already active region is. We use a lazy
+                // boolean evaluation to avoid any issues with a swap
+                // while pRegion is still active
+                {
+                    auto pRegion = regionTable[ index ].lock();
+                    if ( pRegion )
                     {
-                        Vector_RemovePtr< const tile_t* >( regionTable[ index ]->tiles, &t );
-                        regionTable[ index ] = regionPtr;
+                        glm::vec2 o0( pRegion->origin->x, pRegion->origin->z );
+                        glm::vec2 o1( regionPtr->origin->x, regionPtr->origin->z );
+                        glm::vec2 p( x, z );
+
+                        if ( glm::distance( o1, p ) < glm::distance( o0, p ) )
+                        {
+                            Vector_RemovePtr< const tile_t* >( pRegion->tiles, &t );
+                            doRegionSwap = true;
+                        }
+                    }
+                    else
+                    {
                         regionPtr->tiles.push_back( &t );
+                        regionTable[ index ] = regionPtr;
                     }
                 }
-                else
+
+                if ( doRegionSwap )
                 {
-                    regionPtr->tiles.push_back( &t );
                     regionTable[ index ] = regionPtr;
+                    regionPtr->tiles.push_back( &t );
                 }
             }
 
