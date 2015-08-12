@@ -486,7 +486,7 @@ void Draw_Group( game_t& game,
             }
 
         }
-        else
+        else if ( !Vector_Contains< const tile_region_t* >( game.gen->regions[ regionIter ]->adjacent, region.get() ) )
         {
             for ( const tile_t* tile: region->tiles )
             {

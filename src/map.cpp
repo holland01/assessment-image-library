@@ -48,14 +48,23 @@ namespace {
 		}
 	}};
 
-    bool GridBounds( int32_t k, int32_t p )
+    tile_region_t* MergeRegions( tile_region_t* merged, const tile_region_t* r0 )
     {
-        if ( k == 1 )
+        if ( !merged )
         {
-            return p < tile_generator_t::GRID_SIZE;
+            return nullptr;
+        }
+        if ( !r0 )
+        {
+            return merged;
         }
 
-        return k >= 0;
+        Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );;
+        Vector_InsertUnique< const tile_region_t* >( merged->adjacent, r0->adjacent );
+
+        r0->Destroy();
+
+        return merged;
     }
 }
 
@@ -249,6 +258,66 @@ tile_generator_t::tile_generator_t( void )
             }
         }
     }
+
+    // Third pass, merge regions with low tile count..
+
+    const size_t LOW_BOUND = size_t( float( TABLE_SIZE ) * 0.05f );
+    const size_t HIGH_BOUND = size_t( float( TABLE_SIZE ) * 0.2f ); // anything exceeding this should not be merged
+
+    std::vector< std::shared_ptr< tile_region_t > > merged;
+
+    for ( std::weak_ptr< tile_region_t > region: regions )
+    {
+        auto r = region.lock();
+
+        if ( !r ) continue;
+        if ( r->tiles.size() >= LOW_BOUND ) continue;
+        if ( r->tiles.size() > HIGH_BOUND ) continue;
+        if ( r->ShouldDestroy() ) continue;
+
+        tile_region_t* merge = new tile_region_t( r->origin );
+
+        MergeRegions( merge, r.get() );
+
+        for ( const tile_region_t* adj: r->adjacent )
+        {
+            if ( adj->tiles.size() <= HIGH_BOUND )
+            {
+                if ( merge->tiles.size() < adj->tiles.size() )
+                {
+                    merge->origin = adj->origin;
+                }
+
+                MergeRegions( merge, adj );
+            }
+
+            if ( merge->tiles.size() >= HIGH_BOUND )
+            {
+                break;
+            }
+        }
+
+        merged.push_back( std::move( std::shared_ptr< tile_region_t >( merge ) ) );
+    }
+
+    uint32_t i = 0;
+    for ( auto r = regions.begin(); r != regions.end(); )
+    {
+        std::shared_ptr< tile_region_t >& p = *r;
+
+        if ( p.get() && p->ShouldDestroy() )
+        {
+            r = regions.erase( r );
+        }
+        else
+        {
+            ++r;
+        }
+
+        ++i;
+    }
+
+    regions.insert( regions.end(), merged.begin(), merged.end() );
 }
 
 bool tile_generator_t::HasRegion( const tile_region_t* r ) const
@@ -649,7 +718,8 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 //-------------------------------------------------------------------------------------------------------
 
 tile_region_t::tile_region_t( const tile_t* origin_ )
-    : origin( origin_ ),
+    : destroy( false ),
+      origin( origin_ ),
       color( RandomColor() )
 {
 }
@@ -658,6 +728,16 @@ void tile_region_t::Draw( const pipeline_t& pl, const view_params_t& vp )
 {
     UNUSEDPARAM( pl );
     UNUSEDPARAM( vp );
+}
+
+void tile_region_t::Destroy( void ) const
+{
+    destroy = true;
+}
+
+bool tile_region_t::ShouldDestroy( void ) const
+{
+    return destroy;
 }
 
 //-------------------------------------------------------------------------------------------------------

@@ -117,15 +117,23 @@ INLINE int32_t tile_generator_t::TileModIndex( int32_t x, int32_t z ) const
 
 struct tile_region_t
 {
+private:
+    mutable bool destroy;
+public:
+
     const tile_t* origin;
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
     std::vector< const tile_region_t* > adjacent;
 
-    tile_region_t( const tile_t* origin );
+    tile_region_t( const tile_t* origin = nullptr );
 
     void Draw( const pipeline_t& pl, const view_params_t& vp );
+
+    void Destroy( void ) const;
+
+    bool ShouldDestroy( void ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------

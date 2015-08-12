@@ -61,8 +61,6 @@ static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
 template < typename T >
 static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t )
 {
-    static_assert( std::is_pointer< T >::value, "Vector_Contains can only be called on vectors storing a pointer to object type" );
-
     for ( const T& e: v )
     {
         if ( e == t )
@@ -72,4 +70,16 @@ static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t )
     }
 
     return false;
+}
+
+template < typename T >
+static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vector< T >& src )
+{
+    for ( T e: src )
+    {
+        if ( !Vector_Contains< T >( dest, e ) )
+        {
+            dest.push_back( e );
+        }
+    }
 }

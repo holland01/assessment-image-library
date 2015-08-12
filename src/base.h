@@ -24,6 +24,9 @@ static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t );
 template < typename T >
 static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t );
 
+template < typename T >
+static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vector< T >& src );
+
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)
 #		define _FUNC_NAME_ __func__
