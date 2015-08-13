@@ -486,6 +486,8 @@ void Draw_Group( game_t& game,
 
         if ( i == regionIter )
         {
+            assert( !canDraw );
+
             for ( const tile_t* tile: region->tiles )
             {
                 LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f ) );

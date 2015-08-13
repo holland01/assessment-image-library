@@ -55,7 +55,6 @@ static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
     std::for_each( v.begin(), v.end(), del );
     auto beginRange = std::remove( v.begin(), v.end(), static_cast< T >( nullptr ) );
     v.erase( beginRange, v.end() );
-
 }
 
 template < typename T >

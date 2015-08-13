@@ -34,7 +34,7 @@ struct tile_t : public entity_t
 
 private:
 
-    ref_tile_region_t owner;
+    mutable ref_tile_region_t owner;
 
 public:
 
@@ -53,12 +53,12 @@ public:
 
     void Set( const glm::mat4& transform );
 
-    void SetOwner( shared_tile_region_t& r );
+    void SetOwner( shared_tile_region_t& r ) const;
 
     bool HasOwner( void ) const;
 };
 
-INLINE void tile_t::SetOwner( shared_tile_region_t& r )
+INLINE void tile_t::SetOwner( shared_tile_region_t& r ) const
 {
     owner = r;
 }
@@ -75,10 +75,12 @@ INLINE bool tile_t::HasOwner( void ) const
 struct tile_generator_t
 {	
 public:
-	static const int32_t GRID_SIZE = 100;
+    static const int32_t GRID_SIZE = 100;
     static const int32_t TABLE_SIZE = GRID_SIZE * GRID_SIZE;
     static const int32_t GRID_START = 0;
     static const int32_t GRID_END = GRID_SIZE;
+
+    using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
 
 	enum faceIndex_t
 	{
@@ -100,8 +102,6 @@ public:
 
 	texture_t billTexture;
 
-    using region_table_t =  std::array< ref_tile_region_t, TABLE_SIZE >;
-
 	std::vector< half_space_table_t > halfSpaceTable;
 	std::vector< half_space_t > halfSpaces;
 
@@ -111,15 +111,16 @@ public:
 
     bool FindRegions( const tile_t* tile, region_table_t& regionTable );
 
+    void FindAdjacentRegions( region_table_t& regionTable );
+
+    void MergeRegions( region_table_t& regionTable, const uint32_t maxTiles, const uint32_t maxDepth );
+
     void SetTile( int32_t pass,
                   int32_t x,
                   int32_t z,
 				  std::vector< tile_t* >& mutWalls );
 
     int32_t RangeCount( int32_t x, int32_t z, int32_t offsetEnd );
-
-    int32_t TileIndex( int32_t x, int32_t z ) const;
-    int32_t TileModIndex( int32_t x, int32_t z ) const;
 
 	bool CollidesWall( glm::vec3& normal, const tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
@@ -131,16 +132,6 @@ public:
 
 	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
 };
-
-INLINE int32_t tile_generator_t::TileIndex( int32_t x, int32_t z ) const
-{
-	return z * GRID_SIZE + x;
-}
-
-INLINE int32_t tile_generator_t::TileModIndex( int32_t x, int32_t z ) const
-{
-    return ( glm::abs( z ) % GRID_SIZE ) * GRID_SIZE + glm::abs( x ) % GRID_SIZE;
-}
 
 //-------------------------------------------------------------------------------------------------------
 // tile_region_t
