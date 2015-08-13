@@ -33,7 +33,7 @@ namespace {
     uint32_t drawFlags = 0;
 }
 
-void Draw_Group( game_t& game,
+static void Draw_Group( game_t& game,
                  const view_params_t& vp,
                  billboard_list_t& billboards,
                  wall_list_t& walls,
@@ -280,7 +280,10 @@ void Draw_Bounds( game_t& game, const bounding_box_t& bounds, const glm::vec3& c
     coloredCube.Render( singleColor );
 }
 
+namespace {
+
 uint32_t regionIter = 0;
+float frameCount = 0.0f;
 
 // For coloring arbitrary amounts of tiles
 glm::mat4 quadTransform(
@@ -321,6 +324,10 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
         bool canDraw = game.gen->regions[ regionIter ]->adjacent.find( weakRegion ) == endRegionIterator
                 && game.gen->regions[ regionIter ] != region;
 
+        // If drawAdjacent is turned on, then we cannot draw
+        // the regions as normal if i == regionIter: for some reason,
+        // despite being rendered previously, this pass will overwrite
+        // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
         {
             for ( const tile_t* tile: region->tiles )
@@ -333,6 +340,9 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
         {
             load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
+            // Prioritization: if drawAdjacent is turned on,
+            // it's pretty hard seeing which tile is current
+            // without a full alpha channel.
             float firstAlpha;
             if ( drawAdjacent )
             {
@@ -346,14 +356,6 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             for ( const tile_t* tile: region->tiles )
             {
                 Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 0.0f ), firstAlpha );
-            }
-
-            if ( drawBoundsTiles )
-            {
-                for ( const tile_t* tile: region->boundsTiles )
-                {
-                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
-                }
             }
 
             if ( drawAdjacent )
@@ -371,6 +373,15 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
                     {
                         Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
                     }
+                }
+            }
+
+            // Draw these last since the adjacent regions take up the most space
+            if ( drawBoundsTiles )
+            {
+                for ( const tile_t* tile: region->boundsTiles )
+                {
+                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
                 }
             }
         }
@@ -466,9 +477,9 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
     billboard.Release();
 }
 
-float frameCount = 0.0f;
+} // end namespace
 
-void Draw_Group( game_t& game,
+static void Draw_Group( game_t& game,
                  const view_params_t& vp,
                  billboard_list_t& billboards,
                  wall_list_t& walls,
@@ -546,7 +557,6 @@ void Draw_Group( game_t& game,
     // Draw the bounds of the camera not currently being used
     Draw_Bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
-    // Mark all free spaces here
     singleColor.Bind();
 
     Draw_Regions( game, true, false );
