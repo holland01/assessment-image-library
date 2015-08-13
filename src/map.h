@@ -147,6 +147,7 @@ public:
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
+    std::vector< const tile_t* > boundsTiles; // tiles which touch adjacent regions
     ref_tile_region_set_t adjacent;
 
     tile_region_t( const tile_t* origin = nullptr );

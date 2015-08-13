@@ -54,8 +54,10 @@ namespace {
 
     INLINE int32_t TileModIndex( int32_t x, int32_t z )
     {
-        return ( glm::abs( z ) % tile_generator_t::GRID_SIZE ) * tile_generator_t::GRID_SIZE
-                + glm::abs( x ) % tile_generator_t::GRID_SIZE;
+        z = glm::clamp( z, tile_generator_t::GRID_START, tile_generator_t::GRID_END - 1 );
+        x = glm::clamp( x, tile_generator_t::GRID_START, tile_generator_t::GRID_END - 1 );
+
+        return TileIndex( x, z );
     }
 
     void SetOwners( shared_tile_region_t& dest, tile_generator_t::region_table_t& regionTable, const std::vector< const tile_t* >& tiles )
@@ -141,6 +143,7 @@ namespace {
         {
             auto r = ref.lock();
             assert( r );
+            assert( !r->ShouldDestroy() );
 
             for ( const tile_t* t: r->tiles )
             {
@@ -313,9 +316,43 @@ tile_generator_t::tile_generator_t( void )
         assert( res );
     }
 
+    // Second
     FindAdjacentRegions( regionTable );
+
+    // Regions by default are very small, so we need to merge them together
     MergeRegions( regionTable, float( TABLE_SIZE ) * 0.15f, 6 );
+
+    // Merging kills all original regions (mostly), so we need to do this a second time
     FindAdjacentRegions( regionTable );
+
+    // Compute bounds tiles
+    for ( int32_t z = GRID_START; z < GRID_END; ++z )
+    {
+        for ( int32_t x = GRID_START; x < GRID_END; ++x )
+        {
+            int32_t index = TileModIndex( x, z );
+            auto r = regionTable[ index ].lock();
+            if ( !r )
+            {
+                continue;
+            }
+
+            bool bail = false;
+            for ( int32_t z0 = z - 1; z0 <= z + 1 && !bail; ++z0 )
+            {
+                for ( int32_t x0 = x - 1; x0 <= x + 1 && !bail; ++x0 )
+                {
+                    int32_t index0 = TileModIndex( x0, z0 );
+                    auto r0 = regionTable[ index0 ].lock();
+                    if ( r0 && r0.get() != r.get() )
+                    {
+                        r->boundsTiles.push_back( &tiles[ index ] );
+                        bail = true;
+                    }
+                }
+            }
+        }
+    }
 
     assert( GeneratorTest( *this ) );
 }

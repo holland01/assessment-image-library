@@ -280,6 +280,103 @@ void Draw_Bounds( game_t& game, const bounding_box_t& bounds, const glm::vec3& c
     coloredCube.Render( singleColor );
 }
 
+uint32_t regionIter = 0;
+
+// For coloring arbitrary amounts of tiles
+glm::mat4 quadTransform(
+    []( void ) -> glm::mat4
+    {
+        // Rotate 90 degrees in the x-axis so the quad is on the ground, and then set the y-axis to -1
+        // so that it's on the same level as the bottom of the bounding boxes ( i.e., walls )
+        glm::mat4 t( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
+        t[ 3 ].y = -1.0f;
+        return t;
+    }()
+);
+
+void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
+{
+    const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+    const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
+    const view_params_t& vp = game.camera->GetViewParams();
+
+    singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
+    singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
+    billboardBuffer.Render( singleColor );
+}
+
+void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
+{
+    auto endRegionIterator = game.gen->regions[ regionIter ]->adjacent.end();
+
+    for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
+    {
+        ref_tile_region_t weakRegion  = game.gen->regions[ i ];
+        auto region = weakRegion.lock();
+        if ( !region )
+        {
+            continue;
+        }
+
+        bool canDraw = game.gen->regions[ regionIter ]->adjacent.find( weakRegion ) == endRegionIterator
+                && game.gen->regions[ regionIter ] != region;
+
+        if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
+        {
+            for ( const tile_t* tile: region->tiles )
+            {
+                Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( region->color ) );
+            }
+        }
+
+        if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
+        {
+            load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+            float firstAlpha;
+            if ( drawAdjacent )
+            {
+                firstAlpha = 1.0f;
+            }
+            else
+            {
+                firstAlpha = 0.4f;
+            }
+
+            for ( const tile_t* tile: region->tiles )
+            {
+                Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 0.0f ), firstAlpha );
+            }
+
+            if ( drawBoundsTiles )
+            {
+                for ( const tile_t* tile: region->boundsTiles )
+                {
+                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
+                }
+            }
+
+            if ( drawAdjacent )
+            {
+                for ( ref_tile_region_t a: region->adjacent )
+                {
+                    auto adj = a.lock();
+
+                    if ( !adj )
+                    {
+                        continue;
+                    }
+
+                    for ( const tile_t* tile: adj->tiles )
+                    {
+                        Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
+                    }
+                }
+            }
+        }
+    }
+}
+
 void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body )
 {
     if ( game.camera->body )
@@ -369,8 +466,7 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
     billboard.Release();
 }
 
-static uint32_t regionIter = 0;
-static float frameCount = 0.0f;
+float frameCount = 0.0f;
 
 void Draw_Group( game_t& game,
                  const view_params_t& vp,
@@ -381,25 +477,12 @@ void Draw_Group( game_t& game,
     UNUSEDPARAM( freeSpace );
 
 	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
-	const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
+    //const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
     // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
     // It's useful for debugging...
 	imm_draw_t drawer( singleColor );
 	immDrawer = &drawer;
-
-    // For empty tiles we care about...
-	glm::mat4 quadTransform( glm::rotate( glm::mat4( 1.0f ), glm::half_pi< float >(), glm::vec3( 1.0f, 0.0f, 0.0f ) ) );
-	quadTransform[ 3 ].y = -1.0f;
-
-    // Some lambda goodness
-	auto LDrawQuad = [ &vp, &quadTransform, &billboardBuffer, &singleColor ]( const glm::mat4& transform,
-            const glm::vec3& color )
-	{
-		singleColor.LoadVec4( "color", glm::vec4( color, 1.0f ) );
-		singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
-		billboardBuffer.Render( singleColor );
-	};
 
     // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
@@ -466,60 +549,11 @@ void Draw_Group( game_t& game,
     // Mark all free spaces here
     singleColor.Bind();
 
-    auto endRegionIterator =  game.gen->regions[ regionIter ]->adjacent.end();
-
-
-
-    for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
-    {
-        std::weak_ptr< tile_region_t > weakRegion  = game.gen->regions[ i ];
-
-        auto region = weakRegion.lock();
-
-        if ( !region )
-        {
-            continue;
-        }
-
-        bool canDraw = game.gen->regions[ regionIter ]->adjacent.find( weakRegion ) == endRegionIterator
-                && game.gen->regions[ regionIter ] != region;
-
-        if ( i == regionIter )
-        {
-            assert( !canDraw );
-
-            for ( const tile_t* tile: region->tiles )
-            {
-                LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 0.0f ) );
-            }
-
-            for ( ref_tile_region_t a: region->adjacent )
-            {
-                auto adj = a.lock();
-
-                if ( !adj )
-                {
-                    continue;
-                }
-
-                for ( const tile_t* tile: adj->tiles )
-                {
-                    LDrawQuad( tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-                }
-            }
-        }
-        else if ( canDraw )
-        {
-            for ( const tile_t* tile: region->tiles )
-            {
-                LDrawQuad( tile->bounds->GetTransform(), glm::vec3( region->color ) );
-            }
-        }
-    }
+    Draw_Regions( game, true, false );
 
     frameCount += 1.0f;
 
-    if ( frameCount >= ( 1.0f / game.world.time ))
+    if ( frameCount >= ( 2.0f / game.world.time ))
     {
         regionIter++;
         frameCount = 0.0f;
