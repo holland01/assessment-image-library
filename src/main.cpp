@@ -25,12 +25,23 @@ namespace {
 
     enum
     {
-        DRAW_BILLBOARDS = 0x1,
-        DRAW_HALFSPACES = 0x2
+        DRAW_BILLBOARDS = 1 << 0,
+        DRAW_BILLBOARD_BOUNDS = 1 << 1,
+        DRAW_HALFSPACES = 1 << 2,
+        DRAW_REGIONS_ADJACENT = 1 << 3,
+        DRAW_REGIONS_BOUNDS = 1 << 4
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
     uint32_t drawFlags = 0;
+
+    std::unordered_map< std::string, uint32_t > drawTestConfig =
+    {
+        { "adjacency_test", DRAW_REGIONS_ADJACENT },
+        { "default", DRAW_BILLBOARDS },
+        { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
+        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
+    };
 }
 
 static void Draw_Group( game_t& game,
@@ -379,6 +390,10 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
+                glm::vec3 color( region->boundsTiles.empty()? glm::vec3( 0.0f, 0.0f, 1.0f ): glm::vec3( 0.0f, 1.0f, 0.0f ) );
+
+                Draw_Quad( game, region->origin->bounds->GetTransform(), color, 0.4f );
+
                 for ( const tile_t* tile: region->boundsTiles )
                 {
                     Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
@@ -462,15 +477,18 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
         billboardBuffer.Render( billboard );
         game.gen->billTexture.Release( 0 );
 
-        singleColor.Bind();
-        Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
+        if ( drawFlags & DRAW_BILLBOARD_BOUNDS )
+        {
+            singleColor.Bind();
+            Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
 
-        singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-        singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->GetTransform() );
-        drawer.Begin( GL_LINES );
-        drawer.Vertex( glm::vec3( 0.0f ) );
-        drawer.Vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
-        drawer.End();
+            singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+            singleColor.LoadMat4( "modelToView", vp.transform * tile->bounds->GetTransform() );
+            drawer.Begin( GL_LINES );
+            drawer.Vertex( glm::vec3( 0.0f ) );
+            drawer.Vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
+            drawer.End();
+        }
 
         billboard.Bind();
     }
@@ -559,7 +577,13 @@ static void Draw_Group( game_t& game,
 
     singleColor.Bind();
 
-    Draw_Regions( game, true, false );
+    bool drawAdj = !!( drawFlags & DRAW_REGIONS_ADJACENT );
+    bool drawBounds = !!( drawFlags & DRAW_REGIONS_BOUNDS );
+
+    if  ( drawAdj || drawBounds )
+    {
+        Draw_Regions( game, drawBounds, drawAdj );
+    }
 
     frameCount += 1.0f;
 
@@ -729,6 +753,8 @@ float GetTime( void )
 
 int main( void ) 
 {
+    drawFlags = drawTestConfig[ "bounds_tiles_test" ];
+
 	return Game_Exec();
 }
 

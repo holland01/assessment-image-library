@@ -334,6 +334,7 @@ tile_generator_t::tile_generator_t( void )
             auto r = regionTable[ index ].lock();
             if ( !r )
             {
+                assert( tiles[ index ].type == tile_t::WALL );
                 continue;
             }
 
@@ -344,7 +345,7 @@ tile_generator_t::tile_generator_t( void )
                 {
                     int32_t index0 = TileModIndex( x0, z0 );
                     auto r0 = regionTable[ index0 ].lock();
-                    if ( r0 && r0.get() != r.get() )
+                    if ( r0.get() != r.get() )
                     {
                         r->boundsTiles.push_back( &tiles[ index ] );
                         bail = true;
@@ -352,6 +353,53 @@ tile_generator_t::tile_generator_t( void )
                 }
             }
         }
+    }
+
+    // Find an origin...
+    for ( ref_tile_region_t region: regions )
+    {
+        auto r = region.lock();
+
+        assert( !r->tiles.empty() );
+
+        if ( r->boundsTiles.size() < 2 )
+        {
+            r->origin = r->tiles[ 0 ];
+            continue;
+        }
+
+        float distance = 0.0f;
+        const tile_t* from = nullptr;
+        const tile_t* to = nullptr;
+        for ( const tile_t* t: r->boundsTiles )
+        {
+            for ( const tile_t* t0: r->boundsTiles )
+            {
+                if ( t == t0 )
+                {
+                    continue;
+                }
+
+                glm::vec2 p( t->x, t->z );
+                glm::vec2 q( t0->x, t0->z );
+                float d = glm::distance( p, q );
+
+                if ( distance < d )
+                {
+                    from = t;
+                    to = t0;
+                    distance = d;
+                }
+            }
+        }
+
+        assert( from && to );
+        glm::vec2 p( from->x, from->z );
+        glm::vec2 q( to->x, to->z );
+        glm::vec2 d( ( q - p ) * 0.5f );
+
+        glm::ivec2 i( p + d );
+        r->origin = &tiles[ TileModIndex( i.x, i.y ) ];
     }
 
     assert( GeneratorTest( *this ) );
