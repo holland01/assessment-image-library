@@ -587,7 +587,7 @@ static void Draw_Group( game_t& game,
 
     frameCount += 1.0f;
 
-    if ( frameCount >= ( 2.0f / game.world.time ))
+    if ( frameCount >= ( 1.0f / game.world.time ))
     {
         regionIter++;
         frameCount = 0.0f;

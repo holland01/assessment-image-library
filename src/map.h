@@ -22,6 +22,8 @@ using shared_tile_region_t = std::shared_ptr< tile_region_t >;
 
 using ref_tile_region_set_t = std::set< ref_tile_region_t, std::owner_less< ref_tile_region_t > >;
 
+struct region_merge_predicates_t;
+
 //-------------------------------------------------------------------------------------------------------
 // tile_t
 //-------------------------------------------------------------------------------------------------------
@@ -102,6 +104,8 @@ public:
 
 	texture_t billTexture;
 
+    using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
+
 	std::vector< half_space_table_t > halfSpaceTable;
 	std::vector< half_space_t > halfSpaces;
 
@@ -113,7 +117,7 @@ public:
 
     void FindAdjacentRegions( region_table_t& regionTable );
 
-    void MergeRegions( region_table_t& regionTable, const uint32_t maxTiles, const uint32_t maxDepth );
+    void MergeRegions( region_table_t& regionTable, const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
     void SetTile( int32_t pass,
                   int32_t x,
