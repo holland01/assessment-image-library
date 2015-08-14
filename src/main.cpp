@@ -29,7 +29,8 @@ namespace {
         DRAW_BILLBOARD_BOUNDS = 1 << 1,
         DRAW_HALFSPACES = 1 << 2,
         DRAW_REGIONS_ADJACENT = 1 << 3,
-        DRAW_REGIONS_BOUNDS = 1 << 4
+        DRAW_REGIONS_BOUNDS = 1 << 4,
+        DRAW_WALLS = 1 << 5
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
@@ -248,7 +249,7 @@ void game_t::Draw( void )
 
         singleColor.Bind();
         singleColor.LoadMat4( "modelToView", vp.transform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-        singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+        singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 
         imm_draw_t drawer( singleColor );
 
@@ -390,14 +391,12 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
-                glm::vec3 color( region->boundsTiles.empty()? glm::vec3( 0.0f, 0.0f, 1.0f ): glm::vec3( 0.0f, 1.0f, 0.0f ) );
-
-                Draw_Quad( game, region->origin->bounds->GetTransform(), color, 0.4f );
-
                 for ( const tile_t* tile: region->boundsTiles )
                 {
                     Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
                 }
+
+                Draw_Quad( game, region->origin->bounds->GetTransform(), glm::vec3( 1.0f ), 1.0f );
             }
         }
     }
@@ -515,24 +514,28 @@ static void Draw_Group( game_t& game,
 
     // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
-	singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-	for ( const tile_t* tile: walls )
-	{
-        Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ) );
 
-		// don't test collision unless distance from player to object is within a certain range
-        if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= DISTANCE_THRESHOLD )
-		{
-			half_space_t hs;
-			glm::vec3 normal;
+    if ( drawFlags & DRAW_WALLS )
+    {
+        singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+        for ( const tile_t* tile: walls )
+        {
+            Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ) );
 
-            if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
-			{
-                Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-                Apply_Force( game, normal, *( tile->body ) );
-			}
-		}
-	}
+            // don't test collision unless distance from player to object is within a certain range
+            if ( glm::distance( glm::vec3( ( *tile->bounds )[ 3 ] ), vp.origin ) <= DISTANCE_THRESHOLD )
+            {
+                half_space_t hs;
+                glm::vec3 normal;
+
+                if ( game.gen->CollidesWall( normal, *tile, *game.camera->bounds, hs ) )
+                {
+                    Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+                    Apply_Force( game, normal, *( tile->body ) );
+                }
+            }
+        }
+    }
 
     if ( game.bullet )
     {
@@ -587,7 +590,7 @@ static void Draw_Group( game_t& game,
 
     frameCount += 1.0f;
 
-    if ( frameCount >= ( 1.0f / game.world.time ))
+    if ( frameCount >= ( 3.0f / game.world.time ))
     {
         regionIter++;
         frameCount = 0.0f;

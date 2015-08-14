@@ -153,6 +153,70 @@ namespace {
         }
     }
 
+    bool ComputeOrigin( ref_tile_region_t region, const std::vector< tile_t >& tiles )
+    {
+        auto p = region.lock();
+        if ( !p )
+        {
+            return false;
+        }
+
+        assert( !p->tiles.empty() );
+
+        float area = 1.0f / float( p->tiles.size() );
+
+        // Find the centroid using
+        // poor man's integration
+        glm::vec2 x( 0.0f );
+        for ( const tile_t* t: p->tiles )
+        {
+            x.x += t->x;
+            x.y += t->z;
+        }
+
+        x *= area;
+
+        glm::ivec2 i( glm::round( x ) );
+        p->origin = &tiles[ TileIndex( i.x, i.y ) ];
+
+        bool inside = false;
+
+        glm::ivec2 closest( int32_t( tile_generator_t::GRID_SIZE ) );
+        const tile_t* tile = nullptr;
+
+        int32_t length = INT32_MAX;
+        for ( const tile_t* t: p->tiles )
+        {
+            if ( p->origin == t )
+            {
+                inside = true;
+                break;
+            }
+            else
+            {
+                glm::vec2 a( t->x, t->z );
+                glm::vec2 d( glm::round( a - x ) );
+
+                int32_t dlen = glm::length( d );
+
+                if ( dlen < length )
+                {
+                    length = length;
+                    closest = d;
+                    tile = t;
+                }
+            }
+        }
+
+        if ( !inside )
+        {
+            glm::ivec2 point( closest + i );
+            p->origin = &tiles[ TileIndex( point.x, point.y ) ];
+        }
+
+        return true;
+    }
+
     bool GeneratorTest( tile_generator_t& gen )
     {
         for ( ref_tile_region_t ref: gen.regions )
@@ -406,58 +470,14 @@ tile_generator_t::tile_generator_t( void )
     }
 
     // Find an origin...
+    // Do an integration...
     for ( ref_tile_region_t region: regions )
     {
-        auto r = region.lock();
-
-        //assert( !r->tiles.empty() );
-
-        if ( r->tiles.empty() )
-        {
-            continue;
-        }
-
-        if ( r->boundsTiles.size() < 2 )
-        {
-            r->origin = r->tiles[ 0 ];
-            continue;
-        }
-
-        float distance = 0.0f;
-        const tile_t* from = nullptr;
-        const tile_t* to = nullptr;
-        for ( const tile_t* t: r->boundsTiles )
-        {
-            for ( const tile_t* t0: r->boundsTiles )
-            {
-                if ( t == t0 )
-                {
-                    continue;
-                }
-
-                glm::vec2 p( t->x, t->z );
-                glm::vec2 q( t0->x, t0->z );
-                float d = glm::distance( p, q );
-
-                if ( distance < d )
-                {
-                    from = t;
-                    to = t0;
-                    distance = d;
-                }
-            }
-        }
-
-        assert( from && to );
-        glm::vec2 p( from->x, from->z );
-        glm::vec2 q( to->x, to->z );
-        glm::vec2 d( ( q - p ) * 0.5f );
-
-        glm::ivec2 i( p + d );
-        r->origin = &tiles[ TileModIndex( i.x, i.y ) ];
+        bool success = ComputeOrigin( region, tiles );
+        assert( success );
     }
 
- //   assert( GeneratorTest( *this ) );
+    assert( GeneratorTest( *this ) );
 }
 
 bool tile_generator_t::HasRegion( const tile_region_t* r ) const
@@ -840,9 +860,10 @@ void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z, std::vector<
 
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
-        tiles[ center ].SetSize( ( tiles[ center ].type == tile_t::BILLBOARD )? 1.0f: 1.0f );
+        tiles[ center ].SetSize( 1.0f );
 
-		glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( 2.0f * x, 0.0f, 2.0f * z ) ) );
+        glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
+                                     glm::vec3( TRANSLATE_STRIDE * x, 0.0f, TRANSLATE_STRIDE * z ) ) );
 
         tiles[ center ].Set( t * tiles[ center ].GenScaleTransform() );
 	}
@@ -1009,6 +1030,7 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 tile_region_t::tile_region_t( const tile_t* origin_ )
     : destroy( false ),
       origin( origin_ ),
+      high( nullptr ), low( nullptr ), midHigh( nullptr ), midLow( nullptr ),
       color( RandomColor() )
 {
 }

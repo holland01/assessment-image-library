@@ -81,6 +81,7 @@ public:
     static const int32_t TABLE_SIZE = GRID_SIZE * GRID_SIZE;
     static const int32_t GRID_START = 0;
     static const int32_t GRID_END = GRID_SIZE;
+    static constexpr float TRANSLATE_STRIDE = 2.0f; // for rendering
 
     using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
 
@@ -145,9 +146,16 @@ struct tile_region_t
 {
 private:
     mutable bool destroy;
+
 public:
 
     const tile_t* origin;
+
+    const tile_t* high;
+    const tile_t* low;
+    const tile_t* midHigh;
+    const tile_t* midLow;
+
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
