@@ -226,6 +226,9 @@ namespace {
         // Flooring or ceiling v may or may not produce better values -- not sure.
         glm::ivec2 index( glm::round( v ) );
 
+        assert( index.x < tile_generator_t::GRID_SIZE );
+        assert( index.y < tile_generator_t::GRID_SIZE );
+
         p->origin = &tiles[ TileIndex( index.x, index.y ) ];
 
         return true;
@@ -242,6 +245,8 @@ namespace {
 
             for ( const tile_t* t: r->tiles )
             {
+                assert( t->type != tile_t::WALL );
+
                 for ( ref_tile_region_t ref0: gen.regions )
                 {
                     auto r0 = ref0.lock();
@@ -310,10 +315,6 @@ void tile_t::Set( const glm::mat4& transform )
 
 tile_generator_t::tile_generator_t( void )
 {
-	billTexture.mipmap = true;
-	billTexture.LoadFromFile( "asset/mooninite.png" );
-	billTexture.Load2D();
-
 	tiles.resize( GRID_SIZE * GRID_SIZE );
 
 	// used to compute half-spaces
@@ -467,6 +468,10 @@ tile_generator_t::tile_generator_t( void )
                 continue;
             }
 
+            // NOTE: it's important to remember that, since we're searching [ x - 1, x + 1 ] and [ z - 1, z + 1 ]
+            // entirely, that tiles which are only diagnolly adjacent to either a wall or a different region
+            // will also be added. This may or may not be desired.
+
             bool bail = false;
             for ( int32_t z0 = z - 1; z0 <= z + 1 && !bail; ++z0 )
             {
@@ -476,8 +481,19 @@ tile_generator_t::tile_generator_t( void )
                     auto r0 = regionTable[ index0 ].lock();
                     if ( r0.get() != r.get() )
                     {
-                        r->boundsTiles.push_back( &tiles[ index ] );
-                        bail = true;
+                        // if !r0, then we're next to a wall;
+                        // the regionTable isn't aware of wall tiles,
+                        // and thus has a nullptr for any index mapped to an area where a wall would be
+                        if ( r0 )
+                        {
+                            r->boundsTiles.push_back( &tiles[ index ] );
+                        }
+                        else
+                        {
+                            assert( tiles[ index0 ].type == tile_t::WALL );
+                            r->wallTiles.push_back( &tiles[ index ] );
+                        }
+                        //bail = true;
                     }
                 }
             }
@@ -1045,7 +1061,6 @@ void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
 tile_region_t::tile_region_t( const tile_t* origin_ )
     : destroy( false ),
       origin( origin_ ),
-      high( nullptr ), low( nullptr ), midHigh( nullptr ), midLow( nullptr ),
       color( RandomColor() )
 {
 }

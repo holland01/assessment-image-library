@@ -103,8 +103,6 @@ public:
     wall_list_t walls;
     freespace_list_t freeSpace;
 
-	texture_t billTexture;
-
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
 	std::vector< half_space_table_t > halfSpaceTable;
@@ -151,14 +149,10 @@ public:
 
     const tile_t* origin;
 
-    const tile_t* high;
-    const tile_t* low;
-    const tile_t* midHigh;
-    const tile_t* midLow;
-
     glm::vec4 color;
 
     std::vector< const tile_t* > tiles;
+    std::vector< const tile_t* > wallTiles; // tiles which touch walls
     std::vector< const tile_t* > boundsTiles; // tiles which touch adjacent regions
     ref_tile_region_set_t adjacent;
 

@@ -122,6 +122,10 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	GL_CHECK( glPointSize( 10.0f ) );
 #endif
 
+    billTexture.mipmap = true;
+    billTexture.LoadFromFile( "asset/mooninite.png" );
+    billTexture.Load2D();
+
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
 
@@ -226,7 +230,6 @@ void game_t::Draw( void )
     // Clear depth buffer so the reticule renders over anything else it tests
     // against by default
     GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
-
 
     {
         const shader_program_t& ssSingleColor = pipeline->programs.at( "single_color_ss" );
@@ -391,10 +394,38 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
+                for ( const tile_t* tile: region->wallTiles )
+                {
+                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 0.0f, 1.0f, 1.0f ), 1.0f );
+                }
+
+                glm::vec3 color( 1.0f, 0.0f, 0.0f );
+
                 for ( const tile_t* tile: region->boundsTiles )
                 {
-                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 0.4f );
+                    bool found = false;
+                    for ( const tile_t* t: region->wallTiles )
+                    {
+                        if ( t == tile )
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if ( found )
+                    {
+                        color.g = 1.0f;
+                    }
+                    else
+                    {
+                        color.g = 0.0f;
+                    }
+
+                    Draw_Quad( game, tile->bounds->GetTransform(), color, 1.0f );
                 }
+
+                assert( region->origin );
 
                 Draw_Quad( game, region->origin->bounds->GetTransform(), glm::vec3( 1.0f ), 1.0f );
             }
@@ -472,9 +503,9 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
 
         billboard.LoadVec4( "color", tile->GetColor() );
 
-        game.gen->billTexture.Bind( 0, "image", billboard );
+        game.billTexture.Bind( 0, "image", billboard );
         billboardBuffer.Render( billboard );
-        game.gen->billTexture.Release( 0 );
+        game.billTexture.Release( 0 );
 
         if ( drawFlags & DRAW_BILLBOARD_BOUNDS )
         {
@@ -590,7 +621,7 @@ static void Draw_Group( game_t& game,
 
     frameCount += 1.0f;
 
-    if ( frameCount >= ( 3.0f / game.world.time ))
+    if ( frameCount >= ( 5.0f / game.world.time ))
     {
         regionIter++;
         frameCount = 0.0f;

@@ -38,6 +38,8 @@ struct game_t
 
 	frustum_t frustum;
 
+    texture_t billTexture;
+
 	game_t( uint32_t width, uint32_t height );
    ~game_t( void );
 
