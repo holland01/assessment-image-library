@@ -153,6 +153,9 @@ namespace {
         }
     }
 
+
+    // Origin of a region is basically it's centroid. We find it
+    // using poor man's integration...
     bool ComputeOrigin( ref_tile_region_t region, const std::vector< tile_t >& tiles )
     {
         auto p = region.lock();
@@ -163,60 +166,72 @@ namespace {
 
         assert( !p->tiles.empty() );
 
-        float area = 1.0f / float( p->tiles.size() );
+        // Sort the tiles in ascending order by their x values.
+        // Duplicate x values are grouped together in a manner
+        // where high z's come before lower z values.
+        // So, for all x = 0 has a set of z values
+        // where the first z values is the highest in that group
+        // for x = 0.
 
-        // Find the centroid using
-        // poor man's integration
-        glm::vec2 x( 0.0f );
-        for ( const tile_t* t: p->tiles )
+        // The lowest and the highest z values represent f(x) and g(x), respectively.
+        // We use our current set of values to act as distribution mechanism
+        // with which we can integrate to find the area, and then
+        // compute the centroid properly from.
+        std::vector< const tile_t* > sorted( p->tiles );
+        std::sort( sorted.begin(), sorted.end(), []( const tile_t* a, const tile_t* b ) -> bool
         {
-            x.x += t->x;
-            x.y += t->z;
-        }
-
-        x *= area;
-
-        glm::ivec2 i( glm::round( x ) );
-        p->origin = &tiles[ TileIndex( i.x, i.y ) ];
-
-        bool inside = false;
-
-        glm::ivec2 closest( int32_t( tile_generator_t::GRID_SIZE ) );
-        const tile_t* tile = nullptr;
-
-        int32_t length = INT32_MAX;
-        for ( const tile_t* t: p->tiles )
-        {
-            if ( p->origin == t )
+            if ( a->x == b->x )
             {
-                inside = true;
-                break;
+                return a->z > b->z;
             }
-            else
-            {
-                glm::vec2 a( t->x, t->z );
-                glm::vec2 d( glm::round( a - x ) );
 
-                int32_t dlen = glm::length( d );
+            return a->x < b->x;
+        });
 
-                if ( dlen < length )
-                {
-                    length = length;
-                    closest = d;
-                    tile = t;
-                }
-            }
-        }
+        glm::vec2 v( 0.0f );
 
-        if ( !inside )
+        uint32_t i = 0;
+
+        float area = 0.0f;
+        while ( i < sorted.size() )
         {
-            glm::ivec2 point( closest + i );
-            p->origin = &tiles[ TileIndex( point.x, point.y ) ];
+            float fx = sorted[ i ]->z;
+            float x = sorted[ i ]->x;
+
+            while ( i < sorted.size() && sorted[ i ]->x == x )
+                ++i;
+
+            float gx = sorted[ i - 1 ]->z;
+
+            area += fx - gx;
         }
+
+        i = 0;
+        while ( i < sorted.size() )
+        {
+            float fx = sorted[ i ]->z;
+            float x = sorted[ i ]->x;
+
+            while ( i < sorted.size() && sorted[ i ]->x == x )
+                ++i;
+
+            float gx = sorted[ i - 1 ]->z;
+
+            v.x += x * ( fx - gx );
+            v.y += ( fx + gx ) * 0.5f * ( fx - gx );
+        }
+
+        v /= area;
+
+        // Flooring or ceiling v may or may not produce better values -- not sure.
+        glm::ivec2 index( glm::round( v ) );
+
+        p->origin = &tiles[ TileIndex( index.x, index.y ) ];
 
         return true;
     }
 
+    // Basic assertions we run at the end of generation
     bool GeneratorTest( tile_generator_t& gen )
     {
         for ( ref_tile_region_t ref: gen.regions )
