@@ -327,7 +327,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 {
     for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
     {
-        ref_tile_region_t weakRegion  = game.gen->regions[ i ];
+        ref_tile_region_t weakRegion = game.gen->regions[ i ];
         auto region = weakRegion.lock();
         if ( !region )
         {
@@ -338,9 +338,9 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
         if ( canDraw )
         {
-            for ( const shared_bounds_region_t& r: game.gen->regions[ regionIter ]->adjacent )
+            for ( const bounds_region_t& r: game.gen->regions[ regionIter ]->adjacent )
             {
-                if ( weakRegion == r->region )
+                if ( weakRegion == r.region )
                 {
                     canDraw = false;
                     break;
@@ -362,7 +362,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
         {
-            load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+            //load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
             // Prioritization: if drawAdjacent is turned on,
             // it's pretty hard seeing which tile is current
@@ -377,16 +377,18 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
                 firstAlpha = 0.4f;
             }
 
+            /*
             for ( const tile_t* tile: region->tiles )
             {
-                Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 0.0f ), firstAlpha );
+                //Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( region->color ), firstAlpha );
             }
+            */
 
             if ( drawAdjacent )
             {
-                for ( const shared_bounds_region_t& b: region->adjacent )
+                for ( const bounds_region_t& br: region->adjacent )
                 {
-                    auto adj = b->region.lock();
+                    auto adj = br.region.lock();
 
                     if ( !adj )
                     {
@@ -403,35 +405,14 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
-                for ( const tile_t* tile: region->wallTiles )
-                {
-                    Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 0.0f, 1.0f, 1.0f ), 1.0f );
-                }
-
                 glm::vec3 color( 1.0f, 0.0f, 0.0f );
 
-                for ( const tile_t* tile: region->boundsTiles )
+                for ( const bounds_region_t& br: region->adjacent )
                 {
-                    bool found = false;
-                    for ( const tile_t* t: region->wallTiles )
+                    for ( const tile_t* t: br.tiles )
                     {
-                        if ( t == tile )
-                        {
-                            found = true;
-                            break;
-                        }
+                        Draw_Quad( game, t->bounds->GetTransform(), color, 1.0f );
                     }
-
-                    if ( found )
-                    {
-                        color.g = 1.0f;
-                    }
-                    else
-                    {
-                        color.g = 0.0f;
-                    }
-
-                    Draw_Quad( game, tile->bounds->GetTransform(), color, 1.0f );
                 }
 
                 assert( region->origin );
@@ -796,7 +777,7 @@ float GetTime( void )
 
 int main( void ) 
 {
-    drawFlags = drawTestConfig[ "adjacency_test" ];
+    drawFlags = drawTestConfig[ "bounds_tiles_test" ];
 
 	return Game_Exec();
 }

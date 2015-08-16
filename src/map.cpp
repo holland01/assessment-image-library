@@ -71,29 +71,19 @@ namespace {
         return TileIndex( x, z );
     }
 
-    void SetOwners( shared_tile_region_t& dest, tile_generator_t::region_table_t& regionTable, const std::vector< const tile_t* >& tiles )
-    {
-        for ( const tile_t* t: tiles )
-        {
-            t->SetOwner( dest );
-            regionTable[ TileIndex( t->x, t->z ) ] = dest;
-        }
-    }
-
-    bool MergeRegions( shared_tile_region_t& merged, tile_generator_t::region_table_t& regionTable, tile_region_t* r0 )
+    bool MergeRegions( shared_tile_region_t& merged, tile_region_t* r0 )
     {
         if ( !merged ) return false;
         if ( !r0 ) return false;
         if ( r0->ShouldDestroy() ) return false;
 
-        Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );
-
-        for ( auto r = r0->adjacent.begin(); r != r0->adjacent.end(); ++r )
+        for ( const tile_t* t: r0->tiles )
         {
-            merged->adjacent.insert( std::move( *r ) );
+            t->SetOwner( merged );
         }
 
-        SetOwners( merged, regionTable, r0->tiles );
+        Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );
+        Vector_InsertUnique< bounds_region_t >( merged->adjacent, r0->adjacent );
 
         r0->tiles.clear();
         r0->Destroy();
@@ -101,7 +91,7 @@ namespace {
         return true;
     }
 
-    void Merge( shared_tile_region_t& merged, tile_generator_t::region_table_t& regionTable, ref_tile_region_t region, region_merge_predicates_t predicates, const uint32_t currDepth, const uint32_t maxDepth )
+    void Merge( shared_tile_region_t& merged, ref_tile_region_t region, region_merge_predicates_t predicates, const uint32_t currDepth, const uint32_t maxDepth )
     {
         assert( currDepth <= maxDepth );
 
@@ -120,32 +110,37 @@ namespace {
             merged->origin = r->origin;
         }
 
-        MergeRegions( merged, regionTable, r.get() );
+        MergeRegions( merged, r.get() );
 
         std::vector< ref_tile_region_t > checkList;
 
         for ( auto i = r->adjacent.begin(); i != r->adjacent.end(); ++i )
         {
-            auto adj = ( *i )->region.lock();
-
-            if ( !adj )
+            bool result = false;
             {
-                continue;
+                auto adj = ( *i ).region.lock();
+
+                if ( !adj )
+                {
+                    continue;
+                }
+
+                if ( !predicates.adjacent( merged, adj ) )
+                {
+                    continue;
+                }
+
+                if ( merged->tiles.size() < adj->tiles.size() )
+                {
+                    merged->origin = adj->origin;
+                }
+
+                result = MergeRegions( merged, adj.get() );
             }
 
-            if ( !predicates.adjacent( merged, adj ) )
+            if ( result )
             {
-                continue;
-            }
-
-            if ( merged->tiles.size() < adj->tiles.size() )
-            {
-                merged->origin = adj->origin;
-            }
-
-            if ( MergeRegions( merged, regionTable, adj.get() ) )
-            {
-                checkList.push_back( adj );
+                checkList.push_back( ( *i ).region );
             }
         }
 
@@ -153,7 +148,7 @@ namespace {
 
         for ( ref_tile_region_t a: checkList )
         {
-            Merge( merged, regionTable, a, predicates, currDepth + 1, maxDepth );
+            Merge( merged, a, predicates, currDepth + 1, maxDepth );
         }
     }
 
@@ -250,6 +245,7 @@ namespace {
             for ( const tile_t* t: r->tiles )
             {
                 assert( t->type != tile_t::WALL );
+                assert( t->GetOwner() == ref );
 
                 for ( ref_tile_region_t ref0: gen.regions )
                 {
@@ -286,17 +282,21 @@ bounds_region_t::bounds_region_t( void )
 {
 }
 
+bounds_region_t::bounds_region_t( const bounds_region_t& c )
+    : id( c.id ),
+      tiles( c.tiles ),
+      region( c.region )
+{
+}
+
 bool operator == ( const bounds_region_t& a, const bounds_region_t& b )
 {
-    if ( a.GetID() == b.GetID() )
-    {
-        bool result = a.tiles == b.tiles && a.region == b.region;
-        assert( result );
-        return result;
-    }
+    return a.region == b.region;
+}
 
-    assert( a.tiles != b.tiles || a.region != b.region );
-    return false;
+bool operator != ( const bounds_region_t& a, const bounds_region_t& b )
+{
+    return !( a == b );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -431,21 +431,22 @@ tile_generator_t::tile_generator_t( void )
     }
 
     // Generate regions
-    region_table_t regionTable;
+   // region_table_t regionTable;
 
     // First pass: fill basic regions
     for ( const tile_t* hst: halfSpaceTiles )
     {
-        bool res = FindRegions( hst, regionTable );
+        bool res = FindRegions( hst );
         assert( res );
     }
 
     // Second
-    FindAdjacentRegions( regionTable );
+    FindAdjacentRegions();
 
     {
         region_merge_predicates_t predicates;
         const uint32_t TILE_LIMIT = uint32_t( float( TABLE_SIZE ) * 0.15f );
+
         predicates.entry = [ TILE_LIMIT ]( shared_tile_region_t& m ) -> bool
         { return m->tiles.size() <= TILE_LIMIT; };
 
@@ -458,10 +459,11 @@ tile_generator_t::tile_generator_t( void )
         };
 
         // Regions by default are very small, so we need to merge them together
-        MergeRegions( regionTable, predicates, 6 );
+        MergeRegions( predicates, 6 );
     }
+
     // Merging kills all original regions (mostly), so we need to do this a second time
-    FindAdjacentRegions( regionTable );
+    FindAdjacentRegions();
 
     {
         region_merge_predicates_t predicates;
@@ -474,22 +476,21 @@ tile_generator_t::tile_generator_t( void )
         predicates.adjacent = []( shared_tile_region_t& m, shared_tile_region_t& adj ) -> bool
         {
             const uint32_t sizeThreshold = uint32_t( float( m->tiles.size() ) * 0.25f );
-
             return adj->tiles.size() < sizeThreshold;
         };
 
-        MergeRegions( regionTable, predicates, 1 );
+        MergeRegions( predicates, 1 );
     }
 
-    FindAdjacentRegions( regionTable );
+    FindAdjacentRegions();
 
     // Compute bounds tiles
     for ( int32_t z = GRID_START; z < GRID_END; ++z )
     {
         for ( int32_t x = GRID_START; x < GRID_END; ++x )
         {
-            int32_t index = TileModIndex( x, z );
-            auto r = regionTable[ index ].lock();
+            int32_t index = TileIndex( x, z );
+            auto r = tiles[ index ].owner.lock();
             if ( !r )
             {
                 assert( tiles[ index ].type == tile_t::WALL );
@@ -500,13 +501,12 @@ tile_generator_t::tile_generator_t( void )
             // entirely, that tiles which are only diagnolly adjacent to either a wall or a different region
             // will also be added. This may or may not be desired.
 
-            bool bail = false;
-            for ( int32_t z0 = z - 1; z0 <= z + 1 && !bail; ++z0 )
+            for ( int32_t z0 = z - 1; z0 <= ( z + 1 ); ++z0 )
             {
-                for ( int32_t x0 = x - 1; x0 <= x + 1 && !bail; ++x0 )
+                for ( int32_t x0 = x - 1; x0 <= ( x + 1 ); ++x0 )
                 {
                     int32_t index0 = TileModIndex( x0, z0 );
-                    auto r0 = regionTable[ index0 ].lock();
+                    auto r0 = tiles[ index0 ].owner.lock();
                     if ( r0.get() != r.get() )
                     {
                         // if !r0, then we're next to a wall;
@@ -514,14 +514,42 @@ tile_generator_t::tile_generator_t( void )
                         // and thus has a nullptr for any index mapped to an area where a wall would be
                         if ( r0 )
                         {
-                            r->boundsTiles.push_back( &tiles[ index ] );
+                            const tile_t* t = &tiles[ index0 ];
+
+                            bounds_region_t* boundsRegion = nullptr;
+
+                            // We have to find the region which this tile belongs to, so we know to add it to its reserves...
+                            bool found = false;
+                            for ( auto i = r->adjacent.begin(); i != r->adjacent.end() && !found; ++i )
+                            {
+                                bounds_region_t& br = *i;
+                                auto region = br.region.lock();
+
+                                assert( region );
+
+                                for ( const tile_t* t0: region->tiles )
+                                {
+                                    if ( t0 == t )
+                                    {
+                                        boundsRegion = &br;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            assert( found );
+                            if ( found )
+                            {
+                                assert( t->type != tile_t::WALL );
+                                boundsRegion->tiles.push_back( t );
+                            }
                         }
                         else
                         {
                             assert( tiles[ index0 ].type == tile_t::WALL );
                             r->wallTiles.push_back( &tiles[ index ] );
                         }
-                        //bail = true;
                     }
                 }
             }
@@ -563,8 +591,7 @@ namespace {
     };
 }
 
-bool tile_generator_t::FindRegions( const tile_t* tile,
-                                    region_table_t& regionTable )
+bool tile_generator_t::FindRegions( const tile_t* tile )
 {
     if ( !tile )
     {
@@ -586,9 +613,8 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
 
     shared_tile_region_t regionPtr( new tile_region_t( tile ) );
 
-    auto LSetTableEntry = [ &regionTable ]( shared_tile_region_t& region, const tile_t& t, int32_t index )
+    auto LSetTableEntry = []( shared_tile_region_t& region, const tile_t& t )
     {
-        regionTable[ index ] = region;
         t.SetOwner( region );
         region->tiles.push_back( &t );
     };
@@ -691,7 +717,7 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
                 std::vector< region_swap_entry_t > regionSwaps;
                 tile_region_t* regionToSwap = nullptr;
                 {
-                    auto pRegion = regionTable[ index ].lock();
+                    auto pRegion = tiles[ index ].owner.lock();
                     if ( pRegion )
                     {
                         regionToSwap = pRegion.get();
@@ -709,14 +735,14 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
                     }
                     else
                     {
-                        LSetTableEntry( regionPtr, t, index );
+                        LSetTableEntry( regionPtr, t );
                     }
                 }
 
                 for ( const region_swap_entry_t& e: regionSwaps )
                 {
                     Vector_RemovePtr< const tile_t* >( regionToSwap->tiles, e.t );
-                    LSetTableEntry( regionPtr, *e.t, e.index );
+                    LSetTableEntry( regionPtr, *e.t );
                 }
             }
 
@@ -734,61 +760,96 @@ bool tile_generator_t::FindRegions( const tile_t* tile,
     return true;
 }
 
-void tile_generator_t::FindAdjacentRegions( region_table_t& regionTable )
+void tile_generator_t::FindAdjacentRegions( void )
 {
-    // Second pass: find all adjacent regions
-    for ( int32_t z = GRID_START; z < GRID_END; ++z )
+    // Clear out any prior adjacent regions
+    for ( ref_tile_region_t ref: regions )
     {
-        for ( int32_t x = GRID_START; x < GRID_END; ++x )
+        auto p = ref.lock();
+        if ( p )
         {
-            bounds_region_set_t unique;
+            p->adjacent.clear();
+        }
+    }
 
-            int32_t zStart = glm::max( z - 1, GRID_START );
-            int32_t zEnd = glm::min( GRID_END - 1, z + 1 );
+    for ( ref_tile_region_t region: regions )
+    {
+        bounds_region_set_t unique;
 
-            int32_t xStart = glm::max( x - 1, GRID_START );
-            int32_t xEnd = glm::min( GRID_END - 1, x + 1 );
+        auto r0 = region.lock();
 
-            auto r0 = regionTable[ TileIndex( x, z ) ].lock();
+        assert( r0 );
 
-            if ( !r0 )
-            {
-                continue;
-            }
+        for ( const tile_t* t: r0->tiles )
+        {
+            int32_t zStart = glm::max( t->z - 1, GRID_START );
+            int32_t zEnd = glm::min( GRID_END - 1, t->z + 1 );
+
+            int32_t xStart = glm::max( t->x - 1, GRID_START );
+            int32_t xEnd = glm::min( GRID_END - 1, t->x + 1 );
 
             for ( int32_t z0 = zStart; z0 <= zEnd; ++z0 )
             {
                 for ( int32_t x0 = xStart; x0 <= xEnd; ++x0 )
                 {
-                    auto r1 = regionTable[ TileIndex( x0, z0 ) ].lock();
+                    const ref_tile_region_t& rr = tiles[ TileIndex( x0, z0 ) ].GetOwner();
 
-                    if ( r1 && r1 != r0 )
+                    bool addIt = false;
                     {
-                        shared_bounds_region_t region = std::make_shared< bounds_region_t >();
-                        region->region = r1;
+                        auto r1 = rr.lock();
+                        if ( r1 && r1 != r0 )
+                        {
+                            // Avoid making unnecessary copies of regions...
+                            bool cont = false;
+                            for ( const bounds_region_t& br: unique )
+                            {
+                                if ( br.region == rr )
+                                {
+                                    cont = true;
+                                    break;
+                                }
+                            }
 
-                        unique.insert( region );
+                            if ( cont )
+                            {
+                                continue;
+                            }
+
+                            addIt = true;
+                        }
+                    }
+
+                    if ( addIt )
+                    {
+                        bounds_region_t br;
+                        br.region = rr;
+
+                        unique.push_back( br );
                     }
                 }
             }
+        }
 
-            for ( const shared_bounds_region_t& r: unique )
+        for ( const bounds_region_t& r: unique )
+        {
+            assert( r.region != region );
+            if ( !Vector_Contains( r0->adjacent, r ) )
             {
-                r0->adjacent.insert( r );
+                r0->adjacent.push_back( r );
             }
         }
     }
 }
 
-void tile_generator_t::MergeRegions( region_table_t& regionTable, const region_merge_predicates_t& predicates, const uint32_t maxDepth )
+void tile_generator_t::MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth )
 {
-    std::vector< std::shared_ptr< tile_region_t > > merged;
+    std::vector< shared_tile_region_t > merged;
 
-    for ( std::weak_ptr< tile_region_t > region: regions )
+    for ( ref_tile_region_t region: regions )
     {
-        std::shared_ptr< tile_region_t > merge( new tile_region_t() );
+        shared_tile_region_t merge( new tile_region_t() );
 
-        Merge( merge, regionTable, region, predicates, 0, maxDepth );
+        Merge( merge, region, predicates, 0, maxDepth );
 
         if ( merge->tiles.empty() )
         {
@@ -798,30 +859,22 @@ void tile_generator_t::MergeRegions( region_table_t& regionTable, const region_m
         merged.push_back( std::move( merge ) );
     }
 
-    uint32_t i = 0;
+    // Cleanup now defunct regions which have been merged.
     for ( auto r = regions.begin(); r != regions.end(); )
     {
         ref_tile_region_t wp = *r;
 
         auto p = wp.lock();
 
-        if ( p && p->ShouldDestroy() )
+        if ( ( p && ( p->ShouldDestroy() || p->tiles.empty() ) ) || !p )
         {
-            for ( ref_tile_region_t& wr: regionTable )
+            // Find offending tiles with the same owner;...................
+            // reset their reference so it's blank
+            for ( const tile_t& t: tiles )
             {
-                bool reset = false;
+                if ( wp == t.owner )
                 {
-                    auto wrp = wr.lock();
-
-                    if ( wrp && p == wrp )
-                    {
-                        reset = true;
-                    }
-                }
-
-                if ( reset )
-                {
-                    wr.reset();
+                    t.owner.reset();
                 }
             }
 
@@ -831,8 +884,6 @@ void tile_generator_t::MergeRegions( region_table_t& regionTable, const region_m
         {
             ++r;
         }
-
-        ++i;
     }
 
     regions.insert( regions.end(), merged.begin(), merged.end() );

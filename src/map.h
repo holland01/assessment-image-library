@@ -45,6 +45,8 @@ public:
 
     bounds_region_t( void );
 
+    bounds_region_t( const bounds_region_t& c );
+
     hash_type_t GetID( void ) const;
 };
 
@@ -55,10 +57,9 @@ INLINE bounds_region_t::hash_type_t bounds_region_t::GetID( void ) const
 
 bool operator == ( const bounds_region_t& a, const bounds_region_t& b );
 
-using shared_bounds_region_t = std::shared_ptr< bounds_region_t >;
-using ref_bounds_region_t = std::weak_ptr< bounds_region_t >;
+bool operator != ( const bounds_region_t& a, const bounds_region_t& b );
 
-using bounds_region_set_t = std::set< shared_bounds_region_t, std::owner_less< shared_bounds_region_t > >;
+using bounds_region_set_t = std::vector< bounds_region_t >;
 
 namespace std {
     template <> struct hash< bounds_region_t >
@@ -103,12 +104,19 @@ public:
 
     void SetOwner( shared_tile_region_t& r ) const;
 
+    const ref_tile_region_t& GetOwner( void ) const;
+
     bool HasOwner( void ) const;
 };
 
 INLINE void tile_t::SetOwner( shared_tile_region_t& r ) const
 {
     owner = r;
+}
+
+INLINE const ref_tile_region_t& tile_t::GetOwner( void ) const
+{
+    return owner;
 }
 
 INLINE bool tile_t::HasOwner( void ) const
@@ -158,11 +166,11 @@ public:
 
     bool HasRegion( const tile_region_t* r ) const;
 
-    bool FindRegions( const tile_t* tile, region_table_t& regionTable );
+    bool FindRegions( const tile_t* tile );
 
-    void FindAdjacentRegions( region_table_t& regionTable );
+    void FindAdjacentRegions( void );
 
-    void MergeRegions( region_table_t& regionTable, const region_merge_predicates_t& predicates, const uint32_t maxDepth );
+    void MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
     void SetTile( int32_t pass,
                   int32_t x,
