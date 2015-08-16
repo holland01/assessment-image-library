@@ -38,7 +38,7 @@ namespace {
 
     std::unordered_map< std::string, uint32_t > drawTestConfig =
     {
-        { "adjacency_test", DRAW_REGIONS_ADJACENT },
+        { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
         { "default", DRAW_BILLBOARDS },
         { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
@@ -325,8 +325,6 @@ void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color
 
 void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
 {
-    auto endRegionIterator = game.gen->regions[ regionIter ]->adjacent.end();
-
     for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
     {
         ref_tile_region_t weakRegion  = game.gen->regions[ i ];
@@ -336,8 +334,19 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             continue;
         }
 
-        bool canDraw = game.gen->regions[ regionIter ]->adjacent.find( weakRegion ) == endRegionIterator
-                && game.gen->regions[ regionIter ] != region;
+        bool canDraw = game.gen->regions[ regionIter ] != region;
+
+        if ( canDraw )
+        {
+            for ( const shared_bounds_region_t& r: game.gen->regions[ regionIter ]->adjacent )
+            {
+                if ( weakRegion == r->region )
+                {
+                    canDraw = false;
+                    break;
+                }
+            }
+        }
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
@@ -375,9 +384,9 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
             if ( drawAdjacent )
             {
-                for ( ref_tile_region_t a: region->adjacent )
+                for ( const shared_bounds_region_t& b: region->adjacent )
                 {
-                    auto adj = a.lock();
+                    auto adj = b->region.lock();
 
                     if ( !adj )
                     {
@@ -787,7 +796,7 @@ float GetTime( void )
 
 int main( void ) 
 {
-    drawFlags = drawTestConfig[ "bounds_tiles_test" ];
+    drawFlags = drawTestConfig[ "adjacency_test" ];
 
 	return Game_Exec();
 }

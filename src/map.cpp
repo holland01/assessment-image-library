@@ -87,7 +87,11 @@ namespace {
         if ( r0->ShouldDestroy() ) return false;
 
         Vector_InsertUnique< const tile_t* >( merged->tiles, r0->tiles );
-        merged->adjacent.insert( r0->adjacent.begin(), r0->adjacent.end() );
+
+        for ( auto r = r0->adjacent.begin(); r != r0->adjacent.end(); ++r )
+        {
+            merged->adjacent.insert( std::move( *r ) );
+        }
 
         SetOwners( merged, regionTable, r0->tiles );
 
@@ -120,9 +124,9 @@ namespace {
 
         std::vector< ref_tile_region_t > checkList;
 
-        for ( ref_tile_region_t a: r->adjacent )
+        for ( auto i = r->adjacent.begin(); i != r->adjacent.end(); ++i )
         {
-            auto adj = a.lock();
+            auto adj = ( *i )->region.lock();
 
             if ( !adj )
             {
@@ -269,6 +273,30 @@ namespace {
 
         return true;
     }
+}
+
+//-------------------------------------------------------------------------------------------------------
+// bounds_region_t
+//-------------------------------------------------------------------------------------------------------
+
+bounds_region_t::hash_type_t bounds_region_t::count = 0;
+
+bounds_region_t::bounds_region_t( void )
+    : id( count++ )
+{
+}
+
+bool operator == ( const bounds_region_t& a, const bounds_region_t& b )
+{
+    if ( a.GetID() == b.GetID() )
+    {
+        bool result = a.tiles == b.tiles && a.region == b.region;
+        assert( result );
+        return result;
+    }
+
+    assert( a.tiles != b.tiles || a.region != b.region );
+    return false;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -713,7 +741,7 @@ void tile_generator_t::FindAdjacentRegions( region_table_t& regionTable )
     {
         for ( int32_t x = GRID_START; x < GRID_END; ++x )
         {
-            ref_tile_region_set_t unique;
+            bounds_region_set_t unique;
 
             int32_t zStart = glm::max( z - 1, GRID_START );
             int32_t zEnd = glm::min( GRID_END - 1, z + 1 );
@@ -736,12 +764,15 @@ void tile_generator_t::FindAdjacentRegions( region_table_t& regionTable )
 
                     if ( r1 && r1 != r0 )
                     {
-                        unique.insert( r1 );
+                        shared_bounds_region_t region = std::make_shared< bounds_region_t >();
+                        region->region = r1;
+
+                        unique.insert( region );
                     }
                 }
             }
 
-            for ( ref_tile_region_t r: unique )
+            for ( const shared_bounds_region_t& r: unique )
             {
                 r0->adjacent.insert( r );
             }

@@ -7,11 +7,14 @@
 #include "renderer.h"
 
 #include <set>
+#include <unordered_set>
 
 struct frustum_t;
 
 struct tile_t;
 struct tile_region_t;
+
+//struct bounds_region_t;
 
 using billboard_list_t = std::vector< tile_t* >;
 using freespace_list_t = std::vector< const tile_t* >;
@@ -20,9 +23,52 @@ using wall_list_t = std::vector< const tile_t* >;
 using ref_tile_region_t = std::weak_ptr< tile_region_t >;
 using shared_tile_region_t = std::shared_ptr< tile_region_t >;
 
-using ref_tile_region_set_t = std::set< ref_tile_region_t, std::owner_less< ref_tile_region_t > >;
-
 struct region_merge_predicates_t;
+
+//-------------------------------------------------------------------------------------------------------
+// bounds_region_t
+//-------------------------------------------------------------------------------------------------------
+
+struct bounds_region_t
+{
+public:
+    using hash_type_t = size_t;
+
+private:
+    static const hash_type_t UNKNOWN = UINTMAX_MAX;
+    static hash_type_t count;
+    hash_type_t id;
+
+public:
+    std::vector< const tile_t* > tiles; // tiles touching the given region from within another region
+    ref_tile_region_t region; // Region which the tiles are adjacent to
+
+    bounds_region_t( void );
+
+    hash_type_t GetID( void ) const;
+};
+
+INLINE bounds_region_t::hash_type_t bounds_region_t::GetID( void ) const
+{
+    return id;
+}
+
+bool operator == ( const bounds_region_t& a, const bounds_region_t& b );
+
+using shared_bounds_region_t = std::shared_ptr< bounds_region_t >;
+using ref_bounds_region_t = std::weak_ptr< bounds_region_t >;
+
+using bounds_region_set_t = std::set< shared_bounds_region_t, std::owner_less< shared_bounds_region_t > >;
+
+namespace std {
+    template <> struct hash< bounds_region_t >
+    {
+        size_t operator()( const bounds_region_t& x ) const
+        {
+            return hash< bounds_region_t::hash_type_t >()( x.GetID() );
+        }
+    };
+}
 
 //-------------------------------------------------------------------------------------------------------
 // tile_t
@@ -154,7 +200,7 @@ public:
     std::vector< const tile_t* > tiles;
     std::vector< const tile_t* > wallTiles; // tiles which touch walls
     std::vector< const tile_t* > boundsTiles; // tiles which touch adjacent regions
-    ref_tile_region_set_t adjacent;
+    bounds_region_set_t adjacent;
 
     tile_region_t( const tile_t* origin = nullptr );
 
