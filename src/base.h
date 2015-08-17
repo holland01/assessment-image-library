@@ -30,8 +30,14 @@ static INLINE bool Vector_Contains( const std::vector< type_t >& v, const type_t
 template < typename type_t >
 static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const std::vector< type_t >& src );
 
-template < class type_t >
+template < typename type_t >
 static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const type_t& src );
+
+template < typename type_t, typename predicate_t >
+static INLINE void Vector_TransferIf( std::vector< type_t >& dest, std::vector< type_t >& src, predicate_t p );
+
+template < typename type_t, typename predicate_t >
+static INLINE void Vector_EraseIf( std::vector< type_t >& src, predicate_t p );
 
 template< typename type_t >
 static INLINE bool operator == ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b );

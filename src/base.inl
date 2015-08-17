@@ -92,6 +92,41 @@ static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const type_
     }
 }
 
+template < typename type_t, typename predicate_t >
+static INLINE void Vector_TransferIf( std::vector< type_t >& dest, std::vector< type_t >& src, predicate_t p )
+{
+    for ( auto i = src.begin(); i != src.end(); )
+    {
+        if ( p( *i ) )
+        {
+            dest.push_back( *i );
+            src.erase( i );
+        }
+        else
+        {
+            ++i;
+        }
+    }
+}
+
+template < typename type_t, typename predicate_t >
+static INLINE void Vector_EraseIf( std::vector< type_t >& src, predicate_t p )
+{
+    for ( auto i = src.begin(); i != src.end(); )
+    {
+        type_t& erasure = *i;
+
+        if ( p( erasure ) )
+        {
+            src.erase( i );
+        }
+        else
+        {
+            ++i;
+        }
+    }
+}
+
 template< typename type_t >
 static INLINE bool operator == ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b )
 {
