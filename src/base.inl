@@ -1,5 +1,5 @@
-template < typename T >
-static INLINE bool File_GetBuf( std::vector< T >& outBuffer, const std::string& fpath )
+template < typename type_t >
+static INLINE bool File_GetBuf( std::vector< type_t >& outBuffer, const std::string& fpath )
 {
 	FILE* f = fopen( fpath.c_str(), "rb" );
 	if ( !f )
@@ -8,11 +8,11 @@ static INLINE bool File_GetBuf( std::vector< T >& outBuffer, const std::string& 
 	}
 
 	fseek( f, 0, SEEK_END );
-	size_t count = ftell( f ) / sizeof( T );
+    size_t count = ftell( f ) / sizeof( type_t );
 	fseek( f, 0, SEEK_SET );
 
 	outBuffer.resize( count, 0 );
-    fread( &outBuffer[ 0 ], sizeof( T ), count, f );
+    fread( &outBuffer[ 0 ], sizeof( type_t ), count, f );
 	fclose( f );
 
 	return true;
@@ -39,12 +39,12 @@ static INLINE void Pixels_24BitTo32Bit( uint8_t* destination, const uint8_t* sou
 	}
 }
 
-template < typename T >
-static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
+template < typename type_t >
+static INLINE void Vector_RemovePtr( std::vector< type_t >& v, const type_t& t )
 {
-    static_assert( std::is_pointer< T >::value, "Vector_RemovePtr can only be called on vectors storing a pointer to object type" );
+    static_assert( std::is_pointer< type_t >::value, "Vector_RemovePtr can only be called on vectors storing a pointer to object type" );
 
-    auto del = [ &t ]( T& p )
+    auto del = [ &t ]( type_t& p )
     {
         if ( t == p )
         {
@@ -53,14 +53,14 @@ static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t )
     };
 
     std::for_each( v.begin(), v.end(), del );
-    auto beginRange = std::remove( v.begin(), v.end(), static_cast< T >( nullptr ) );
+    auto beginRange = std::remove( v.begin(), v.end(), static_cast< type_t >( nullptr ) );
     v.erase( beginRange, v.end() );
 }
 
-template < typename T >
-static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t )
+template < typename type_t >
+static INLINE bool Vector_Contains( const std::vector< type_t >& v, const type_t& t )
 {
-    for ( const T& e: v )
+    for ( const type_t& e: v )
     {
         if ( e == t )
         {
@@ -71,32 +71,41 @@ static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t )
     return false;
 }
 
-template < typename T >
-static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vector< T >& src )
+template < typename type_t >
+static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const std::vector< type_t >& src )
 {
-    for ( T e: src )
+    for ( type_t e: src )
     {
-        if ( !Vector_Contains< T >( dest, e ) )
+        if ( !Vector_Contains< type_t >( dest, e ) )
         {
             dest.push_back( e );
         }
     }
 }
 
-template< typename T >
-static INLINE bool operator == ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b )
+template < typename type_t >
+static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const type_t& src )
+{
+    if ( !Vector_Contains( dest, src ) )
+    {
+        dest.push_back( src );
+    }
+}
+
+template< typename type_t >
+static INLINE bool operator == ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b )
 {
     return !a.owner_before( b ) && !b.owner_before( a );
 }
 
-template< typename T >
-static INLINE bool operator != ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b )
+template< typename type_t >
+static INLINE bool operator != ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b )
 {
     return !( a == b );
 }
 
-template< typename T >
-static INLINE bool operator < ( const std::weak_ptr< T >& a, const std::weak_ptr< T >& b )
+template< typename type_t >
+static INLINE bool operator < ( const std::weak_ptr< type_t >& a, const std::weak_ptr< type_t >& b )
 {
     return a.owner_before( b );
 }

@@ -362,7 +362,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
         {
-            //load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
 
             // Prioritization: if drawAdjacent is turned on,
             // it's pretty hard seeing which tile is current
@@ -405,13 +405,15 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
+                load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
                 glm::vec3 color( 1.0f, 0.0f, 0.0f );
 
                 for ( const bounds_region_t& br: region->adjacent )
                 {
                     for ( const tile_t* t: br.tiles )
                     {
-                        Draw_Quad( game, t->bounds->GetTransform(), color, 1.0f );
+                        Draw_Quad( game, t->bounds->GetTransform(), color, 0.4f );
                     }
                 }
 

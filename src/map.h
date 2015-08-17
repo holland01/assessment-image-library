@@ -46,6 +46,7 @@ public:
     bounds_region_t( void );
 
     bounds_region_t( const bounds_region_t& c );
+    bounds_region_t( bounds_region_t&& m ) = delete;
 
     hash_type_t GetID( void ) const;
 };
@@ -75,7 +76,7 @@ namespace std {
 // tile_t
 //-------------------------------------------------------------------------------------------------------
 
-struct tile_t : public entity_t
+struct tile_t: public entity_t
 {    
     using ptr_t = std::shared_ptr< tile_t >;
 
@@ -169,6 +170,8 @@ public:
     bool FindRegions( const tile_t* tile );
 
     void FindAdjacentRegions( void );
+
+    void PurgeDefunctRegions( void );
 
     void MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 

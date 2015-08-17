@@ -19,23 +19,26 @@ void MyFprintf( FILE* f, const char* header, const char* fmt, ... );
 void MyDateTime( const char* format, char* outBuffer, int32_t length );
 void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc );
 
-template < typename T >
-static INLINE void Vector_RemovePtr( std::vector< T >& v, const T& t );
+template < typename type_t >
+static INLINE void Vector_RemovePtr( std::vector< type_t >& v, const type_t& t );
 
-template < typename T >
-static INLINE bool Vector_Contains( const std::vector< T >& v, const T& t );
+template < typename type_t >
+static INLINE bool Vector_Contains( const std::vector< type_t >& v, const type_t& t );
 
-template < typename T >
-static INLINE void Vector_InsertUnique( std::vector< T >& dest, const std::vector< T >& src );
+template < typename type_t >
+static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const std::vector< type_t >& src );
 
-template< typename T >
-static INLINE bool operator == ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b );
+template < class type_t >
+static INLINE void Vector_InsertUnique( std::vector< type_t >& dest, const type_t& src );
 
-template< typename T >
-static INLINE bool operator != ( const std::weak_ptr< T >&a, const std::weak_ptr< T >& b );
+template< typename type_t >
+static INLINE bool operator == ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b );
 
-template< typename T >
-static INLINE bool operator < ( const std::weak_ptr< T >& a, const std::weak_ptr< T >& b );
+template< typename type_t >
+static INLINE bool operator != ( const std::weak_ptr< type_t >&a, const std::weak_ptr< type_t >& b );
+
+template< typename type_t >
+static INLINE bool operator < ( const std::weak_ptr< type_t >& a, const std::weak_ptr< type_t >& b );
 
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)
