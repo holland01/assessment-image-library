@@ -528,7 +528,6 @@ tile_generator_t::tile_generator_t( void )
                             if ( found )
                             {
                                 assert( t->type != tile_t::WALL );
-                                //r->boundsTiles.push_back( tile );
                                 boundsRegion->tiles.push_back( tile );
                             }
                         }
@@ -678,7 +677,7 @@ bool tile_generator_t::FindRegions( const tile_t* tile )
 
                 const tile_t& t = tiles[ index ];
 
-                if ( xWall && t.x == xWall->x )
+                if ( &t == xWall )
                 {
                     break;
                 }
