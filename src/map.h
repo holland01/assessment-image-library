@@ -5,20 +5,19 @@
 #include "physics.h"
 #include "geom.h"
 #include "renderer.h"
+#include "bvh.h"
 
 #include <set>
 #include <unordered_set>
 
 struct frustum_t;
 
-struct tile_t;
+struct map_tile_t;
 struct tile_region_t;
 
-//struct bounds_region_t;
-
-using billboard_list_t = std::vector< tile_t* >;
-using freespace_list_t = std::vector< const tile_t* >;
-using wall_list_t = std::vector< const tile_t* >;
+using billboard_list_t = std::vector< map_tile_t* >;
+using freespace_list_t = std::vector< const map_tile_t* >;
+using wall_list_t = std::vector< const map_tile_t* >;
 
 using ref_tile_region_t = std::weak_ptr< tile_region_t >;
 using shared_tile_region_t = std::shared_ptr< tile_region_t >;
@@ -40,7 +39,7 @@ private:
     hash_type_t id;
 
 public:
-    std::vector< const tile_t* > tiles; // tiles touching the given region from within another region
+    std::vector< const map_tile_t* > tiles; // tiles touching the given region from within another region
     ref_tile_region_t region; // Region which the tiles are adjacent to
 
     bounds_region_t( void );
@@ -62,23 +61,13 @@ bool operator != ( const bounds_region_t& a, const bounds_region_t& b );
 
 using bounds_region_set_t = std::vector< bounds_region_t >;
 
-namespace std {
-    template <> struct hash< bounds_region_t >
-    {
-        size_t operator()( const bounds_region_t& x ) const
-        {
-            return hash< bounds_region_t::hash_type_t >()( x.GetID() );
-        }
-    };
-}
-
 //-------------------------------------------------------------------------------------------------------
 // tile_t
 //-------------------------------------------------------------------------------------------------------
 
-struct tile_t: public entity_t
+struct map_tile_t: public entity
 {    
-    using ptr_t = std::shared_ptr< tile_t >;
+    using ptr_t = std::shared_ptr< map_tile_t >;
 
     friend struct tile_generator_t;
 
@@ -99,7 +88,7 @@ public:
 	int32_t x, z, halfSpaceIndex;
     float size; // does not bear any relation to index lookup in the table at all.
 
-	tile_t( void );
+    map_tile_t( void );
 
     void Set( const glm::mat4& transform );
 
@@ -110,17 +99,17 @@ public:
     bool HasOwner( void ) const;
 };
 
-INLINE void tile_t::SetOwner( shared_tile_region_t& r ) const
+INLINE void map_tile_t::SetOwner( shared_tile_region_t& r ) const
 {
     owner = r;
 }
 
-INLINE const ref_tile_region_t& tile_t::GetOwner( void ) const
+INLINE const ref_tile_region_t& map_tile_t::GetOwner( void ) const
 {
     return owner;
 }
 
-INLINE bool tile_t::HasOwner( void ) const
+INLINE bool map_tile_t::HasOwner( void ) const
 {
     return !owner.expired();
 }
@@ -151,7 +140,7 @@ public:
 
 	using half_space_table_t = std::array< int32_t, NUM_FACES >;
 
-	std::vector< tile_t > tiles;
+    std::vector< map_tile_t > tiles;
     std::vector< shared_tile_region_t > regions;
 
     billboard_list_t billboards;
@@ -161,13 +150,11 @@ public:
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
 	std::vector< half_space_table_t > halfSpaceTable;
-	std::vector< half_space_t > halfSpaces;
+    std::vector< half_space_t > halfSpaces;
 
     tile_generator_t( void );
 
-    bool HasRegion( const tile_region_t* r ) const;
-
-    bool FindRegions( const tile_t* tile );
+    bool FindRegions( const map_tile_t* tile );
 
     void FindAdjacentRegions( void );
 
@@ -178,24 +165,26 @@ public:
     void SetTile( int32_t pass,
                   int32_t x,
                   int32_t z,
-				  std::vector< tile_t* >& mutWalls );
+                  std::vector< map_tile_t* >& mutWalls );
 
     int32_t RangeCount( int32_t x, int32_t z, int32_t offsetEnd );
 
-	bool CollidesWall( glm::vec3& normal, const tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
+    bool CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
     void GetEntities( billboard_list_t& billboards,
                       wall_list_t& walls,
                       freespace_list_t& freeSpace,
-					  const frustum_t& frustum,
+                      const frustum_t& frustum_t,
                       const view_params_t& viewParams );
 
-	half_space_t GenHalfSpace( const tile_t& t, const glm::vec3& normal );
+    half_space_t GenHalfSpace( const map_tile_t& t, const glm::vec3& normal );
 };
 
 //-------------------------------------------------------------------------------------------------------
 // tile_region_t
 //-------------------------------------------------------------------------------------------------------
+
+struct quad_hierarchy_t;
 
 struct tile_region_t
 {
@@ -204,16 +193,17 @@ private:
 
 public:
 
-    const tile_t* origin;
+    const map_tile_t* origin;
 
     glm::vec4 color;
 
-    std::vector< const tile_t* > tiles;
-    std::vector< const tile_t* > wallTiles; // tiles which touch walls
-    std::vector< const tile_t* > boundsTiles; // tiles which touch adjacent regions
+    std::vector< const map_tile_t* > tiles;
+    std::vector< const map_tile_t* > wallTiles; // tiles which touch walls
     bounds_region_set_t adjacent;
 
-    tile_region_t( const tile_t* origin = nullptr );
+    quad_hierarchy_t::ptr_t boundsVolume;
+
+    tile_region_t( const map_tile_t* origin = nullptr );
 
     void Draw( const pipeline_t& pl, const view_params_t& vp );
 
@@ -222,34 +212,5 @@ public:
     bool ShouldDestroy( void ) const;
 };
 
-//-------------------------------------------------------------------------------------------------------
-// quad_hierarchy_t
-//
-// | II.  | I. |
-// | III. | IV. |
-//-------------------------------------------------------------------------------------------------------
 
-struct quad_hierarchy_t
-{
-    static const uint8_t NODE_COUNT = 4;
-
-    using entity_list_t = std::vector< std::weak_ptr< entity_t > >;
-
-    struct node_t
-    {
-        using ptr_t = std::unique_ptr< node_t >;
-
-        bounding_box_t bounds;
-
-        entity_list_t entities;
-
-        std::array< ptr_t, NODE_COUNT > children;
-
-        node_t( uint32_t curDepth, const uint32_t maxDepth, bounding_box_t bounds );
-
-        void Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
-    };
-
-    node_t::ptr_t root;
-};
 

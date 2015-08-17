@@ -58,7 +58,7 @@ enum
 
 struct frustum_t
 {
-	plane_t    frustPlanes[ FRUST_NUM_PLANES ];
+    plane_t    frustPlanes[ FRUST_NUM_PLANES ];
 
 	mutable uint32_t acceptCount;
 
@@ -68,17 +68,17 @@ struct frustum_t
 
 	glm::vec4 CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin );
 
-	frustum_t( void );
+    frustum_t( void );
 
-	~frustum_t( void );
+    ~frustum_t( void );
 
-	void    Update( const view_params_t& params );
+    void    Update( const view_params_t& params );
 
 	void	PrintMetrics( void ) const;
 
 	void	ResetMetrics( void ) const { rejectCount = 0; acceptCount = 0; }
 
-	bool    IntersectsBox( const bounding_box_t& box ) const;
+    bool    IntersectsBox( const bounding_box_t& box ) const;
 };
 
 INLINE void frustum_t::PrintMetrics( void ) const

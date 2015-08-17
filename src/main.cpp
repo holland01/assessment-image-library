@@ -21,8 +21,6 @@ void Game_Frame( void );
 #include "eminput.h"
 
 namespace {
-    quad_hierarchy_t::node_t::ptr_t testNode( nullptr );
-
     enum
     {
         DRAW_BILLBOARDS = 1 << 0,
@@ -30,7 +28,8 @@ namespace {
         DRAW_HALFSPACES = 1 << 2,
         DRAW_REGIONS_ADJACENT = 1 << 3,
         DRAW_REGIONS_BOUNDS = 1 << 4,
-        DRAW_WALLS = 1 << 5
+        DRAW_WALLS = 1 << 5,
+        DRAW_QUAD_REGIONS = 1 << 6
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
@@ -131,14 +130,14 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
     gen.reset( new tile_generator_t() );
 
-	std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const tile_t* a, const tile_t* b ) -> bool
+    std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map_tile_t* a, const map_tile_t* b ) -> bool
 	{
 		glm::vec2 va( a->x, a->z ), vb( b->x, b->z );
 
 		return glm::length( va ) < glm::length( vb );
 	});
 
-	const tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
+    const map_tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
 	{
         body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
@@ -213,11 +212,6 @@ void game_t::Draw( void )
 
 	GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
-    if ( testNode )
-    {
-        testNode->Draw( *pipeline, vp );
-    }
-
 	if ( drawAll )
 	{
 		Draw_Group( *this, vp, gen->billboards, gen->walls, gen->freeSpace );
@@ -277,7 +271,7 @@ void game_t::FireGun( void )
 {
     if ( camera->body )
     {
-        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
+        bullet.reset( new entity( entity::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
         bullet->body->SetOrientation( glm::mat3( 0.1f ) * camera->body->GetOrientation() );
         bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
         bullet->body->SetPosition( camera->GetViewParams().origin );
@@ -318,9 +312,11 @@ void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color
     const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
     const view_params_t& vp = game.camera->GetViewParams();
 
+    singleColor.Bind();
     singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
     singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
     billboardBuffer.Render( singleColor );
+    singleColor.Release();
 }
 
 void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
@@ -354,7 +350,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
         // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
         {
-            for ( const tile_t* tile: region->tiles )
+            for ( const map_tile_t* tile: region->tiles )
             {
                 Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( region->color ) );
             }
@@ -362,8 +358,6 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
         {
-
-
             // Prioritization: if drawAdjacent is turned on,
             // it's pretty hard seeing which tile is current
             // without a full alpha channel.
@@ -377,13 +371,6 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
                 firstAlpha = 0.4f;
             }
 
-            /*
-            for ( const tile_t* tile: region->tiles )
-            {
-                //Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( region->color ), firstAlpha );
-            }
-            */
-
             if ( drawAdjacent )
             {
                 for ( const bounds_region_t& br: region->adjacent )
@@ -395,7 +382,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
                         continue;
                     }
 
-                    for ( const tile_t* tile: adj->tiles )
+                    for ( const map_tile_t* tile: adj->tiles )
                     {
                         Draw_Quad( game, tile->bounds->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
                     }
@@ -411,7 +398,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
                 for ( const bounds_region_t& br: region->adjacent )
                 {
-                    for ( const tile_t* t: br.tiles )
+                    for ( const map_tile_t* t: br.tiles )
                     {
                         Draw_Quad( game, t->bounds->GetTransform(), color, 0.4f );
                     }
@@ -420,6 +407,8 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
                 assert( region->origin );
 
                 Draw_Quad( game, region->origin->bounds->GetTransform(), glm::vec3( 1.0f ), 1.0f );
+
+                region->boundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
             }
         }
     }
@@ -447,7 +436,7 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
 
     imm_draw_t drawer( singleColor );
 
-    for ( tile_t* tile: billboards )
+    for ( map_tile_t* tile: billboards )
     {
         glm::vec3 boundsOrigin( ( *( tile->bounds ) )[ 3 ] );
 
@@ -541,7 +530,7 @@ static void Draw_Group( game_t& game,
     if ( drawFlags & DRAW_WALLS )
     {
         singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-        for ( const tile_t* tile: walls )
+        for ( const map_tile_t* tile: walls )
         {
             Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ) );
 
@@ -576,7 +565,7 @@ static void Draw_Group( game_t& game,
 
     if ( drawFlags & DRAW_HALFSPACES )
     {
-        for ( const tile_t* wall: walls )
+        for ( const map_tile_t* wall: walls )
         {
             if ( wall->halfSpaceIndex < 0 )
             {
@@ -644,9 +633,6 @@ void Game_Frame( void )
     const view_params_t& vp = game.camera->GetViewParams();
 
 	game.frustum.Update( vp );
-
-    //rintf( "DT: %f, measure count: %iu, MoveStep: %f, FPS: %f" OP_CARRIAGE_RETURN,
-   //         game.world.time, game.world.lastMeasureCount, game.camera->viewParams.moveStep, 1.0f / game.world.time );
 
 	if ( !game.drawAll )
 	{

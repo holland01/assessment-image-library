@@ -23,20 +23,20 @@ struct game_t
 
 	float frameTime, lastTime, startTime;
 
-	std::unique_ptr< tile_generator_t > gen;
+    std::unique_ptr< tile_generator_t > gen;
 	std::unique_ptr< pipeline_t > pipeline;
 
-	plane_t groundPlane;
+    plane_t groundPlane;
 
 	input_client_t player, spec;
 	input_client_t* camera;
-	bounding_box_t* drawBounds;
+    bounding_box_t* drawBounds;
 
-    std::unique_ptr< entity_t > bullet;
+    std::unique_ptr< entity > bullet;
 
 	world_t world;
 
-	frustum_t frustum;
+    frustum_t frustum;
 
     texture_t billTexture;
 

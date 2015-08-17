@@ -7,6 +7,8 @@
 #include <string>
 #include <algorithm>
 #include <memory>
+#include <limits>
+#include <glm/glm.hpp>
 
 extern void FlagExit( void ); // should be defined by the user in a different source file
 extern float GetTime( void );
@@ -39,6 +41,9 @@ static INLINE bool operator != ( const std::weak_ptr< type_t >&a, const std::wea
 
 template< typename type_t >
 static INLINE bool operator < ( const std::weak_ptr< type_t >& a, const std::weak_ptr< type_t >& b );
+
+template< typename type_t >
+static INLINE type_t Math_Log4( const type_t& t );
 
 #if defined(__GNUC__) || defined(__clang__)
 #	if defined(__GNUC__)

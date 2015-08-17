@@ -63,6 +63,8 @@ Product {
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
+        "../src/bvh.cpp",
+        "../src/bvh.h",
         "../src/def.h",
         "../src/eminput.h",
         "../src/entity.cpp",

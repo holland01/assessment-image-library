@@ -14,7 +14,6 @@
 struct plane_t;
 struct ray_t;
 
-
 static const glm::vec3 G_DIR_RIGHT( 1.0f, 0.0f, 0.0f );
 static const glm::vec3 G_DIR_UP( 0.0f, 1.0f, 0.0f );
 static const glm::vec3 G_DIR_FORWARD( 0.0f, 0.0f, -1.0f );
@@ -123,8 +122,8 @@ struct half_space_t
 	glm::vec3 origin;
 	float distance;
 
-	half_space_t( void );
-	half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
+    half_space_t( void );
+    half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
 
 	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
 	void Draw( imm_draw_t& drawer ) const;
@@ -163,15 +162,15 @@ public:
 		CORNER_MAX = 7
 	};
 
-	bounding_box_t( const glm::mat4& transform = glm::mat4( 1.0f ) );
+    bounding_box_t( const glm::mat4& transform = glm::mat4( 1.0f ) );
 
-	bounding_box_t( bounding_box_t&& m );
+    bounding_box_t( bounding_box_t&& m );
 
 	// We make this movable only because of the drawBuffer member
-	bounding_box_t( const bounding_box_t& toCopy ) = delete;
-	bounding_box_t& operator =( bounding_box_t toAssign ) = delete;
+    bounding_box_t( const bounding_box_t& toCopy ) = delete;
+    bounding_box_t& operator =( bounding_box_t toAssign ) = delete;
 
-	bool			Encloses( const bounding_box_t& box ) const;
+    bool			Encloses( const bounding_box_t& box ) const;
 
 	glm::vec3       GetCenter( void ) const;
 
@@ -189,7 +188,7 @@ public:
 
     void            GetPoints( std::array< glm::vec3, 8 >& points ) const;
 
-    void			GetFacePlane( face_t face, plane_t& plane ) const;
+    void			GetFacePlane( face_t face, plane_t& plane_t ) const;
 
     void			SetDrawable( const glm::vec4& color );
 
@@ -209,11 +208,11 @@ public:
 
 	bool			EnclosesPoint( const glm::vec3& v ) const;
 
-	bool			IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const;
+    bool			IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const;
 
-	bool			IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const;
+    bool			IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const;
 
-	bool			CalcIntersection( float& t0, const glm::vec3& ray, const glm::vec3& origin ) const;
+    bool			CalcIntersection( float& t0, const glm::vec3& ray_t, const glm::vec3& origin ) const;
 
 };
 

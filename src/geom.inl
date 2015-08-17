@@ -29,11 +29,11 @@ static INLINE void G_RotateMatrixXYZ( glm::mat4& r, const glm::vec3& rotation )
 using point_predicate_t = bool ( * )( float );
 
 template < size_t N, point_predicate_t predicate >
-static INLINE bool G_PointPlaneTest( const std::array< glm::vec3, N >& points, const plane_t& plane )
+static INLINE bool G_PointPlaneTest( const std::array< glm::vec3, N >& points, const plane_t& pln )
 {
     for ( const glm::vec3& p: points )
     {
-        float x = glm::dot( p, plane.normal ) - plane.d;
+        float x = glm::dot( p, pln.normal ) - pln.d;
 
         if ( ( *predicate )( x ) )
         {
@@ -50,7 +50,7 @@ static INLINE float G_TripleProduct( const glm::vec3& a, const glm::vec3& b, con
 }
 
 //-------------------------------------------------------------------------------------------------------
-// transform_t
+// transform
 //-------------------------------------------------------------------------------------------------------
 
 INLINE transform_t::transform_t( void )

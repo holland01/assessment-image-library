@@ -320,7 +320,7 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 
 bool bounding_box_t::IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const
 {
-	half_space_t hs( glm::mat3( bounds.transform ), glm::vec3( bounds.transform[ 3 ] ), 0.0f );
+    half_space_t hs( glm::mat3( bounds.transform ), glm::vec3( bounds.transform[ 3 ] ), 0.0f );
 
 	return hs.TestBounds( normal, glm::mat3( transform ), glm::vec3( transform[ 3 ] ) );
 }
@@ -442,27 +442,27 @@ void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
 
     switch ( face )
     {
-		case bounding_box_t::FACE_TOP:
+        case bounding_box_t::FACE_TOP:
 			p = GetCorner( CORNER_MAX );
             plane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
-		case bounding_box_t::FACE_RIGHT:
+        case bounding_box_t::FACE_RIGHT:
 			p = GetCorner( CORNER_MAX );
             plane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
-		case bounding_box_t::FACE_FRONT:
+        case bounding_box_t::FACE_FRONT:
 			p = GetCorner( CORNER_NEAR_UP_RIGHT );
             plane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
-		case bounding_box_t::FACE_LEFT:
+        case bounding_box_t::FACE_LEFT:
 			p = GetCorner( CORNER_NEAR_UP_LEFT );
             plane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
-		case bounding_box_t::FACE_BACK:
+        case bounding_box_t::FACE_BACK:
 			p = GetCorner( CORNER_FAR_UP_LEFT );
             plane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
-		case bounding_box_t::FACE_BOTTOM:
+        case bounding_box_t::FACE_BOTTOM:
 			p = GetCorner( CORNER_NEAR_DOWN_RIGHT );
             plane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;

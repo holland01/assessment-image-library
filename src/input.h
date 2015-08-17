@@ -36,7 +36,7 @@ enum class input_key_t : uint32_t
 #endif
 };
 
-struct input_client_t : public entity_t
+struct input_client_t : public entity
 {
     view_params_t viewParams;
 

@@ -109,3 +109,10 @@ static INLINE bool operator < ( const std::weak_ptr< type_t >& a, const std::wea
 {
     return a.owner_before( b );
 }
+
+template< typename type_t >
+static INLINE type_t Math_Log4( const type_t& t )
+{
+    static_assert( std::numeric_limits< type_t >::is_iec559, "Math_Log4 is called with integral type; type required is floating point" );
+    return glm::log( t ) * type_t( 0.602059991 );
+}
