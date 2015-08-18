@@ -89,7 +89,7 @@ void world_t::Update( game_t& game )
 {
     game.world.bodies.push_back( game.camera->body );
 
-    const wall_list_t& walls = ( game.drawAll )? game.gen->walls: game.walls;
+    const map_tile_list_t& walls = ( game.drawAll )? game.gen->walls: game.walls;
     for ( const map_tile_t* t: walls )
     {
         bodies.push_back( t->body );

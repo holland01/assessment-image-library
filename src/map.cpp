@@ -58,6 +58,11 @@ namespace {
 		}
 	}};
 
+    INLINE int32_t GridRange( int32_t x )
+    {
+        return glm::clamp( x, tile_generator_t::GRID_START, tile_generator_t::GRID_END - 1 );
+    }
+
     INLINE int32_t TileIndex( int32_t x, int32_t z )
     {
         return z * tile_generator_t::GRID_SIZE + x;
@@ -65,8 +70,8 @@ namespace {
 
     INLINE int32_t TileModIndex( int32_t x, int32_t z )
     {
-        z = glm::clamp( z, tile_generator_t::GRID_START, tile_generator_t::GRID_END - 1 );
-        x = glm::clamp( x, tile_generator_t::GRID_START, tile_generator_t::GRID_END - 1 );
+        z = GridRange( z );
+        x = GridRange( x );
 
         return TileIndex( x, z );
     }
@@ -146,6 +151,59 @@ namespace {
         }
     }
 
+    using iteration_fn_t = std::function< void( const map_tile_t& t, int32_t x, int32_t z ) >;
+
+    void IterateTileRange( const map_tile_t& t, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
+    {
+        int32_t add = 1;
+
+        if ( startOffset > endOffset )
+        {
+            add = -1;
+        }
+
+        int32_t x0 = GridRange( t.x + startOffset );
+        int32_t z0 = GridRange( t.z + startOffset );
+
+        int32_t xe = GridRange( t.x + endOffset );
+        int32_t ze = GridRange( t.z + endOffset );
+
+        for ( int32_t z = z0; z <= ze; z += add )
+        {
+            for ( int32_t x = x0; x <= xe; x += add )
+            {
+                process( t, x, z );
+            }
+        }
+    }
+
+    void IterateTileListRange( std::vector< const map_tile_t* >& tiles, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
+    {
+        for ( const map_tile_t* t: tiles )
+        {
+            IterateTileRange( *t, startOffset, endOffset, process );
+        }
+    }
+
+    using integration_fn_t = std::function< void( float x, float fx, float gx ) >;
+
+    void IntegrateTiles( const std::vector< const map_tile_t* >& functionTiles, integration_fn_t F )
+    {
+        uint32_t i = 0;
+
+        while ( i < functionTiles.size() )
+        {
+            float fx = functionTiles[ i ]->z;
+            float x = functionTiles[ i ]->x;
+
+            while ( i < functionTiles.size() && functionTiles[ i ]->x == x )
+                ++i;
+
+            float gx = functionTiles[ i - 1 ]->z;
+
+            F( x, fx, gx );
+        }
+    }
 
     // Origin of a region is basically it's centroid. We find it
     // using poor man's integration...
@@ -181,38 +239,19 @@ namespace {
             return a->x < b->x;
         });
 
-        glm::vec2 v( 0.0f );
-
-        uint32_t i = 0;
-
         float area = 0.0f;
-        while ( i < sorted.size() )
+        IntegrateTiles( sorted, [ &area ]( float x, float fx, float gx )
         {
-            float fx = sorted[ i ]->z;
-            float x = sorted[ i ]->x;
-
-            while ( i < sorted.size() && sorted[ i ]->x == x )
-                ++i;
-
-            float gx = sorted[ i - 1 ]->z;
-
+            UNUSEDPARAM( x );
             area += fx - gx;
-        }
+        });
 
-        i = 0;
-        while ( i < sorted.size() )
+        glm::vec2 v( 0.0f );
+        IntegrateTiles( sorted, [ &v ]( float x, float fx, float gx )
         {
-            float fx = sorted[ i ]->z;
-            float x = sorted[ i ]->x;
-
-            while ( i < sorted.size() && sorted[ i ]->x == x )
-                ++i;
-
-            float gx = sorted[ i - 1 ]->z;
-
             v.x += x * ( fx - gx );
             v.y += ( fx + gx ) * 0.5f * ( fx - gx );
-        }
+        });
 
         v /= area;
 
@@ -225,27 +264,6 @@ namespace {
         p->origin = &tiles[ TileIndex( index.x, index.y ) ];
 
         return true;
-    }
-
-    bounds_region_t* BoundsRegionFromTile( tile_region_t* r, const map_tile_t* t )
-    {
-        for ( auto i = r->adjacent.begin(); i != r->adjacent.end(); ++i )
-        {
-            bounds_region_t& br = *i;
-            auto region = br.region.lock();
-
-            assert( region );
-
-            for ( const map_tile_t* t0: region->tiles )
-            {
-                if ( t0 == t )
-                {
-                    return &br;
-                }
-            }
-        }
-
-        return nullptr;
     }
 
     bounding_box_t ComputeBoundsFromRegion( const tile_region_t* r )
@@ -337,7 +355,7 @@ namespace {
 // bounds_region_t
 //-------------------------------------------------------------------------------------------------------
 
-bounds_region_t::hash_type_t bounds_region_t::count = 0;
+size_t bounds_region_t::count = 0;
 
 bounds_region_t::bounds_region_t( void )
     : id( count++ )
@@ -366,7 +384,7 @@ bool operator != ( const bounds_region_t& a, const bounds_region_t& b )
 //-------------------------------------------------------------------------------------------------------
 
 map_tile_t::map_tile_t( void )
-    : entity( entity::BODY_DEPENDENT ),
+    : entity_t( entity_t::BODY_DEPENDENT ),
       type( map_tile_t::EMPTY ),
 	  x( 0 ), z( 0 ),
       halfSpaceIndex( -1 )
@@ -381,7 +399,7 @@ void map_tile_t::Set( const glm::mat4& transform )
     switch ( type )
     {
         case map_tile_t::BILLBOARD:
-            depType = entity::BODY_DEPENDENT;
+            depType = entity_t::BODY_DEPENDENT;
             body->SetFromTransform( transform );
             body->SetMass( 100.0f );
             Sync();
@@ -392,7 +410,7 @@ void map_tile_t::Set( const glm::mat4& transform )
                 body->SetMass( 10.0f );
             }
 
-            depType = entity::BOUNDS_DEPENDENT;
+            depType = entity_t::BOUNDS_DEPENDENT;
             bounds->SetTransform( transform );
             Sync();
             break;
@@ -487,7 +505,6 @@ tile_generator_t::tile_generator_t( void )
     PurgeDefunctRegions();
 
     using transfer_predicate_t = std::function< bool( map_tile_t* ) >;
-
     transfer_predicate_t LDoSwapIf = []( map_tile_t* t ) -> bool
     {
         bool needsSwap = !t->HasOwner();
@@ -512,41 +529,33 @@ tile_generator_t::tile_generator_t( void )
         // NOTE: it's important to remember that, since we're searching [ x - 1, x + 1 ] and [ z - 1, z + 1 ]
         // entirely, that tiles which are only diagnolly adjacent to either a wall or a different region
         // will also be added. This may or may not be desired.
-
-        for ( const map_tile_t* tile: r->tiles )
+        IterateTileListRange( r->tiles, -1, 1, [ this, &r ]( const map_tile_t& tile, int32_t x, int32_t z )
         {
-            for ( int32_t z0 = tile->z - 1; z0 <= ( tile->z + 1 ); ++z0 )
-            {
-                for ( int32_t x0 = tile->x - 1; x0 <= ( tile->x + 1 ); ++x0 )
-                {
-                    int32_t index0 = TileModIndex( x0, z0 );
-                    auto r0 = tiles[ index0 ].owner.lock();
-                    const map_tile_t* t = &tiles[ index0 ];
-                    if ( r0 != r )
-                    {
-                        // if !r0, then we're next to a wall;
-                        // the regionTable isn't aware of wall tiles,
-                        // and thus has a nullptr for any index mapped to an area where a wall would be
-                        if ( r0 )
-                        {
-                            bounds_region_t* boundsRegion = BoundsRegionFromTile( r.get(), t );
+            int32_t index = TileModIndex( x, z );
+            auto r0 = tiles[ index ].owner.lock();
+            const map_tile_t* t = &tiles[ index ];
 
-                            assert( boundsRegion );
-                            if ( boundsRegion )
-                            {
-                                assert( t->type != map_tile_t::WALL );
-                                boundsRegion->tiles.push_back( tile );
-                            }
-                        }
-                        else
-                        {
-                            assert( t->type == map_tile_t::WALL );
-                            r->wallTiles.push_back( tile );
-                        }
-                    }
+            if ( r0 != r )
+            {
+                // if !r0, then we're next to a wall;
+                // the regionTable isn't aware of wall tiles,
+                // and thus has a nullptr for any index mapped to an area where a wall would be
+                if ( r0 )
+                {
+                    assert( t->type != map_tile_t::WALL );
+
+                    bounds_region_t* boundsRegion = r->FindAdjacentOwner( t );
+                    assert( boundsRegion );
+
+                    boundsRegion->tiles.push_back( &tile );
+                }
+                else
+                {
+                    assert( t->type == map_tile_t::WALL );
+                    r->wallTiles.push_back( &tile );
                 }
             }
-        }
+        });
     }
 
     // Find an origin...
@@ -761,45 +770,36 @@ void tile_generator_t::FindAdjacentRegions( void )
         }
     }
 
+    // Find all regions which lie adjacent to each individual region
     for ( ref_tile_region_t region: regions )
     {
-        bounds_region_set_t unique;
-
+        bounds_region_list_t unique;
         auto r0 = region.lock();
-
         assert( r0 );
 
-        for ( const map_tile_t* t: r0->tiles )
+        // For every tile in r0, look for adjacent tiles which reside in a different region than r0.
+        IterateTileListRange( r0->tiles, -1, 1, [ this, &r0, &unique ]( const map_tile_t& t, int32_t x, int32_t z )
         {
-            int32_t zStart = glm::max( t->z - 1, GRID_START );
-            int32_t zEnd = glm::min( GRID_END - 1, t->z + 1 );
+            UNUSEDPARAM( t );
 
-            int32_t xStart = glm::max( t->x - 1, GRID_START );
-            int32_t xEnd = glm::min( GRID_END - 1, t->x + 1 );
+            const ref_tile_region_t& rr = tiles[ TileIndex( x, z ) ].GetOwner();
 
-            for ( int32_t z0 = zStart; z0 <= zEnd; ++z0 )
+            bool addIt = false;
             {
-                for ( int32_t x0 = xStart; x0 <= xEnd; ++x0 )
-                {
-                    const ref_tile_region_t& rr = tiles[ TileIndex( x0, z0 ) ].GetOwner();
-
-                    bool addIt = false;
-                    {
-                        auto r1 = rr.lock();
-                        addIt = r1 && ( r1 != r0 ) && !r1->tiles.empty();
-                    }
-
-                    if ( addIt )
-                    {
-                        bounds_region_t br;
-                        br.region = rr;
-
-                        unique.push_back( br );
-                    }
-                }
+                auto r1 = rr.lock();
+                addIt = r1 && ( r1 != r0 ) && !r1->tiles.empty();
             }
-        }
 
+            if ( addIt )
+            {
+                bounds_region_t br;
+                br.region = rr;
+
+                unique.push_back( br );
+            }
+        });
+
+        // Add the adjacent regions to r0's list
         for ( const bounds_region_t& r: unique )
         {
             assert( r.region != region );
@@ -883,15 +883,15 @@ int32_t tile_generator_t::RangeCount( int32_t x, int32_t z, int32_t endOffset )
     for ( int32_t iz = z; iz < ez; ++iz )
 	{
         for ( int32_t ix = x; ix < ex; ++ix )
-		{
+        {
             int32_t i = TileModIndex( ix, iz );
 
             if ( tiles[ i ].type != map_tile_t::EMPTY )
 			{
 				count++;
 			}
-		}
-	}
+        }
+    }
 
 	return count;
 }
@@ -956,7 +956,7 @@ void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z )
 	}
 }
 
-void tile_generator_t::GenHalfSpacesFromWalls( wall_list_t& wallTiles )
+void tile_generator_t::GenHalfSpacesFromWalls( map_tile_list_t& wallTiles )
 {
     std::array< glm::vec3, NUM_FACES > halfSpaceNormals =
     {{
@@ -1110,9 +1110,9 @@ bool tile_generator_t::CollidesWall( glm::vec3& normal, const map_tile_t& t,
 	return false;
 }
 
-void tile_generator_t::GetEntities( billboard_list_t& outBillboards,
-                               wall_list_t& outWalls,
-                               freespace_list_t& outFreeSpace,
+void tile_generator_t::GetEntities( map_tile_list_t& outBillboards,
+                               map_tile_list_t& outWalls,
+                               map_tile_list_t& outFreeSpace,
                                const frustum_t& frustum,
                                const view_params_t& viewParams )
 {
@@ -1203,3 +1203,14 @@ bool tile_region_t::ShouldDestroy( void ) const
     return destroy;
 }
 
+bounds_region_t* tile_region_t::FindAdjacentOwner( const map_tile_t* t )
+{
+    for ( auto i = adjacent.begin(); i != adjacent.end(); ++i )
+    {
+        if ( Vector_Contains< const map_tile_t* >( ( *i ).region.lock()->tiles, t ) )
+        {
+            return &( *i );
+        }
+    }
+    return nullptr;
+}

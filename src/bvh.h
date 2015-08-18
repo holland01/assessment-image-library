@@ -18,7 +18,7 @@ struct quad_hierarchy_t
 
     static const uint8_t NODE_COUNT = 4;
 
-    using entity_list_t = std::vector< std::weak_ptr< entity > >;
+    using entity_list_t = std::vector< std::weak_ptr< entity_t > >;
 
     struct node_t
     {

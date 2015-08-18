@@ -45,7 +45,7 @@ input_client_t::input_client_t( void )
 }
 
 input_client_t::input_client_t( const view_params_t& view )
-    : entity( entity::BODY_DEPENDENT,
+    : entity_t( entity_t::BODY_DEPENDENT,
                 new bounding_box_t,
                 []( void ) -> body_t*
                 {
@@ -208,7 +208,7 @@ void input_client_t::Sync( void )
 	{
         viewParams.origin = body->GetPosition();
         body->SetOrientation( viewParams.inverseOrient );
-        entity::Sync();
+        entity_t::Sync();
 	}
 	else
 	{

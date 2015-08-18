@@ -8,7 +8,7 @@
 struct bounding_box_t;
 struct body_t;
 
-class entity
+class entity_t
 {
 public:
     enum dependent_t
@@ -27,11 +27,16 @@ public:
     std::shared_ptr< bounding_box_t > bounds;
     std::shared_ptr< body_t > body;
 
-    entity( dependent_t dep, bounding_box_t* bounds = nullptr, body_t* body = nullptr, const glm::vec4& color = glm::vec4( 1.0f ) );
+    entity_t( dependent_t dep,
+              bounding_box_t* bounds = nullptr,
+              body_t* body = nullptr,
+              const glm::vec4& color = glm::vec4( 1.0f ) );
 
     virtual void Sync( void );
 
     const glm::vec4& GetColor( void ) const;
+
+    dependent_t GetDependency( void ) const;
 
     glm::mat4 GenScaleTransform( void ) const;
 
@@ -40,22 +45,27 @@ public:
     void SetSize( float sz );
 };
 
-INLINE const glm::vec4& entity::GetColor( void ) const
+INLINE const glm::vec4& entity_t::GetColor( void ) const
 {
     return color;
 }
 
-INLINE glm::mat4 entity::GenScaleTransform( void ) const
+INLINE entity_t::dependent_t entity_t::GetDependency( void ) const
+{
+    return depType;
+}
+
+INLINE glm::mat4 entity_t::GenScaleTransform( void ) const
 {
     return glm::scale( glm::mat4( 1.0f ), glm::vec3( size ) );
 }
 
-INLINE void entity::SetColor( const glm::vec3& color, float alpha )
+INLINE void entity_t::SetColor( const glm::vec3& color, float alpha )
 {
     this->color = std::move( glm::vec4( color, alpha ) );
 }
 
-INLINE void entity::SetSize( float sz )
+INLINE void entity_t::SetSize( float sz )
 {
     size = sz;
 }

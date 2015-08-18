@@ -15,9 +15,9 @@ struct game_t
 	SDL_Renderer* renderer = nullptr;
 	SDL_GLContext context = nullptr;
 
-    billboard_list_t billboards;
-    freespace_list_t freeSpace;
-    wall_list_t walls;
+    map_tile_list_t billboards;
+    map_tile_list_t freeSpace;
+    map_tile_list_t walls;
 
 	uint32_t width, height;
 
@@ -32,7 +32,7 @@ struct game_t
 	input_client_t* camera;
     bounding_box_t* drawBounds;
 
-    std::unique_ptr< entity > bullet;
+    std::unique_ptr< entity_t > bullet;
 
 	world_t world;
 

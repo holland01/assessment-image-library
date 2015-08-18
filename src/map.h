@@ -15,14 +15,14 @@ struct frustum_t;
 struct map_tile_t;
 struct tile_region_t;
 
-using billboard_list_t = std::vector< map_tile_t* >;
-using freespace_list_t = std::vector< map_tile_t* >;
-using wall_list_t = std::vector< map_tile_t* >;
+using map_tile_list_t = std::vector< map_tile_t* >;
 
 using ref_tile_region_t = std::weak_ptr< tile_region_t >;
 using shared_tile_region_t = std::shared_ptr< tile_region_t >;
 
 struct region_merge_predicates_t;
+
+
 
 //-------------------------------------------------------------------------------------------------------
 // bounds_region_t
@@ -30,42 +30,28 @@ struct region_merge_predicates_t;
 
 struct bounds_region_t
 {
-public:
-    using hash_type_t = size_t;
+    static const size_t UNKNOWN = UINTMAX_MAX;
+    static size_t count;
+    size_t id;
 
-private:
-    static const hash_type_t UNKNOWN = UINTMAX_MAX;
-    static hash_type_t count;
-    hash_type_t id;
-
-public:
     std::vector< const map_tile_t* > tiles; // tiles touching the given region from within another region
     ref_tile_region_t region; // Region which the tiles are adjacent to
 
     bounds_region_t( void );
-
     bounds_region_t( const bounds_region_t& c );
-    //bounds_region_t( bounds_region_t&& m ) = delete;
-
-    hash_type_t GetID( void ) const;
 };
-
-INLINE bounds_region_t::hash_type_t bounds_region_t::GetID( void ) const
-{
-    return id;
-}
 
 bool operator == ( const bounds_region_t& a, const bounds_region_t& b );
 
 bool operator != ( const bounds_region_t& a, const bounds_region_t& b );
 
-using bounds_region_set_t = std::vector< bounds_region_t >;
+using bounds_region_list_t = std::vector< bounds_region_t >;
 
 //-------------------------------------------------------------------------------------------------------
 // tile_t
 //-------------------------------------------------------------------------------------------------------
 
-struct map_tile_t: public entity
+struct map_tile_t: public entity_t
 {    
     using ptr_t = std::shared_ptr< map_tile_t >;
 
@@ -122,10 +108,15 @@ struct tile_generator_t
 {	
 public:
     static const int32_t GRID_SIZE = 100;
+
     static const int32_t TABLE_SIZE = GRID_SIZE * GRID_SIZE;
+
     static const int32_t GRID_START = 0;
+
     static const int32_t GRID_END = GRID_SIZE;
+
     static constexpr int32_t MIN_REGION_SIZE = int32_t( float( TABLE_SIZE ) * 0.01f );
+
     static constexpr float TRANSLATE_STRIDE = 2.0f; // for rendering
 
     using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
@@ -145,11 +136,11 @@ public:
 
     std::vector< shared_tile_region_t > regions;
 
-    billboard_list_t billboards;
+    map_tile_list_t billboards;
 
-    wall_list_t walls;
+    map_tile_list_t walls;
 
-    freespace_list_t freeSpace;
+    map_tile_list_t freeSpace;
 
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
@@ -175,13 +166,13 @@ public:
 
     bool        CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
-    void        GetEntities( billboard_list_t& billboards,
-                              wall_list_t& walls,
-                              freespace_list_t& freeSpace,
+    void        GetEntities( map_tile_list_t& billboards,
+                              map_tile_list_t& walls,
+                              map_tile_list_t& freeSpace,
                               const frustum_t& frustum_t,
                               const view_params_t& viewParams );
 
-    void         GenHalfSpacesFromWalls( wall_list_t& wallTiles );
+    void         GenHalfSpacesFromWalls( map_tile_list_t& wallTiles );
 
     half_space_t GenHalfSpace( const map_tile_t& t, const glm::vec3& normal );
 };
@@ -205,7 +196,7 @@ public:
 
     std::vector< const map_tile_t* > tiles;
     std::vector< const map_tile_t* > wallTiles; // tiles which touch walls
-    bounds_region_set_t adjacent;
+    bounds_region_list_t adjacent;
 
     quad_hierarchy_t::ptr_t boundsVolume;
 
@@ -216,6 +207,10 @@ public:
     void Destroy( void ) const;
 
     bool ShouldDestroy( void ) const;
+
+    bounds_region_t* FindAdjacentOwner( const map_tile_t* t );
+
+    void GenBoundsTiles( void );
 };
 
 

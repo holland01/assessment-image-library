@@ -46,9 +46,9 @@ namespace {
 
 static void Draw_Group( game_t& game,
                  const view_params_t& vp,
-                 billboard_list_t& billboards,
-                 wall_list_t& walls,
-                 freespace_list_t& freeSpace );
+                 map_tile_list_t& billboards,
+                 map_tile_list_t& walls,
+                 map_tile_list_t& freeSpace );
 
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
@@ -271,7 +271,7 @@ void game_t::FireGun( void )
 {
     if ( camera->body )
     {
-        bullet.reset( new entity( entity::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
+        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
         bullet->body->SetOrientation( glm::mat3( 0.1f ) * camera->body->GetOrientation() );
         bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
         bullet->body->SetPosition( camera->GetViewParams().origin );
@@ -317,6 +317,11 @@ void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color
     singleColor.LoadMat4( "modelToView", vp.transform * transform * quadTransform );
     billboardBuffer.Render( singleColor );
     singleColor.Release();
+}
+
+void Draw_Tiles( const std::vector< const map_tile_t* >& tiles )
+{
+    UNUSEDPARAM( tiles );
 }
 
 void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
@@ -422,7 +427,7 @@ void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body )
     }
 }
 
-void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& billboards )
+void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& billboards )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
@@ -510,9 +515,9 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, billboard_list_t& b
 
 static void Draw_Group( game_t& game,
                  const view_params_t& vp,
-                 billboard_list_t& billboards,
-                 wall_list_t& walls,
-                 freespace_list_t& freeSpace )
+                 map_tile_list_t& billboards,
+                 map_tile_list_t& walls,
+                 map_tile_list_t& freeSpace )
 {
     UNUSEDPARAM( freeSpace );
 

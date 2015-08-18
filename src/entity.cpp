@@ -2,7 +2,7 @@
 #include "physics.h"
 #include "geom.h"
 
-entity::entity( dependent_t dep, bounding_box_t* bounds_, body_t* body_, const glm::vec4& color_ )
+entity_t::entity_t(dependent_t dep, bounding_box_t* bounds_, body_t* body_, const glm::vec4& color_ )
     : depType( dep ),
       color( color_ ),
       bounds( bounds_ ),
@@ -10,7 +10,7 @@ entity::entity( dependent_t dep, bounding_box_t* bounds_, body_t* body_, const g
 {
 }
 
-void entity::Sync( void )
+void entity_t::Sync( void )
 {
     if ( !( bounds && body ) )
     {
@@ -19,10 +19,10 @@ void entity::Sync( void )
 
     switch ( depType )
     {
-        case entity::BOUNDS_DEPENDENT:
+        case entity_t::BOUNDS_DEPENDENT:
             body->SetFromTransform( bounds->GetTransform() );
             break;
-        case entity::BODY_DEPENDENT:
+        case entity_t::BODY_DEPENDENT:
             bounds->SetCenter( body->GetPosition() );
             bounds->SetOrientation( body->GetOrientation() );
             break;
