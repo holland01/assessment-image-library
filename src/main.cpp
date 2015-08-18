@@ -53,6 +53,7 @@ namespace {
     };
 
     bounds_test_t::bounds_test_t( void )
+        : e( entity_t::BOUNDS_DEPENDENT )
     {
 
     }
@@ -153,34 +154,24 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
     const map_tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
-	{
+    auto LMakeBody = [ this, &tile ]( input_client_t& dest, input_client_t::mode_t mode, float y, float mass )
+    {
         body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        body->SetPosition( glm::vec3( tile->x, 0.0f, tile->z ) );
-        body->SetMass( 80.0f );
+        body->SetPosition( glm::vec3( tile->x, y, tile->z ) );
+        body->SetMass( mass );
 
-        player.body.reset( body );
-        world.bodies.push_back( player.body );
-	}
-	{
-        body_t* specBody = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        specBody->SetPosition( glm::vec3( tile->x, 10.0f, tile->z ) );
-        specBody->SetMass( 5.0f );
+        dest.mode = mode;
+        dest.body.reset( body );
+        dest.Sync();
 
-		spec.mode = input_client_t::MODE_SPEC;
-        spec.body.reset( specBody );
-        spec.Sync();
+        world.bodies.push_back( dest.body );
+    };
 
-        world.bodies.push_back( spec.body );
-	}
+    LMakeBody( player, input_client_t::MODE_PLAY, 0.0f, 80.0f );
+    LMakeBody( spec, input_client_t::MODE_SPEC, 10.0f, 5.0f );
+
 	camera = &player;
     drawBounds = spec.bounds.get();
-
-    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( ( float ) tile_generator_t::GRID_SIZE, 1.0f, ( float ) tile_generator_t::GRID_SIZE ) ) );
-    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), glm::vec3( ( float ) tile_generator_t::GRID_SIZE, 0.0f, ( float )tile_generator_t::GRID_SIZE ) ) );
-
-    glm::mat4 boundsT( t * s );
-
-    //testNode.reset( new quad_hierarchy_t::node_t( 0, 3, std::move( bounding_box_t( boundsT ) ) ) );
 
 	running = true;
 }
