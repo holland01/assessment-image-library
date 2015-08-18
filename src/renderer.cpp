@@ -550,15 +550,39 @@ void draw_buffer_t::Render( const shader_program_t& program ) const
 }
 
 //-------------------------------------------------------------------------------------------------
+// buffer_store_t
+//-------------------------------------------------------------------------------------------------
+
+buffer_store_t::buffer_store_t( void )
+    : lastSize( 0 ),
+      buffer( nullptr )
+{
+}
+
+void buffer_store_t::Update( void )
+{
+    if ( lastSize != vertices.size() )
+    {
+        buffer->ReallocVertices( vertices );
+        lastSize = vertices.size();
+    }
+    else
+    {
+        buffer->Update( vertices );
+    }
+
+    vertices.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
 // imm_draw_t
 //-------------------------------------------------------------------------------------------------
 
-std::unique_ptr< draw_buffer_t > imm_draw_t::buffer( nullptr );
+buffer_store_t imm_draw_t::bufferStore;
 
 imm_draw_t::imm_draw_t( const shader_program_t& prog )
-	  : enabled( true ),
-		lastSize( 0 ),
-		program( prog )
+      : enabled( true ),
+        program( prog )
 {
 }
 
@@ -569,13 +593,13 @@ void imm_draw_t::Begin( GLenum mode )
 		return;
 	}
 
-	if ( !buffer )
+    if ( !bufferStore.buffer )
 	{
-		buffer.reset( new draw_buffer_t() );
-		buffer->usage = GL_DYNAMIC_DRAW;
+        bufferStore.buffer.reset( new draw_buffer_t() );
+        bufferStore.buffer->usage = GL_DYNAMIC_DRAW;
 	}
 
-	buffer->mode = mode;
+    bufferStore.buffer->mode = mode;
 }
 
 void imm_draw_t::Vertex( const draw_vertex_t& v )
@@ -585,7 +609,7 @@ void imm_draw_t::Vertex( const draw_vertex_t& v )
 		return;
 	}
 
-	vertices.push_back( v );
+    bufferStore.vertices.push_back( v );
 }
 
 void imm_draw_t::Vertex( const glm::vec3& position )
@@ -595,7 +619,7 @@ void imm_draw_t::Vertex( const glm::vec3& position )
 		return;
 	}
 
-	vertices.push_back( draw_vertex_t_Make( position ) );
+    bufferStore.vertices.push_back( draw_vertex_t_Make( position ) );
 }
 
 void imm_draw_t::End( void )
@@ -605,18 +629,8 @@ void imm_draw_t::End( void )
 		return;
 	}
 
-	if ( lastSize != vertices.size() )
-	{
-		buffer->ReallocVertices( vertices );
-		lastSize = vertices.size();
-	}
-	else
-	{
-		buffer->Update( vertices );
-	}
-
-	vertices.clear();
-	buffer->Render( program );
+    bufferStore.Update();
+    bufferStore.buffer->Render( program );
 }
 
 void imm_draw_t::SetEnabled( bool value )

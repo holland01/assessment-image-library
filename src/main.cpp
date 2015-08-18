@@ -38,7 +38,7 @@ namespace {
     std::unordered_map< std::string, uint32_t > drawTestConfig =
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
-        { "default", DRAW_BILLBOARDS },
+        { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
         { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
     };
@@ -770,7 +770,7 @@ float GetTime( void )
 
 int main( void ) 
 {
-    drawFlags = drawTestConfig[ "bounds_tiles_test" ];
+    drawFlags = drawTestConfig[ "default" ];
 
 	return Game_Exec();
 }

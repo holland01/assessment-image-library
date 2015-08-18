@@ -30,9 +30,9 @@ struct region_merge_predicates_t;
 
 struct bounds_region_t
 {
-    static const size_t UNKNOWN = UINTMAX_MAX;
-    static size_t count;
-    size_t id;
+    static const uint32_t UNKNOWN = UINT32_MAX;
+    static uint32_t count;
+    uint32_t id;
 
     std::vector< const map_tile_t* > tiles; // tiles touching the given region from within another region
     ref_tile_region_t region; // Region which the tiles are adjacent to
@@ -158,11 +158,9 @@ public:
 
     void        MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
-    void        SetTile(  int32_t pass,
-                          int32_t x,
-                          int32_t z );
+    void        SetTile( map_tile_t& tile, int32_t pass );
 
-    int32_t     RangeCount( int32_t x, int32_t z, int32_t offsetEnd );
+    int32_t     RangeCount( const map_tile_t& t, int32_t startOffset, int32_t offsetEnd );
 
     bool        CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
@@ -210,7 +208,7 @@ public:
 
     bounds_region_t* FindAdjacentOwner( const map_tile_t* t );
 
-    void GenBoundsTiles( void );
+    void Update( void );
 };
 
 

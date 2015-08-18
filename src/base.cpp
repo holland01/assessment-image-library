@@ -50,9 +50,14 @@ void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc )
 
     if ( GL_NO_ERROR != error )
     {
-       // const char* errorString = ( const char* ) gluErrorString( error );
 
-        MyPrintf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, "Unknown" );
+#ifndef OP_GL_USE_ES
+        const char* errorString = ( const char* ) gluErrorString( error );
+#else
+        const char* errorString = "Unavailable";
+#endif
+
+        MyPrintf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, errorString );
         FlagExit();
     }
 }

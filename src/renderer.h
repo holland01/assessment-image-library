@@ -361,6 +361,21 @@ struct pipeline_t
 	~pipeline_t( void );
 };
 
+//-------------------------------------------------------------------------------------------------
+// buffer_store_t
+//-------------------------------------------------------------------------------------------------
+
+struct buffer_store_t
+{
+    size_t lastSize;
+    std::vector< draw_vertex_t > vertices;
+    std::unique_ptr< draw_buffer_t > buffer;
+
+    buffer_store_t( void );
+
+    void Update( void );
+};
+
 //---------------------------------------------------------------------
 // imm_draw_t
 //---------------------------------------------------------------------
@@ -368,11 +383,10 @@ struct pipeline_t
 struct imm_draw_t
 {
 private:
-	static std::unique_ptr< draw_buffer_t > buffer;
 	bool enabled;
-	size_t lastSize;
-	std::vector< draw_vertex_t > vertices;
-	const shader_program_t& program;
+    const shader_program_t& program;
+
+    static buffer_store_t bufferStore;
 
 public:
 	imm_draw_t( const shader_program_t& prog );

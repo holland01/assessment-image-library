@@ -5,18 +5,19 @@
 #include <glm/gtx/simd_vec4.hpp>
 #include <glm/gtx/simd_mat4.hpp>
 
+namespace geom {
 #if GLM_ARCH != GLM_ARCH_PURE
-namespace {
-	INLINE void Mat3ToSimd( glm::simdMat4& out, const glm::mat3& in )
-	{
-		out[ 0 ] = glm::simdVec4( in[ 0 ], 0.0f );
-		out[ 1 ] = glm::simdVec4( in[ 1 ], 0.0f );
-		out[ 2 ] = glm::simdVec4( in[ 2 ], 0.0f );
-		out[ 3 ] = glm::simdVec4( 0.0f );
-	}
-}
+    using vec_t = glm::simdVec4;
+    using mat_t = glm::simdMat4;
 
-namespace {
+    INLINE void Mat3ToSimd( mat_t& out, const glm::mat3& in )
+	{
+        out[ 0 ] = vec_t( in[ 0 ], 0.0f );
+        out[ 1 ] = vec_t( in[ 1 ], 0.0f );
+        out[ 2 ] = vec_t( in[ 2 ], 0.0f );
+        out[ 3 ] = vec_t( 0.0f );
+	}
+
 	bool operator==
 	(
 		glm::simdVec4 const & a,
@@ -43,8 +44,98 @@ namespace {
 	{
 		return !( a == b );
 	}
-}
+
+#else
+    using vec_t = glm::vec3;
+    using mat_t = glm::mat3;
 #endif // GLM_ARCH_PURE
+
+    struct intersect_comp_t
+    {
+        struct sat_params_t
+        {
+            const vec_t& p0;
+            const vec_t& d0;
+            const vec_t& origin;
+            const mat_t& extents;
+        };
+
+        const vec_t& origin;
+        const vec_t& srcOrigin;
+
+        const mat_t& extents;
+        const mat_t& srcExtents;
+
+        float sizeLength;
+
+        std::array< vec_t, 3 > sourcePoints;
+        std::array< sat_params_t, 6 > testParams;
+
+        intersect_comp_t( const vec_t& origin_, const mat_t& extents_, const vec_t& srcOrigin_, const mat_t& srcExtents_ );
+
+        bool ValidateDistance( void );
+
+        bool TestIntersection( uint32_t paramsIndex );
+
+        bool TestIntersection( const sat_params_t& params );
+    };
+
+    intersect_comp_t::intersect_comp_t( const vec_t& origin_, const mat_t& extents_, const vec_t& srcOrigin_, const mat_t& srcExtents_ )
+        : origin( origin_ ),
+          srcOrigin( srcOrigin_ ),
+          extents( extents_ ),
+          srcExtents( srcExtents_ ),
+          sizeLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) ),
+          sourcePoints( {{
+            srcOrigin_ + srcExtents_[ 0 ],
+            srcOrigin_ + srcExtents_[ 1 ],
+            srcOrigin_ + srcExtents_[ 2 ]
+          }} ),
+          testParams( {{
+            { origin, extents[ 0 ], srcOrigin, srcExtents },
+            { origin, extents[ 1 ], srcOrigin, srcExtents },
+            { origin, extents[ 2 ], srcOrigin, srcExtents },
+
+            { srcOrigin, srcExtents[ 0 ], origin, extents },
+            { srcOrigin, srcExtents[ 1 ], origin, extents },
+            { srcOrigin, srcExtents[ 2 ], origin, extents }
+          }} )
+    {
+    }
+
+    bool intersect_comp_t::ValidateDistance( void )
+    {
+        if ( glm::distance( origin, sourcePoints[ 0 ] ) > sizeLength ) return false;
+        if ( glm::distance( origin, sourcePoints[ 1 ] ) > sizeLength ) return false;
+        if ( glm::distance( origin, sourcePoints[ 2 ] ) > sizeLength ) return false;
+
+        return true;
+    }
+
+    INLINE bool intersect_comp_t::TestIntersection( uint32_t index )
+    {
+        return TestIntersection( testParams[ index ] );
+    }
+
+    bool intersect_comp_t::TestIntersection( const sat_params_t& params )
+    {
+        vec_t a( params.origin + params.extents[ 0 ] ),
+              b( params.origin + params.extents[ 1 ] ),
+              c( params.origin + params.extents[ 2 ] );
+
+        float ax( glm::dot( a - params.p0, params.d0 ) );
+        float ay( glm::dot( b - params.p0, params.d0 ) );
+        float az( glm::dot( c - params.p0, params.d0 ) );
+
+        float dlen = glm::length( params.d0 );
+
+        if ( params.d0 != params.extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
+        if ( params.d0 != params.extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
+        if ( params.d0 != params.extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
+
+        return false;
+    }
+}
 
 const float DISTANCE_THRESH = 0.03125f;
 
@@ -110,7 +201,7 @@ half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_,
 bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
 #if GLM_ARCH == GLM_ARCH_PURE
-	float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) );
+    /*float szLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) );
 
 	glm::vec3 a( srcOrigin + srcExtents[ 0 ] );
 	glm::vec3 b( srcOrigin + srcExtents[ 1 ] );
@@ -120,34 +211,21 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	if ( glm::distance( origin, b ) > szLength ) return false;
 	if ( glm::distance( origin, c ) > szLength ) return false;
 
-	auto LIntersects = []( const glm::vec3& p0, const glm::vec3& d0, const glm::vec3& origin, const glm::mat3& extents ) -> bool
-	{
-		glm::vec3     a( origin + extents[ 0 ] ),
-					  b( origin + extents[ 1 ] ),
-					  c( origin + extents[ 2 ] );
-
-		float ax( glm::dot( a - p0, d0 ) );
-		float ay( glm::dot( b - p0, d0 ) );
-		float az( glm::dot( c - p0, d0 ) );
-
-		float dlen = glm::length( d0 );
-
-		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
-		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
-		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
-
-		return false;
-	};
-
 	normal = std::move( extents[ 2 ] );
 
-	if ( LIntersects( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
-	if ( LIntersects( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;
-	if ( LIntersects( origin, extents[ 2 ], srcOrigin, srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( origin, extents[ 0 ], srcOrigin, srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( origin, extents[ 1 ], srcOrigin, srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( origin, extents[ 2 ], srcOrigin, srcExtents ) ) return true;
 
-	if ( LIntersects( srcOrigin, srcExtents[ 0 ], origin, extents ) ) return true;
-	if ( LIntersects( srcOrigin, srcExtents[ 1 ], origin, extents ) ) return true;
-	if ( LIntersects( srcOrigin, srcExtents[ 2 ], origin, extents ) ) return true;
+    if ( geom::TestSAIntersection( srcOrigin, srcExtents[ 0 ], origin, extents ) ) return true;
+    if ( geom::TestSAIntersection( srcOrigin, srcExtents[ 1 ], origin, extents ) ) return true;
+    if ( geom::TestSAIntersection( srcOrigin, srcExtents[ 2 ], origin, extents ) ) return true;
+    */
+
+    geom::intersect_comp_t test( origin, extents, srcOrigin, srcExtents );
+
+    normal = std::move( extents[ 2 ] );
+
 #else
 	glm::simdMat4 _srcExtents, _extents;
 	Mat3ToSimd( _srcExtents, srcExtents );
@@ -156,6 +234,11 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	glm::simdVec4 _srcOrigin( srcOrigin, 1.0f );
 	glm::simdVec4 _origin( origin, 1.0f );
 
+    geom::intersect_comp_t test( _origin, _extents, _srcOrigin, _srcExtents );
+
+    normal = std::move( glm::vec3( glm::vec4_cast( _extents[ 2 ] ) ) );
+
+    /*
 	float szLength( glm::length( _extents[ 0 ] + _extents[ 1 ] + _extents[ 2 ] ) );
 
 	glm::simdVec4 a( _srcOrigin + _srcExtents[ 0 ] );
@@ -166,34 +249,25 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	if ( glm::distance( _origin, b ) > szLength ) return false;
 	if ( glm::distance( _origin, c ) > szLength ) return false;
 
-	auto LIntersects = []( const glm::simdVec4& p0, const glm::simdVec4& d0, const glm::simdVec4& origin, const glm::simdMat4& extents ) -> bool
-	{
-		glm::simdVec4 a( origin + extents[ 0 ] ),
-					  b( origin + extents[ 1 ] ),
-					  c( origin + extents[ 2 ] );
-
-		float ax( glm::dot( a - p0, d0 ) );
-		float ay( glm::dot( b - p0, d0 ) );
-		float az( glm::dot( c - p0, d0 ) );
-
-		float dlen = glm::length( d0 );
-
-		if ( d0 != extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
-		if ( d0 != extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
-		if ( d0 != extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
-		return false;
-	};
-
 	normal = std::move( glm::vec3( glm::vec4_cast( _extents[ 2 ] ) ) );
 
-	if ( LIntersects( _origin, _extents[ 0 ], _srcOrigin, _srcExtents ) ) return true;
-	if ( LIntersects( _origin, _extents[ 1 ], _srcOrigin, _srcExtents ) ) return true;
-	if ( LIntersects( _origin, _extents[ 2 ], _srcOrigin, _srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( _origin, _extents[ 0 ], _srcOrigin, _srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( _origin, _extents[ 1 ], _srcOrigin, _srcExtents ) ) return true;
+    if ( geom::TestSAIntersection( _origin, _extents[ 2 ], _srcOrigin, _srcExtents ) ) return true;
 
-	if ( LIntersects( _srcOrigin, _srcExtents[ 0 ], _origin, _extents ) ) return true;
-	if ( LIntersects( _srcOrigin, _srcExtents[ 1 ], _origin, _extents ) ) return true;
-	if ( LIntersects( _srcOrigin, _srcExtents[ 2 ], _origin, _extents ) ) return true;
+    if ( geom::TestSAIntersection( _srcOrigin, _srcExtents[ 0 ], _origin, _extents ) ) return true;
+    if ( geom::TestSAIntersection( _srcOrigin, _srcExtents[ 1 ], _origin, _extents ) ) return true;
+    if ( geom::TestSAIntersection( _srcOrigin, _srcExtents[ 2 ], _origin, _extents ) ) return true;
+    */
 #endif // GLM_ARCH_PURE
+
+    if ( test.TestIntersection( 0 ) ) return true;
+    if ( test.TestIntersection( 1 ) ) return true;
+    if ( test.TestIntersection( 2 ) ) return true;
+
+    if ( test.TestIntersection( 3 ) ) return true;
+    if ( test.TestIntersection( 4 ) ) return true;
+    if ( test.TestIntersection( 5 ) ) return true;
 
 	return false;
 }

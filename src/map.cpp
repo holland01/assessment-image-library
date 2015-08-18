@@ -431,7 +431,12 @@ tile_generator_t::tile_generator_t( void )
 		{
 			for ( uint32_t x = 0; x < GRID_SIZE; ++x )
 			{
-                SetTile( pass, x, z );
+                int32_t index = TileIndex( x, z );
+
+                tiles[ index ].x = x;
+                tiles[ index ].z = z;
+
+                SetTile( tiles[ index ], pass );
 			}
 		}
 	}
@@ -864,42 +869,26 @@ void tile_generator_t::MergeRegions( const region_merge_predicates_t& predicates
     regions.insert( regions.end(), merged.begin(), merged.end() );
 }
 
-int32_t tile_generator_t::RangeCount( int32_t x, int32_t z, int32_t endOffset )
+int32_t tile_generator_t::RangeCount( const map_tile_t& t, int32_t startOffset, int32_t endOffset )
 {
-    if ( x < GRID_START )
-	{
-        x = GRID_START;
-	}
-
-    if ( z < GRID_START )
-	{
-        z = GRID_START;
-	}
-
-    int32_t ex = ( x + endOffset );
-    int32_t ez = ( z + endOffset );
-
     int32_t count = 0;
-    for ( int32_t iz = z; iz < ez; ++iz )
-	{
-        for ( int32_t ix = x; ix < ex; ++ix )
-        {
-            int32_t i = TileModIndex( ix, iz );
 
-            if ( tiles[ i ].type != map_tile_t::EMPTY )
-			{
-				count++;
-			}
+    IterateTileRange( t, startOffset, endOffset, [ this, &count ]( const map_tile_t& tile, int32_t x, int32_t z )
+    {
+        UNUSEDPARAM( tile );
+
+        if ( tiles[ TileIndex( x, z ) ].type != map_tile_t::EMPTY )
+        {
+            count++;
         }
-    }
+    });
 
 	return count;
 }
 
-void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z )
+void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
 {
-	bool isWall;
-    int32_t center = TileIndex( x, z );
+    bool isWall;
 
 	if ( pass == 0 )
 	{
@@ -907,21 +896,19 @@ void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z )
 	}
 	else
 	{
-		isWall = RangeCount( x - 1, z - 1, 3 ) >= 5 || predicates[ pass - 1 ]( RangeCount( x - 2, z - 2, 5 ) );
+        isWall = RangeCount( tile, -1, 1 ) >= 5 || predicates[ pass - 1 ]( RangeCount( tile, -2, 2 ) );
 	}
 
-    tiles[ center ].bounds.reset();
-    tiles[ center ].type = map_tile_t::EMPTY;
-	tiles[ center ].x = x;
-	tiles[ center ].z = z;
+    tile.bounds.reset();
+    tile.type = map_tile_t::EMPTY;
 
 	// Multiply x and z values by 2 to accomodate for bounds scaling on the axis
 	if ( isWall )
 	{
-        tiles[ center ].type = map_tile_t::WALL;
+        tile.type = map_tile_t::WALL;
 		if ( pass == GEN_PASS_COUNT - 1 )
 		{
-			walls.push_back( &tiles[ center ] );
+            walls.push_back( &tile );
 		}
 	}
 	else
@@ -929,10 +916,10 @@ void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z )
 		// There is a 5% chance that billboards will be added
 		if ( wallDet( randEngine ) <= 5u )
 		{
-            tiles[ center ].type = map_tile_t::BILLBOARD;
+            tile.type = map_tile_t::BILLBOARD;
 			if ( pass == GEN_PASS_COUNT - 1 )
 			{
-				billboards.push_back( &tiles[ center ] );
+                billboards.push_back( &tile );
 			}
 
 		}
@@ -940,19 +927,19 @@ void tile_generator_t::SetTile( int32_t pass, int32_t x, int32_t z )
 		{
 			if ( pass == GEN_PASS_COUNT - 1 )
 			{
-				freeSpace.push_back( &tiles[ center ] );
+                freeSpace.push_back( &tile );
 			}
 		}
 	}
 
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
-        tiles[ center ].SetSize( 1.0f );
+        tile.SetSize( 1.0f );
 
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
-                                     glm::vec3( TRANSLATE_STRIDE * x, 0.0f, TRANSLATE_STRIDE * z ) ) );
+                                     glm::vec3( TRANSLATE_STRIDE * tile.x, 0.0f, TRANSLATE_STRIDE * tile.z ) ) );
 
-        tiles[ center ].Set( t * tiles[ center ].GenScaleTransform() );
+        tile.Set( t * tile.GenScaleTransform() );
 	}
 }
 
@@ -1212,5 +1199,14 @@ bounds_region_t* tile_region_t::FindAdjacentOwner( const map_tile_t* t )
             return &( *i );
         }
     }
+
     return nullptr;
+}
+
+void tile_region_t::Update( void )
+{
+    for ( const map_tile_t* tile: tiles )
+    {
+        UNUSEDPARAM( tile );
+    }
 }

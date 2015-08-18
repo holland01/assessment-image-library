@@ -12,6 +12,7 @@ namespace {
     const glm::vec3 PLANE_VEC( 1.0f, 0.0f, 1.0f );
     const glm::vec3 CONST_AXIS_VEC( 0.0f, 1.0f, 0.0f );
     const uint8_t CONST_AXIS = 1;
+    const glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
 }
 
 quad_hierarchy_t::quad_hierarchy_t( bounding_box_t bounds, const uint32_t maxDepth )
@@ -27,12 +28,12 @@ quad_hierarchy_t::node_t::node_t( uint32_t curDepth, const uint32_t maxDepth, bo
         return;
     }
 
-    glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
     auto LMakeChild = [ & ]( uint8_t index, const glm::vec3& offset )
     {
         glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ), offset ) );
         glm::mat4 m( t * s );
+
         children[ index ].reset( new node_t( curDepth + 1, maxDepth, std::move( bounding_box_t( m ) ) ) );
     };
 
@@ -66,4 +67,13 @@ void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& 
             n->Draw( pl, vp, t );
         }
     }
+}
+
+void quad_hierarchy_t::node_t::Update( const std::vector< std::weak_ptr< entity_t> >& entities, const glm::mat4& rootTransform )
+{
+    UNUSEDPARAM( entities );
+
+    glm::mat4 t( rootTransform * bounds.GetTransform() );
+
+
 }
