@@ -42,6 +42,20 @@ namespace {
         { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
     };
+
+    struct bounds_test_t
+    {
+        entity_t e;
+
+        bounds_test_t( void );
+
+        void Update( void );
+    };
+
+    bounds_test_t::bounds_test_t( void )
+    {
+
+    }
 }
 
 static void Draw_Group( game_t& game,

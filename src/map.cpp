@@ -355,7 +355,7 @@ namespace {
 // bounds_region_t
 //-------------------------------------------------------------------------------------------------------
 
-size_t bounds_region_t::count = 0;
+uint32_t bounds_region_t::count = 0;
 
 bounds_region_t::bounds_region_t( void )
     : id( count++ )
