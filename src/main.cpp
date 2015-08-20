@@ -33,9 +33,9 @@ namespace {
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
-    uint32_t drawFlags = 0;
+    uint32_t gDrawFlags = 0;
 
-    std::unordered_map< std::string, uint32_t > drawTestConfig =
+    std::unordered_map< std::string, uint32_t > gDrawTestConfig =
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
@@ -53,10 +53,13 @@ namespace {
     };
 
     bounds_test_t::bounds_test_t( void )
-        : e( entity_t::BOUNDS_DEPENDENT )
+        : e( entity_t::BOUNDS_DEPENDENT, new bounding_box_t( glm::scale( glm::mat4( 1.0f ), glm::vec3( 10.0f ) ) ) )
     {
-
+        e.bounds->SetCenter( glm::vec3( 0.0f, 10.0f, 0.0f ) );
+        e.Sync();
     }
+
+    bounds_test_t gBoundsTest;
 }
 
 static void Draw_Group( game_t& game,
@@ -154,10 +157,10 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 
     const map_tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
 
-    auto LMakeBody = [ this, &tile ]( input_client_t& dest, input_client_t::mode_t mode, float y, float mass )
+    auto LMakeBody = [ this, &tile ]( input_client_t& dest, input_client_t::mode_t mode, const glm::vec3& pos, float mass )
     {
         body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        body->SetPosition( glm::vec3( tile->x, y, tile->z ) );
+        body->SetPosition( pos );
         body->SetMass( mass );
 
         dest.mode = mode;
@@ -167,8 +170,8 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
         world.bodies.push_back( dest.body );
     };
 
-    LMakeBody( player, input_client_t::MODE_PLAY, 0.0f, 80.0f );
-    LMakeBody( spec, input_client_t::MODE_SPEC, 10.0f, 5.0f );
+    LMakeBody( player, input_client_t::MODE_PLAY, glm::vec3( tile->x, 0.0f, tile->z ), 80.0f );
+    LMakeBody( spec, input_client_t::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
 
 	camera = &player;
     drawBounds = spec.bounds.get();
@@ -498,7 +501,7 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& bi
         billboardBuffer.Render( billboard );
         game.billTexture.Release( 0 );
 
-        if ( drawFlags & DRAW_BILLBOARD_BOUNDS )
+        if ( gDrawFlags & DRAW_BILLBOARD_BOUNDS )
         {
             singleColor.Bind();
             Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ), 0.5f );
@@ -537,7 +540,7 @@ static void Draw_Group( game_t& game,
     // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
 
-    if ( drawFlags & DRAW_WALLS )
+    if ( gDrawFlags & DRAW_WALLS )
     {
         singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
         for ( const map_tile_t* tile: walls )
@@ -564,7 +567,7 @@ static void Draw_Group( game_t& game,
         Draw_Bounds( game, *( game.bullet->bounds ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
 
-    if ( drawFlags & DRAW_BILLBOARDS )
+    if ( gDrawFlags & DRAW_BILLBOARDS )
     {
         Draw_Billboards( game, vp, billboards );
     }
@@ -573,7 +576,7 @@ static void Draw_Group( game_t& game,
     singleColor.LoadMat4( "modelToView", vp.transform );
     singleColor.LoadVec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
 
-    if ( drawFlags & DRAW_HALFSPACES )
+    if ( gDrawFlags & DRAW_HALFSPACES )
     {
         for ( const map_tile_t* wall: walls )
         {
@@ -597,13 +600,26 @@ static void Draw_Group( game_t& game,
         }
     }
 
+    {
+        glm::vec3 color( 1.0f );
+
+        if ( gBoundsTest.e.bounds->Encloses( *( game.spec.bounds ) ) )
+        {
+            color.g = 0.0f;
+            color.b = 0.0f;
+        }
+
+        Draw_Bounds( game, *( gBoundsTest.e.bounds ), color );
+    }
+
+
     // Draw the bounds of the camera not currently being used
     Draw_Bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
     singleColor.Bind();
 
-    bool drawAdj = !!( drawFlags & DRAW_REGIONS_ADJACENT );
-    bool drawBounds = !!( drawFlags & DRAW_REGIONS_BOUNDS );
+    bool drawAdj = !!( gDrawFlags & DRAW_REGIONS_ADJACENT );
+    bool drawBounds = !!( gDrawFlags & DRAW_REGIONS_BOUNDS );
 
     if  ( drawAdj || drawBounds )
     {
@@ -721,11 +737,11 @@ uint32_t Game_Exec( void )
 							}
 							break;
                         case SDLK_b:
-                            drawFlags ^= DRAW_BILLBOARDS;
+                            gDrawFlags ^= DRAW_BILLBOARDS;
                             break;
 
                         case SDLK_h:
-                            drawFlags ^= DRAW_HALFSPACES;
+                            gDrawFlags ^= DRAW_HALFSPACES;
                             break;
 
                         default:
@@ -775,7 +791,7 @@ float GetTime( void )
 
 int main( void ) 
 {
-    drawFlags = drawTestConfig[ "default" ];
+    gDrawFlags = gDrawTestConfig[ "default" ];
 
 	return Game_Exec();
 }

@@ -135,11 +135,10 @@ struct half_space_t
 
 struct bounding_box_t
 {
-private:
+public:
 	glm::mat4 transform;
     glm::vec4 color;
 
-public:
     enum face_t
     {
         FACE_TOP = 0,
@@ -195,8 +194,6 @@ public:
     void            SetCenter( const glm::vec3& position );
 
     void            SetOrientation( const glm::mat3& orient );
-
-    void            SetTransform( const glm::mat4& t );
 
     const glm::vec4& operator[]( uint32_t i ) const;
 

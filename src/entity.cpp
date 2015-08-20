@@ -12,19 +12,20 @@ entity_t::entity_t(dependent_t dep, bounding_box_t* bounds_, body_t* body_, cons
 
 void entity_t::Sync( void )
 {
-    if ( !( bounds && body ) )
-    {
-        return;
-    }
-
     switch ( depType )
     {
         case entity_t::BOUNDS_DEPENDENT:
-            body->SetFromTransform( bounds->GetTransform() );
+            if ( body )
+            {
+                body->SetFromTransform( bounds->GetTransform() );
+            }
             break;
         case entity_t::BODY_DEPENDENT:
-            bounds->SetCenter( body->GetPosition() );
-            bounds->SetOrientation( body->GetOrientation() );
+            if ( bounds )
+            {
+                bounds->SetCenter( body->GetPosition() );
+                bounds->SetOrientation( body->GetOrientation() );
+            }
             break;
     }
 }

@@ -210,11 +210,6 @@ INLINE void bounding_box_t::SetOrientation( const glm::mat3& orient )
     transform[ 2 ] = glm::vec4( orient[ 2 ], 0.0f );
 }
 
-INLINE void bounding_box_t::SetTransform( const glm::mat4& t )
-{
-    transform = t;
-}
-
 INLINE const glm::vec4& bounding_box_t::operator[]( uint32_t i ) const
 {
     assert( i < 4 );

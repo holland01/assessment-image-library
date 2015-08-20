@@ -411,7 +411,7 @@ void map_tile_t::Set( const glm::mat4& transform )
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
-            bounds->SetTransform( transform );
+            bounds->transform = transform;
             Sync();
             break;
     }
