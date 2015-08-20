@@ -725,4 +725,12 @@ GLM_FUNC_QUALIFIER detail::fvec4SIMD fastInversesqrt(detail::fvec4SIMD const & x
 	return _mm_rsqrt_ps(x.Data);
 }
 
+detail::fvec4SIMD proj(
+    detail::fvec4SIMD const & x,
+    detail::fvec4SIMD const & Normal)
+{
+    return ( dot(x, Normal) / dot(Normal, Normal) ) * Normal;
+}
+
+
 }//namespace glm

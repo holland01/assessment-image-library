@@ -149,18 +149,15 @@ namespace geom {
               b( params.origin + params.extents[ 1 ] ),
               c( params.origin + params.extents[ 2 ] );
 
-
-
-        float ax( glm::dot( a - params.p0, params.d0 ) );
-        float ay( glm::dot( b - params.p0, params.d0 ) );
-        float az( glm::dot( c - params.p0, params.d0 ) );
+        vec_t ax( glm::proj( a - params.p0, params.d0 ) );
+        vec_t ay( glm::proj( b - params.p0, params.d0 ) );
+        vec_t az( glm::proj( c - params.p0, params.d0 ) );
 
         float dlen = glm::length( params.d0 );
-        //float
 
-        if ( params.d0 != params.extents[ 0 ] && ax > 0.0f && ax <= dlen ) return true;
-        if ( params.d0 != params.extents[ 1 ] && ay > 0.0f && ay <= dlen ) return true;
-        if ( params.d0 != params.extents[ 2 ] && az > 0.0f && az <= dlen ) return true;
+        if ( glm::abs( glm::length( ax ) ) <= dlen ) return true;
+        if ( glm::abs( glm::length( ay ) ) <= dlen ) return true;
+        if ( glm::abs( glm::length( az ) ) <= dlen ) return true;
 
         return false;
     }

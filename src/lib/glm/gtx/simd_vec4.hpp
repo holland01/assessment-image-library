@@ -562,6 +562,10 @@ namespace detail
 	detail::fvec4SIMD fastInversesqrt(
 		detail::fvec4SIMD const & x);
 
+    detail::fvec4SIMD proj(
+        detail::fvec4SIMD const & x,
+        detail::fvec4SIMD const & Normal);
+
     ///! Compare two simdVec4s for equality
     /// @see gtx_simd_vec4
     GLM_FUNC_QUALIFIER bool operator== (detail::fvec4SIMD const & a, detail::fvec4SIMD const & b);
