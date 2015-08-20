@@ -51,12 +51,14 @@ namespace geom {
         std::array< vec_t, numVectors > vectors;
         std::array< mat_t, numMatrices > matrices;
 
-        simd_conversion_t( const std::array< glm::vec3, numVectors >& v, const std::array< glm::mat3, numMatrices >& m );
+        simd_conversion_t( const std::array< glm::vec3, numVectors >& v,
+                           const std::array< glm::mat3, numMatrices >& m );
     };
 
     template< size_t numVectors, size_t numMatrices >
-    simd_conversion_t< numVectors, numMatrices >::simd_conversion_t( const std::array< glm::vec3, numVectors >& v,
-                                                                     const std::array< glm::mat3, numMatrices >& m )
+    simd_conversion_t< numVectors, numMatrices >::simd_conversion_t(
+            const std::array< glm::vec3, numVectors >& v,
+            const std::array< glm::mat3, numMatrices >& m )
     {
         for ( uint32_t i = 0; i < numVectors; ++i )
         {
@@ -83,7 +85,7 @@ namespace geom {
             const vec_t& p0;
             const vec_t& d0;
             const vec_t& origin;
-            const mat_t& extents;
+            const mat_t extents;
         };
 
         const vec_t& origin;
@@ -95,18 +97,23 @@ namespace geom {
         float sizeLength;
 
         std::array< vec_t, 3 > sourcePoints;
-        std::array< sat_params_t, 6 > testParams;
 
-        intersect_comp_t( const vec_t& origin_, const mat_t& extents_, const vec_t& srcOrigin_, const mat_t& srcExtents_ );
+        intersect_comp_t(
+            const vec_t& origin_,
+            const mat_t& extents_,
+            const vec_t& srcOrigin_,
+            const mat_t& srcExtents_ );
 
         bool ValidateDistance( void );
 
-        bool TestIntersection( uint32_t paramsIndex );
-
-        bool TestIntersection( const sat_params_t& params );
+        bool TestIntersection( const vec_t& p0, const vec_t& d0, const vec_t& origin_, const mat_t& extents_ );
     };
 
-    intersect_comp_t::intersect_comp_t( const vec_t& origin_, const mat_t& extents_, const vec_t& srcOrigin_, const mat_t& srcExtents_ )
+    intersect_comp_t::intersect_comp_t(
+        const vec_t& origin_,
+        const mat_t& extents_,
+        const vec_t& srcOrigin_,
+        const mat_t& srcExtents_ )
         : origin( origin_ ),
           srcOrigin( srcOrigin_ ),
           extents( extents_ ),
@@ -116,18 +123,9 @@ namespace geom {
             srcOrigin_ + srcExtents_[ 0 ],
             srcOrigin_ + srcExtents_[ 1 ],
             srcOrigin_ + srcExtents_[ 2 ]
-          }} ),
-          testParams( {{
-            { origin, extents[ 0 ], srcOrigin, srcExtents },
-            { origin, extents[ 1 ], srcOrigin, srcExtents },
-            { origin, extents[ 2 ], srcOrigin, srcExtents },
-
-            { srcOrigin, srcExtents[ 0 ], origin, extents },
-            { srcOrigin, srcExtents[ 1 ], origin, extents },
-            { srcOrigin, srcExtents[ 2 ], origin, extents }
           }} )
-    {
-    }
+
+    {}
 
     bool intersect_comp_t::ValidateDistance( void )
     {
@@ -138,28 +136,27 @@ namespace geom {
         return true;
     }
 
-    INLINE bool intersect_comp_t::TestIntersection( uint32_t index )
+    bool intersect_comp_t::TestIntersection( const vec_t& p0, const vec_t& d0, const vec_t& origin_, const mat_t& extents_ )
     {
-        return TestIntersection( testParams[ index ] );
-    }
+        vec_t a( origin_ + extents_[ 0 ] ),
+              b( origin_ + extents_[ 1 ] ),
+              c( origin_ + extents_[ 2 ] );
 
-    bool intersect_comp_t::TestIntersection( const sat_params_t& params )
-    {
-        vec_t a( params.origin + params.extents[ 0 ] ),
-              b( params.origin + params.extents[ 1 ] ),
-              c( params.origin + params.extents[ 2 ] );
+        vec_t ax( a - p0 );
+        vec_t ay( b - p0 );
+        vec_t az( c - p0 );
 
-        vec_t ax( glm::proj( a - params.p0, params.d0 ) );
-        vec_t ay( glm::proj( b - params.p0, params.d0 ) );
-        vec_t az( glm::proj( c - params.p0, params.d0 ) );
+        vec_t dx( glm::proj( ax, d0 ) );
+        vec_t dy( glm::proj( ay, d0 ) );
+        vec_t dz( glm::proj( az, d0 ) );
 
-        float dlen = glm::length( params.d0 );
+        float dlen = glm::length( d0 );
 
-        if ( glm::abs( glm::length( ax ) ) <= dlen ) return true;
-        if ( glm::abs( glm::length( ay ) ) <= dlen ) return true;
-        if ( glm::abs( glm::length( az ) ) <= dlen ) return true;
+        if ( glm::abs( glm::length( dx ) ) > dlen ) return false;
+        if ( glm::abs( glm::length( dy ) ) > dlen ) return false;
+        if ( glm::abs( glm::length( dz ) ) > dlen ) return false;
 
-        return false;
+        return true;
     }
 }
 
@@ -232,7 +229,6 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 
 #else
     geom::simd_intersect_convert_t c( {{ origin, srcOrigin }}, {{ extents, srcExtents }} );
-
     geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 
     normal = std::move( glm::vec3( glm::vec4_cast( c.matrices[ 0 ][ 2 ] ) ) );
@@ -243,13 +239,13 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
         return false;
     }
 
-    if ( test.TestIntersection( 0 ) ) return true;
-    if ( test.TestIntersection( 1 ) ) return true;
-    if ( test.TestIntersection( 2 ) ) return true;
+    if ( test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, test.srcExtents ) ) return true;
+    if ( test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, test.srcExtents ) ) return true;
+    if ( test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, test.srcExtents ) ) return true;
 
-    if ( test.TestIntersection( 3 ) ) return true;
-    if ( test.TestIntersection( 4 ) ) return true;
-    if ( test.TestIntersection( 5 ) ) return true;
+    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
+    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
+    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
 
 	return false;
 }
@@ -378,26 +374,27 @@ bool bounding_box_t::Encloses( const bounding_box_t& box ) const
 #if GLM_ARCH == GLM_ARCH_PURE
 #error "FUCK"
 #else
-    geom::simd_intersect_convert_t c( {{ glm::vec3( transform[ 3 ] ), glm::vec3( box.transform[ 3 ] ) }},
-                                      {{ glm::mat3( transform ), glm::mat3( box.transform ) }} );
+    geom::simd_intersect_convert_t c( {{  glm::vec3( transform[ 3 ] ), glm::vec3( box.transform[ 3 ] ) }},
+    {{  glm::mat3( transform ), glm::mat3( box.transform ) }} );
 
-    geom::intersect_comp_t test( c.vectors[ 0 ],
-            c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
+    geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 #endif
+
     if ( !test.ValidateDistance() )
     {
         return false;
     }
 
-    if ( !test.TestIntersection( 0 ) ) return false;
-    if ( !test.TestIntersection( 1 ) ) return false;
-    if ( !test.TestIntersection( 2 ) ) return false;
+    if ( !test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, test.srcExtents ) ) return false;
+    if ( !test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, test.srcExtents ) ) return false;
+    if ( !test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, test.srcExtents ) ) return false;
 
-    /*
-    if ( !test.TestIntersection( 3 ) ) return false;
-    if ( !test.TestIntersection( 4 ) ) return false;
-    if ( !test.TestIntersection( 5 ) ) return false;
-*/
+    geom::mat_t negAxis( test.srcExtents );
+
+    if ( !test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, -negAxis ) ) return false;
+    if ( !test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, -negAxis ) ) return false;
+    if ( !test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, -negAxis ) ) return false;
+
     return true;
 }
 
