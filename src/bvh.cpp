@@ -15,15 +15,21 @@ namespace {
     const glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
 }
 
-quad_hierarchy_t::quad_hierarchy_t( bounding_box_t bounds, const uint32_t maxDepth )
+quad_hierarchy_t::quad_hierarchy_t( bounding_box_t bounds, const uint32_t maxDepth, quad_hierarchy_t::entity_list_t entities )
     : root( new node_t( 0, maxDepth, std::move( bounds ) ) )
 {
+    Update( std::move( entities ) );
+}
+
+void quad_hierarchy_t::Update( entity_list_t entities )
+{
+    root->Update( std::move( entities ), glm::mat4( 1.0f ) );
 }
 
 quad_hierarchy_t::node_t::node_t( uint32_t curDepth, const uint32_t maxDepth, bounding_box_t bounds_ )
     : bounds( std::move( bounds_ ) )
 {
-    if ( curDepth >= maxDepth - 1 )
+    if ( curDepth == maxDepth )
     {
         return;
     }
@@ -41,6 +47,11 @@ quad_hierarchy_t::node_t::node_t( uint32_t curDepth, const uint32_t maxDepth, bo
     LMakeChild( 1, quadSize * glm::vec3( -1.0f, 0.0f, 1.0f ) );
     LMakeChild( 2, quadSize * glm::vec3( -1.0f , 0.0f, -1.0f ) );
     LMakeChild( 3, quadSize * glm::vec3( 1.0f, 0.0f, -1.0f ) );
+}
+
+bool quad_hierarchy_t::node_t::Leaf( void ) const
+{
+    return !children[ 0 ] && !children[ 1 ] && !children[ 2 ] && !children[ 3 ];
 }
 
 void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform ) const
@@ -69,11 +80,43 @@ void quad_hierarchy_t::node_t::Draw( const pipeline_t& pl, const view_params_t& 
     }
 }
 
-void quad_hierarchy_t::node_t::Update( const std::vector< std::weak_ptr< entity_t> >& entities, const glm::mat4& rootTransform )
+void quad_hierarchy_t::node_t::Update( quad_hierarchy_t::entity_list_t entities, const glm::mat4& rootTransform )
 {
     UNUSEDPARAM( entities );
 
+    if ( Leaf() )
+    {
+        this->entities = std::move( entities );
+        return;
+    }
+
     glm::mat4 t( rootTransform * bounds.GetTransform() );
 
+    std::array< quad_hierarchy_t::entity_list_t, 4 > subregions;
 
+    for( uint32_t i = 0; i < 4; ++i )
+    {
+        for ( auto e = entities.begin(); e != entities.end(); )
+        {
+            const entity_t* p = *e;
+
+            if ( p )
+            {
+                if ( children[ i ]->bounds.Encloses( *( p->bounds ) ) )
+                {
+                    subregions[ i ].push_back( p );
+                    e = entities.erase( e );
+                }
+                else
+                {
+                    ++e;
+                }
+            }
+        }
+    }
+
+    for ( uint32_t i = 0; i < 4; ++i )
+    {
+        children[ i ]->Update( std::move( subregions[ i ] ), t );
+    }
 }

@@ -79,6 +79,8 @@ Product {
         "../src/main.cpp",
         "../src/map.cpp",
         "../src/map.h",
+        "../src/model.cpp",
+        "../src/model.h",
         "../src/opengl.h",
         "../src/physics.cpp",
         "../src/physics.h",

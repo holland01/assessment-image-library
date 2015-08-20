@@ -7,6 +7,8 @@
 
 struct bounding_box_t;
 struct body_t;
+struct pipeline_t;
+struct view_params_t;
 
 class entity_t
 {

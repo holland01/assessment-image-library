@@ -22,8 +22,6 @@ using shared_tile_region_t = std::shared_ptr< tile_region_t >;
 
 struct region_merge_predicates_t;
 
-
-
 //-------------------------------------------------------------------------------------------------------
 // bounds_region_t
 //-------------------------------------------------------------------------------------------------------
@@ -65,7 +63,7 @@ public:
 
     enum type_t
     {
-        BILLBOARD,
+        BILLBOARD = 0,
         WALL,
         EMPTY
     };
@@ -193,7 +191,9 @@ public:
     glm::vec4 color;
 
     std::vector< const map_tile_t* > tiles;
+
     std::vector< const map_tile_t* > wallTiles; // tiles which touch walls
+
     bounds_region_list_t adjacent;
 
     quad_hierarchy_t::ptr_t boundsVolume;
@@ -207,6 +207,8 @@ public:
     bool ShouldDestroy( void ) const;
 
     bounds_region_t* FindAdjacentOwner( const map_tile_t* t );
+
+    quad_hierarchy_t::entity_list_t GetEntityList( void ) const;
 
     void Update( void );
 };

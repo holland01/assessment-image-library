@@ -14,6 +14,7 @@
 
 struct quad_hierarchy_t
 {
+    using entity_list_t = std::vector< const entity_t* >;
     using ptr_t = std::unique_ptr< quad_hierarchy_t >;
 
     static const uint8_t NODE_COUNT = 4;
@@ -24,7 +25,8 @@ struct quad_hierarchy_t
 
         bounding_box_t bounds;
 
-        std::vector< std::weak_ptr< entity_t > > entities;
+        // Only leaf nodes will have entities
+        entity_list_t entities;
 
         std::array< ptr_t, NODE_COUNT > children;
 
@@ -32,10 +34,14 @@ struct quad_hierarchy_t
 
         void Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
 
-        void Update( const std::vector< std::weak_ptr< entity_t > >& entities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
+        void Update( entity_list_t entities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
+
+        bool Leaf( void ) const;
     };
 
     node_t::ptr_t root;
 
-    quad_hierarchy_t( bounding_box_t bounds, const uint32_t maxDepth );
+    quad_hierarchy_t( bounding_box_t bounds, const uint32_t maxDepth, entity_list_t entities );
+
+    void Update( entity_list_t entities );
 };

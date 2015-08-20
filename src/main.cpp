@@ -529,7 +529,8 @@ static void Draw_Group( game_t& game,
 {
     UNUSEDPARAM( freeSpace );
 
-	const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+    const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+
     //const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
 
     // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
@@ -539,10 +540,10 @@ static void Draw_Group( game_t& game,
 
     // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
+    singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 
     if ( gDrawFlags & DRAW_WALLS )
     {
-        singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
         for ( const map_tile_t* tile: walls )
         {
             Draw_Bounds( game, *( tile->bounds ), glm::vec3( 0.5f ) );
@@ -603,7 +604,7 @@ static void Draw_Group( game_t& game,
     {
         glm::vec3 color( 1.0f );
 
-        if ( gBoundsTest.e.bounds->Encloses( *( game.spec.bounds ) ) )
+        if ( game.spec.bounds->Encloses( *( gBoundsTest.e.bounds ) ) )
         {
             color.g = 0.0f;
             color.b = 0.0f;

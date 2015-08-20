@@ -576,7 +576,7 @@ tile_generator_t::tile_generator_t( void )
 
             bounding_box_t b = ComputeBoundsFromRegion( r.get() );
 
-            r->boundsVolume.reset( new quad_hierarchy_t( std::move( b ), 5 ) );
+            r->boundsVolume.reset( new quad_hierarchy_t( std::move( b ), 5, r->GetEntityList() ) );
         }
     }
 
@@ -1203,10 +1203,26 @@ bounds_region_t* tile_region_t::FindAdjacentOwner( const map_tile_t* t )
     return nullptr;
 }
 
+quad_hierarchy_t::entity_list_t tile_region_t::GetEntityList( void ) const
+{
+    quad_hierarchy_t::entity_list_t entities;
+    entities.resize( tiles.size() );
+
+    for ( uint32_t i = 0; i < entities.size(); ++i )
+    {
+        entities[ i ] = ( const entity_t* ) tiles[ i ];
+    }
+
+    return std::move( entities );
+}
+
+
 void tile_region_t::Update( void )
 {
-    for ( const map_tile_t* tile: tiles )
+    if ( !boundsVolume )
     {
-        UNUSEDPARAM( tile );
+        return;
     }
+
+    boundsVolume->Update( std::move( GetEntityList() ) );
 }
