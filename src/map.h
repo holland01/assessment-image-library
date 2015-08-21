@@ -119,17 +119,6 @@ public:
 
     using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
 
-	enum faceIndex_t
-	{
-		FACE_LEFT = 0,
-		FACE_FORWARD,
-		FACE_RIGHT,
-		FACE_BACK,
-		NUM_FACES
-	};
-
-	using half_space_table_t = std::array< int32_t, NUM_FACES >;
-
     std::vector< map_tile_t > tiles;
 
     std::vector< shared_tile_region_t > regions;
@@ -140,13 +129,11 @@ public:
 
     map_tile_list_t freeSpace;
 
+    collision_provider_t& collision;
+
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
-	std::vector< half_space_table_t > halfSpaceTable;
-
-    std::vector< half_space_t > halfSpaces;
-
-                tile_generator_t( void );
+                tile_generator_t( collision_provider_t& collision );
 
     bool        FindRegions( const map_tile_t* tile );
 

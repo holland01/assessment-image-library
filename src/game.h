@@ -40,6 +40,8 @@ struct game_t
 
     texture_t billTexture;
 
+    collision_provider_t collision;
+
 	game_t( uint32_t width, uint32_t height );
    ~game_t( void );
 

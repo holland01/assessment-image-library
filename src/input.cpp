@@ -212,8 +212,10 @@ void input_client_t::Sync( void )
 	}
 	else
 	{
-        bounds->SetCenter( viewParams.origin );
-        bounds->SetOrientation( glm::mat3( viewParams.inverseOrient ) );
+        bounding_box_t* b = GetBoundsAsBox();
+
+        b->SetCenter( viewParams.origin );
+        b->SetOrientation( glm::mat3( viewParams.inverseOrient ) );
 	}
 }
 

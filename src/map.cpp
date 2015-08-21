@@ -411,7 +411,8 @@ void map_tile_t::Set( const glm::mat4& transform )
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
-            bounds->transform = transform;
+            assert( bounds->type == BOUNDS_PRIM_BOX );
+            GetBoundsAsBox()->transform = transform;
             Sync();
             break;
     }
@@ -421,7 +422,8 @@ void map_tile_t::Set( const glm::mat4& transform )
 // tile_generator_t
 //-------------------------------------------------------------------------------------------------------
 
-tile_generator_t::tile_generator_t( void )
+tile_generator_t::tile_generator_t( collision_provider_t& collision_ )
+    : collision( collision_ )
 {
 	tiles.resize( GRID_SIZE * GRID_SIZE );
 
@@ -441,8 +443,55 @@ tile_generator_t::tile_generator_t( void )
 		}
 	}
 
-    GenHalfSpacesFromWalls( walls );
+    // Iterate through each wall; any adjacent
+    // tiles which aren't also walls will allow
+    // for this wall to have a half-space
+    // for the corresponding face.
+    for ( map_tile_t* wall: walls )
+    {
+        collision_face_table_t halfSpaces;
+        halfSpaces.fill( -1 );
 
+        int32_t left = TileModIndex( wall->x - 1, wall->z );
+        int32_t forward = TileModIndex( wall->x, wall->z - 1 );
+        int32_t right = TileModIndex( wall->x + 1, wall->z );
+        int32_t back = TileModIndex( wall->x, wall->z + 1 );
+
+        bool hasHalfSpace = false;
+
+        if ( tiles[ left ].type != map_tile_t::WALL && ( wall->x - 1 ) >= 0 )
+        {
+            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_LEFT );
+            hasHalfSpace = true;
+        }
+
+        if ( tiles[ forward ].type != map_tile_t::WALL && ( wall->z - 1 ) >= 0 )
+        {
+            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_FORWARD );
+            hasHalfSpace = true;
+        }
+
+        if ( tiles[ right ].type != map_tile_t::WALL && ( wall->x + 1 ) < GRID_SIZE )
+        {
+            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_RIGHT );
+            hasHalfSpace = true;
+        }
+
+        if ( tiles[ back ].type != map_tile_t::WALL && ( wall->z + 1 ) < GRID_SIZE )
+        {
+            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_BACK );
+            hasHalfSpace = true;
+        }
+
+        if ( hasHalfSpace )
+        {
+            wall->halfSpaceIndex = ( int32_t ) collision.halfSpaceTable.size();
+            collision.halfSpaceTable.push_back( std::move( halfSpaces ) );
+        }
+    }
+
+    // Accumulate a list of tiles with halfSpaces, so we know
+    // how to generate our regions for the map
     std::vector< const map_tile_t* > halfSpaceTiles;
     for ( const map_tile_t& tile: tiles )
     {
@@ -609,7 +658,7 @@ bool tile_generator_t::FindRegions( const map_tile_t* tile )
     // we peace out and move onto the next normal. The result is
     // some regions which need to be "remixed" down the road.
 
-    const half_space_table_t& hst = halfSpaceTable[ tile->halfSpaceIndex ];
+    const collision_face_table_t& hst = collision.halfSpaceTable[ tile->halfSpaceIndex ];
 
     shared_tile_region_t regionPtr( new tile_region_t( tile ) );
 
@@ -634,8 +683,8 @@ bool tile_generator_t::FindRegions( const map_tile_t* tile )
         }
 
         // Find the direction we need to move in...
-        const glm::vec3& e1 = halfSpaces[ hst[ i ] ].extents[ 2 ] * 10.0f;
-        const glm::vec3& e2 = halfSpaces[ hst[ j ] ].extents[ 2 ] * 10.0f;
+        const glm::vec3& e1 = collision.halfSpaces[ hst[ i ] ].extents[ 2 ] * 10.0f;
+        const glm::vec3& e2 = collision.halfSpaces[ hst[ j ] ].extents[ 2 ] * 10.0f;
 
         int32_t zp, xp;
 
@@ -934,7 +983,7 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
 
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
-        tile.SetSize( 1.0f );
+        tile.size = 1.0f;
 
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
                                      glm::vec3( TRANSLATE_STRIDE * tile.x, 0.0f, TRANSLATE_STRIDE * tile.z ) ) );
@@ -943,156 +992,41 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
 	}
 }
 
-void tile_generator_t::GenHalfSpacesFromWalls( map_tile_list_t& wallTiles )
-{
-    std::array< glm::vec3, NUM_FACES > halfSpaceNormals =
-    {{
-        glm::vec3( -1.0f, 0.0f, 0.0f ),
-        glm::vec3( 0.0f, 0.0f, -1.0f ),
-        glm::vec3( 1.0f, 0.0f, 0.0f ),
-        glm::vec3( 0.0f, 0.0f, 1.0f )
-    }};
-
-    auto LAddHalfSpace = [ this, &halfSpaceNormals ]( const map_tile_t& t, int32_t& index, faceIndex_t face )
-    {
-        index = halfSpaces.size();
-        half_space_t hs = GenHalfSpace( t, halfSpaceNormals[ face ] );
-        halfSpaces.push_back( std::move( hs ) );
-    };
-
-    // Iterate through each wall; any adjacent
-    // tiles which aren't also walls will allow
-    // for this wall to have a half-space
-    // for the corresponding face.
-    for ( map_tile_t* wall: wallTiles )
-    {
-        half_space_table_t halfSpaces;
-        halfSpaces.fill( -1 );
-
-        int32_t left = TileModIndex( wall->x - 1, wall->z );
-        int32_t forward = TileModIndex( wall->x, wall->z - 1 );
-        int32_t right = TileModIndex( wall->x + 1, wall->z );
-        int32_t back = TileModIndex( wall->x, wall->z + 1 );
-
-        bool hasHalfSpace = false;
-
-        if ( tiles[ left ].type != map_tile_t::WALL && ( wall->x - 1 ) >= 0 )
-        {
-            LAddHalfSpace( *wall, halfSpaces[ FACE_LEFT ], FACE_LEFT );
-            hasHalfSpace = true;
-        }
-
-        if ( tiles[ forward ].type != map_tile_t::WALL && ( wall->z - 1 ) >= 0 )
-        {
-            LAddHalfSpace( *wall, halfSpaces[ FACE_FORWARD ], FACE_FORWARD );
-            hasHalfSpace = true;
-        }
-
-        if ( tiles[ right ].type != map_tile_t::WALL && ( wall->x + 1 ) < GRID_SIZE )
-        {
-            LAddHalfSpace( *wall, halfSpaces[ FACE_RIGHT ], FACE_RIGHT );
-            hasHalfSpace = true;
-        }
-
-        if ( tiles[ back ].type != map_tile_t::WALL && ( wall->z + 1 ) < GRID_SIZE )
-        {
-            LAddHalfSpace( *wall, halfSpaces[ FACE_BACK ], FACE_BACK );
-            hasHalfSpace = true;
-        }
-
-        if ( hasHalfSpace )
-        {
-            wall->halfSpaceIndex = halfSpaceTable.size();
-            halfSpaceTable.push_back( std::move( halfSpaces ) );
-        }
-    }
-}
-
-half_space_t tile_generator_t::GenHalfSpace( const map_tile_t& t, const glm::vec3& normal )
-{
-    using corner_t = bounding_box_t::corner_t;
-
-    glm::vec3 upAxis( ( *t.bounds )[ 1 ] );
-    glm::vec3 boundsOrigin( ( *t.bounds )[ 3 ] );
-    glm::vec3 boundsSize( t.bounds->GetSize() );
-
-    half_space_t hs;
-
-	hs.extents[ 0 ] = std::move( glm::cross( normal, upAxis ) ) * boundsSize[ 0 ];
-	hs.extents[ 1 ] = upAxis * boundsSize[ 1 ];
-	hs.extents[ 2 ] = normal * 0.1f;
-
-	glm::vec3 faceCenter( std::move( boundsOrigin + normal * boundsSize * 0.5f ) );
-
-	// TODO: take into account ALL points
-	std::array< corner_t, 4 > lowerPoints =
-	{{
-        bounding_box_t::CORNER_MIN,
-        bounding_box_t::CORNER_NEAR_DOWN_RIGHT,
-        bounding_box_t::CORNER_FAR_DOWN_RIGHT,
-        bounding_box_t::CORNER_FAR_DOWN_LEFT
-	}};
-
-	for ( corner_t face: lowerPoints )
-	{
-        glm::vec3 point( t.bounds->GetCorner( ( corner_t ) face ) );
-		glm::vec3 pointToCenter( faceCenter - point );
-
-		// Not in same plane; move on
-        if ( G_TripleProduct( pointToCenter, hs.extents[ 0 ], hs.extents[ 1 ] ) != 0.0f )
-		{
-			continue;
-		}
-
-		// Half space axes will be outside of the bounds; move on
-        if ( !t.bounds->EnclosesPoint( point + hs.extents[ 0 ] ) || !t.bounds->EnclosesPoint( point + hs.extents[ 1 ] ) )
-		{
-			continue;
-		}
-
-		hs.origin = point;
-		break;
-	}
-
-	hs.distance = glm::dot( hs.extents[ 2 ], hs.origin );
-
-	return std::move( hs );
-}
-
 bool tile_generator_t::CollidesWall( glm::vec3& normal, const map_tile_t& t,
                                 const bounding_box_t& bounds,
                                 half_space_t& outHalfSpace )
 {
-	if ( t.halfSpaceIndex < 0 )
-	{
-		return false;
-	}
+    if ( t.halfSpaceIndex < 0 )
+    {
+        return false;
+    }
 
-	const half_space_table_t& halfSpaceFaces = halfSpaceTable[ t.halfSpaceIndex ];
+    const collision_face_table_t& halfSpaceFaces = collision.halfSpaceTable[ t.halfSpaceIndex ];
 
     for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
-	{
-		if ( halfSpaceFaces[ i ] >= 0 )
-		{	
-            const half_space_t& hs = halfSpaces[ halfSpaceFaces[ i ] ];
+    {
+        if ( halfSpaceFaces[ i ] >= 0 )
+        {
+            const half_space_t& hs = collision.halfSpaces[ halfSpaceFaces[ i ] ];
 
-			if ( bounds.IntersectsHalfSpace( normal, hs ) )
-			{
+            if ( bounds.IntersectsHalfSpace( normal, hs ) )
+            {
                 if ( glm::length( normal ) < 1.0f )
                 {
                     normal = glm::normalize( normal );
                 }
 
-				outHalfSpace = hs;
-				return true;
-			}
+                outHalfSpace = hs;
+                return true;
+            }
 
             if ( immDrawer )
-			{
+            {
                 hs.Draw( *immDrawer );
-			}
-		}
+            }
+        }
     }
+
 
 	return false;
 }
@@ -1137,9 +1071,8 @@ void tile_generator_t::GetEntities( map_tile_list_t& outBillboards,
 
 			int32_t index = TileModIndex( x, z );
 
-
             // cull frustum, insert into appropriate type, etc.
-			if ( !frustum.IntersectsBox( *tiles[ index ].bounds ) )
+            if ( !frustum.IntersectsBox( *( tiles[ index ].GetBoundsAsBox() ) ) )
 			{
 				continue;
 			}

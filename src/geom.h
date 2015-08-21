@@ -113,10 +113,44 @@ public:
 };
 
 //-------------------------------------------------------------------------------------------------------
+// bounds_primitive_t
+//-------------------------------------------------------------------------------------------------------
+
+enum bounds_primtype_t
+{
+    BOUNDS_PRIM_HALFSPACE = 0,
+    BOUNDS_PRIM_BOX,
+    BOUNDS_PRIM_LOOKUP,
+    NUM_BOUNDS_PRIMTYPE
+};
+
+struct bounds_primitive_t
+{
+protected:
+    bounds_primitive_t( bounds_primtype_t type_ )
+        : type( type_ )
+    {}
+
+public:
+    const bounds_primtype_t type;
+};
+
+//-------------------------------------------------------------------------------------------------------
+// primitive_lookup_t
+//-------------------------------------------------------------------------------------------------------
+
+struct primitive_lookup_t : public bounds_primitive_t
+{
+    int32_t index = 0;
+};
+
+//-------------------------------------------------------------------------------------------------------
 // half_space_t
 //-------------------------------------------------------------------------------------------------------
 
-struct half_space_t
+struct bounding_box_t;
+
+struct half_space_t : public bounds_primitive_t
 {
 	glm::mat3 extents;
 	glm::vec3 origin;
@@ -124,6 +158,10 @@ struct half_space_t
 
     half_space_t( void );
     half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
+    half_space_t( const bounding_box_t& bounds, const glm::vec3& normal );
+
+    half_space_t( const half_space_t& c );
+    half_space_t& operator=( half_space_t c );
 
 	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
 	void Draw( imm_draw_t& drawer ) const;
@@ -133,7 +171,7 @@ struct half_space_t
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-struct bounding_box_t
+struct bounding_box_t : public bounds_primitive_t
 {
 public:
 	glm::mat4 transform;
@@ -212,6 +250,7 @@ public:
     bool			CalcIntersection( float& t0, const glm::vec3& ray_t, const glm::vec3& origin ) const;
 
 };
+
 
 #include "geom.inl"
 

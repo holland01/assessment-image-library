@@ -209,16 +209,86 @@ bool G_RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
 //-------------------------------------------------------------------------------------------------------
 
 half_space_t::half_space_t( void )
-	: extents( 1.0f ), origin( 0.0f ),
-	  distance( 0.0f )
+    : half_space_t( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
 }
 
 half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_, float distance_ )
-	: extents( extents_ ),
+    : bounds_primitive_t( BOUNDS_PRIM_HALFSPACE ),
+      extents( extents_ ),
 	  origin( origin_ ),
 	  distance( distance_ )
 {
+}
+
+half_space_t::half_space_t( const bounding_box_t& bounds, const glm::vec3& normal )
+    : half_space_t( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
+{
+    using corner_t = bounding_box_t::corner_t;
+
+    glm::vec3 upAxis( bounds[ 1 ] );
+    glm::vec3 boundsOrigin( bounds[ 3 ] );
+    glm::vec3 boundsSize( bounds.GetSize() );
+
+
+    // normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
+    extents[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
+    extents[ 1 ] = glm::normalize( upAxis ) * boundsSize[ 1 ];
+    extents[ 2 ] = normal * 0.1f;
+
+    // FIXME: scaling the normal by the boundsSize as a vector operation seems
+    // a little odd. Maybe something like boundsOrigin + glm::normalize( normal )
+    // would be better.
+    glm::vec3 faceCenter( std::move( boundsOrigin + normal * boundsSize * 0.5f ) );
+
+    // TODO: take into account ALL points
+    std::array< corner_t, 4 > lowerPoints =
+    {{
+        bounding_box_t::CORNER_MIN,
+        bounding_box_t::CORNER_NEAR_DOWN_RIGHT,
+        bounding_box_t::CORNER_FAR_DOWN_RIGHT,
+        bounding_box_t::CORNER_FAR_DOWN_LEFT
+    }};
+
+    for ( corner_t face: lowerPoints )
+    {
+        glm::vec3 point( bounds.GetCorner( ( corner_t ) face ) );
+        glm::vec3 pointToCenter( faceCenter - point );
+
+        // Not in same plane; move on
+        if ( G_TripleProduct( pointToCenter, extents[ 0 ], extents[ 1 ] ) != 0.0f )
+        {
+            continue;
+        }
+
+        // Half space axes will be outside of the bounds; move on
+        if ( !bounds.EnclosesPoint( point + extents[ 0 ] ) || !bounds.EnclosesPoint( point + extents[ 1 ] ) )
+        {
+            continue;
+        }
+
+        origin = point;
+        break;
+    }
+
+    distance = glm::dot( extents[ 2 ], origin );
+}
+
+half_space_t::half_space_t( const half_space_t& c )
+    : half_space_t( c.extents, c.origin, c.distance )
+{
+}
+
+half_space_t& half_space_t::operator=( half_space_t c )
+{
+    if ( this != &c )
+    {
+        extents = c.extents;
+        origin = c.origin;
+        distance = c.distance;
+    }
+
+    return *this;
 }
 
 bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
@@ -271,13 +341,15 @@ void half_space_t::Draw( imm_draw_t& drawer ) const
 //-------------------------------------------------------------------------------------------------------
 
 bounding_box_t::bounding_box_t( const glm::mat4& transform_ )
-	: transform( transform_),
+    : bounds_primitive_t( BOUNDS_PRIM_BOX ),
+      transform( transform_),
       color( glm::vec4( 1.0f ) )
 {
 }
 
 bounding_box_t::bounding_box_t( bounding_box_t&& m )
-	: transform( std::move( m.transform ) ),
+    : bounds_primitive_t( BOUNDS_PRIM_BOX ),
+      transform( std::move( m.transform ) ),
 	  color( std::move( m.color ) )
 {
 }
@@ -372,7 +444,18 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 bool bounding_box_t::Encloses( const bounding_box_t& box ) const
 {
 #if GLM_ARCH == GLM_ARCH_PURE
-#error "FUCK"
+
+    // intersect_comp_t takes mostly references
+    // in its ctor, so we just make some copies to maintain
+    // scope :D
+    glm::vec3 va( transform[ 3 ] );
+    glm::mat3 ma( transform );
+
+    glm::vec3 vb( box.transform[ 3 ] );
+    glm::mat3 mb( box.transform );
+
+    geom::intersect_comp_t test( va, ma, vb, mb );
+
 #else
     geom::simd_intersect_convert_t c( {{  glm::vec3( transform[ 3 ] ), glm::vec3( box.transform[ 3 ] ) }},
     {{  glm::mat3( transform ), glm::mat3( box.transform ) }} );
@@ -557,3 +640,4 @@ void bounding_box_t::SetDrawable( const glm::vec4& color_ )
 {
     color = color_;
 }
+
