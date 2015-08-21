@@ -40,6 +40,10 @@ struct entity_t
     bounding_box_t* GetBoundsAsBox( void );
 
     const bounding_box_t* GetBoundsAsBox( void ) const;
+
+    primitive_lookup_t* GetBoundsAsLookup( void );
+
+    const primitive_lookup_t* GetBoundsAsLookup( void ) const;
 };
 
 INLINE glm::mat4 entity_t::GenScaleTransform( void ) const
@@ -57,6 +61,18 @@ INLINE const bounding_box_t* entity_t::GetBoundsAsBox( void ) const
 {
     assert( bounds->type == BOUNDS_PRIM_BOX );
     return ( const bounding_box_t* )bounds.get();
+}
+
+INLINE primitive_lookup_t* entity_t::GetBoundsAsLookup( void )
+{
+    assert( bounds->type == BOUNDS_PRIM_LOOKUP );
+    return ( primitive_lookup_t* )bounds.get();
+}
+
+INLINE const primitive_lookup_t* entity_t::GetBoundsAsLookup( void ) const
+{
+    assert( bounds->type == BOUNDS_PRIM_LOOKUP );
+    return ( const primitive_lookup_t* )bounds.get();
 }
 
 

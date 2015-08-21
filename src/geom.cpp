@@ -230,7 +230,6 @@ half_space_t::half_space_t( const bounding_box_t& bounds, const glm::vec3& norma
     glm::vec3 boundsOrigin( bounds[ 3 ] );
     glm::vec3 boundsSize( bounds.GetSize() );
 
-
     // normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
     extents[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
     extents[ 1 ] = glm::normalize( upAxis ) * boundsSize[ 1 ];

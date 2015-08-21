@@ -542,24 +542,30 @@ static void Draw_Group( game_t& game,
 
     // Load a grey color so it looks somewhat fancy
 	singleColor.Bind();
-    singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+    //singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 
     if ( gDrawFlags & DRAW_WALLS )
     {
         for ( const map_tile_t* tile: walls )
         {
-            Draw_Bounds( game, *( tile->GetBoundsAsBox() ), glm::vec3( 0.5f ) );
+            Draw_Bounds( game, tile->box, glm::vec3( 0.5f ) );
 
-            if ( glm::distance( vp.origin, glm::vec3( ( *( tile->GetBoundsAsBox() ) )[ 3 ] ) ) < 2.0f )
+            if ( glm::distance( vp.origin, glm::vec3( tile->box[ 3 ] ) ) < 2.0f )
             {
                 // don't test collision unless distance from player to object is within a certain range
-                half_space_t hs;
-                glm::vec3 normal;
+                ///half_space_t hs;
+                ///glm::vec3 normal;
 
-                if ( game.gen->CollidesWall( normal, *tile, *( game.camera->GetBoundsAsBox() ), hs ) )
+                //if ( game.gen->CollidesWall( normal, *tile, *( game.camera->GetBoundsAsBox() ), hs ) )
+
+                collision_entity_t ce( game.collision,
+                                       ( const entity_t* )game.camera,
+                                       ( const entity_t* )tile );
+
+                if ( game.collision.EvalCollision( ce ) )
                 {
-                   Draw_Bounds( game, *( tile->GetBoundsAsBox() ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-                   Apply_Force( game, normal, *( tile->body ) );
+                   Draw_Bounds( game, tile->box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
+                   Apply_Force( game, ce.normal, *( tile->body ) );
                 }
             }
         }

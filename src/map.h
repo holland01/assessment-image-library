@@ -68,6 +68,8 @@ public:
         EMPTY
     };
 
+    bounding_box_t box;
+
     type_t type;
 	int32_t x, z, halfSpaceIndex;
     float size; // does not bear any relation to index lookup in the table at all.

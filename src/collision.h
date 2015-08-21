@@ -17,16 +17,21 @@ struct bounding_box_t;
 // collision_entity_t
 //-------------------------------------------------------------------------------------------------------
 
+struct collision_provider_t;
+
 struct collision_entity_t
 {
-    std::weak_ptr< entity_t > a;
-    std::weak_ptr< entity_t > b;
+    const entity_t* collider;
+    const entity_t* collidee;
 
     bool colliding;
     glm::vec3 normal;
 
-    collision_entity_t( std::weak_ptr< entity_t > a = std::weak_ptr< entity_t >(),
-                        std::weak_ptr< entity_t > b = std::weak_ptr< entity_t >() );
+    const collision_provider_t& provider;
+
+    collision_entity_t( const collision_provider_t& provider,
+                        const entity_t* collider = nullptr,
+                        const entity_t* collidee = nullptr );
 };
 
 //-------------------------------------------------------------------------------------------------------
@@ -51,7 +56,7 @@ struct collision_provider_t
 
     uint32_t GenHalfSpace( const bounding_box_t& bounds, collision_face_t face ); // returns the index of the half space in halfSpaces
 
-    bool BoundsCollidesHalfSpace( collision_entity_t& ce ) const;
+    bool EvalCollision( collision_entity_t& ce ) const;
 };
 
 

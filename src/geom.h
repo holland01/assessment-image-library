@@ -117,8 +117,7 @@ public:
 //-------------------------------------------------------------------------------------------------------
 
 enum bounds_primtype_t
-{
-    BOUNDS_PRIM_HALFSPACE = 0,
+{   BOUNDS_PRIM_HALFSPACE = 0,
     BOUNDS_PRIM_BOX,
     BOUNDS_PRIM_LOOKUP,
     NUM_BOUNDS_PRIMTYPE
@@ -141,7 +140,16 @@ public:
 
 struct primitive_lookup_t : public bounds_primitive_t
 {
+    static const int32_t LOOKUP_UNSET = -1;
+
+    bounds_primtype_t lookupType;
     int32_t index = 0;
+
+    primitive_lookup_t( bounds_primtype_t lookupType_, int32_t index_ = LOOKUP_UNSET )
+        : bounds_primitive_t( BOUNDS_PRIM_LOOKUP ),
+          lookupType( lookupType_ ),
+          index( index_ )
+    {}
 };
 
 //-------------------------------------------------------------------------------------------------------

@@ -394,7 +394,8 @@ map_tile_t::map_tile_t( void )
 void map_tile_t::Set( const glm::mat4& transform )
 {
     body.reset( new body_t );
-    bounds.reset( new bounding_box_t );
+
+    box.transform = transform;
 
     switch ( type )
     {
@@ -402,20 +403,24 @@ void map_tile_t::Set( const glm::mat4& transform )
             depType = entity_t::BODY_DEPENDENT;
             body->SetFromTransform( transform );
             body->SetMass( 100.0f );
-            Sync();
+            bounds.reset( new bounding_box_t );
             break;
         default:
             if ( type == map_tile_t::WALL )
             {
+                bounds.reset( new primitive_lookup_t( BOUNDS_PRIM_HALFSPACE, halfSpaceIndex ) );
                 body->SetMass( 10.0f );
+            }
+            else
+            {
+                bounds.reset( new bounding_box_t( transform ) );
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
-            assert( bounds->type == BOUNDS_PRIM_BOX );
-            GetBoundsAsBox()->transform = transform;
-            Sync();
             break;
     }
+
+    Sync();
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -461,31 +466,32 @@ tile_generator_t::tile_generator_t( collision_provider_t& collision_ )
 
         if ( tiles[ left ].type != map_tile_t::WALL && ( wall->x - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_LEFT );
+            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_LEFT );
             hasHalfSpace = true;
         }
 
         if ( tiles[ forward ].type != map_tile_t::WALL && ( wall->z - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_FORWARD );
+            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_FORWARD );
             hasHalfSpace = true;
         }
 
         if ( tiles[ right ].type != map_tile_t::WALL && ( wall->x + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_RIGHT );
+            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_RIGHT );
             hasHalfSpace = true;
         }
 
         if ( tiles[ back ].type != map_tile_t::WALL && ( wall->z + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )collision.GenHalfSpace( *( wall->GetBoundsAsBox() ), COLLISION_FACE_BACK );
+            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_BACK );
             hasHalfSpace = true;
         }
 
         if ( hasHalfSpace )
         {
             wall->halfSpaceIndex = ( int32_t ) collision.halfSpaceTable.size();
+            wall->GetBoundsAsLookup()->index = wall->halfSpaceIndex;
             collision.halfSpaceTable.push_back( std::move( halfSpaces ) );
         }
     }
@@ -986,7 +992,7 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
         tile.size = 1.0f;
 
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
-                                     glm::vec3( TRANSLATE_STRIDE * tile.x, 0.0f, TRANSLATE_STRIDE * tile.z ) ) );
+                     glm::vec3( TRANSLATE_STRIDE * tile.x, 0.0f, TRANSLATE_STRIDE * tile.z ) ) );
 
         tile.Set( t * tile.GenScaleTransform() );
 	}
@@ -1072,7 +1078,7 @@ void tile_generator_t::GetEntities( map_tile_list_t& outBillboards,
 			int32_t index = TileModIndex( x, z );
 
             // cull frustum, insert into appropriate type, etc.
-            if ( !frustum.IntersectsBox( *( tiles[ index ].GetBoundsAsBox() ) ) )
+            if ( !frustum.IntersectsBox( tiles[ index ].box ) )
 			{
 				continue;
 			}
