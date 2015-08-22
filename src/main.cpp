@@ -318,9 +318,13 @@ INLINE bool Tile_TestCollision(
     const map_tile_t* tile,
     entity_bounds_use_flags_t tileFlags )
 {
-    const bounding_box_t& box = *ENTITY_PTR_GET_BOX( tile, tileFlags );
 
-    if ( glm::distance( entityPos, glm::vec3( box[ 3 ] ) ) < 2.0f )
+
+    //const bounding_box_t& box = ;
+
+    glm::mat4 t = M_TransformFromTile( *tile );
+
+    if ( glm::distance( entityPos, glm::vec3( t[ 3 ] ) ) < 2.0f )
     {
         collision_entity_t ce( game.collision,
                                entity,
@@ -330,7 +334,7 @@ INLINE bool Tile_TestCollision(
 
         if ( game.collision.EvalCollision( ce ) )
         {
-            Draw_Bounds( game, box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
+            Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
             Apply_Force( game, ce.normal, *( tile->body ) );
 
             return true;
@@ -619,7 +623,7 @@ static void Draw_Group( game_t& game,
                                 vp.origin,
                                 ENTITY_BOUNDS_MOVE_COLLIDE,
                                 tile,
-                                ENTITY_BOUNDS_AREA_EVAL  );
+                                ENTITY_BOUNDS_MOVE_COLLIDE  );
         }
     }
 
