@@ -88,7 +88,7 @@ namespace {
         }
 
         Vector_InsertUnique< const map_tile_t* >( merged->tiles, r0->tiles );
-        Vector_InsertUnique< bounds_region_t >( merged->adjacent, r0->adjacent );
+        Vector_InsertUnique< adjacent_region_t >( merged->adjacent, r0->adjacent );
 
         r0->tiles.clear();
         r0->Destroy();
@@ -297,9 +297,9 @@ namespace {
 
     void PurgeFromAdjacent( std::vector< shared_tile_region_t >& regions, const shared_tile_region_t& target )
     {
-        using predicate_t = std::function< bool( const bounds_region_t& ) >;
+        using predicate_t = std::function< bool( const adjacent_region_t& ) >;
 
-        auto LEraseIf = [ &target ]( const bounds_region_t& br ) -> bool
+        auto LEraseIf = [ &target ]( const adjacent_region_t& br ) -> bool
         {
             return br.region.lock() == target;
         };
@@ -308,7 +308,7 @@ namespace {
         {
             if ( r )
             {
-                Vector_EraseIf< bounds_region_t, predicate_t >( r->adjacent, LEraseIf );
+                Vector_EraseIf< adjacent_region_t, predicate_t >( r->adjacent, LEraseIf );
             }
         }
     }
@@ -355,26 +355,26 @@ namespace {
 // bounds_region_t
 //-------------------------------------------------------------------------------------------------------
 
-uint32_t bounds_region_t::count = 0;
+uint32_t adjacent_region_t::count = 0;
 
-bounds_region_t::bounds_region_t( void )
+adjacent_region_t::adjacent_region_t( void )
     : id( count++ )
 {
 }
 
-bounds_region_t::bounds_region_t( const bounds_region_t& c )
+adjacent_region_t::adjacent_region_t( const adjacent_region_t& c )
     : id( c.id ),
       tiles( c.tiles ),
       region( c.region )
 {
 }
 
-bool operator == ( const bounds_region_t& a, const bounds_region_t& b )
+bool operator == ( const adjacent_region_t& a, const adjacent_region_t& b )
 {
     return a.region == b.region;
 }
 
-bool operator != ( const bounds_region_t& a, const bounds_region_t& b )
+bool operator != ( const adjacent_region_t& a, const adjacent_region_t& b )
 {
     return !( a == b );
 }
@@ -391,6 +391,13 @@ map_tile_t::map_tile_t( void )
 {
 }
 
+namespace {
+    struct m_tile_type_data_t
+    {
+
+    };
+}
+
 void map_tile_t::Set( const glm::mat4& transform )
 {
     body.reset( new body_t );
@@ -403,17 +410,18 @@ void map_tile_t::Set( const glm::mat4& transform )
             depType = entity_t::BODY_DEPENDENT;
             body->SetFromTransform( transform );
             body->SetMass( 100.0f );
-            bounds.reset( new bounding_box_t );
+            collisionBounds.reset( new bounding_box_t );
             break;
+
         default:
             if ( type == map_tile_t::WALL )
             {
-                bounds.reset( new primitive_lookup_t( BOUNDS_PRIM_HALFSPACE, halfSpaceIndex ) );
+                collisionBounds.reset( new primitive_lookup_t( BOUNDS_PRIM_HALFSPACE, halfSpaceIndex ) );
                 body->SetMass( 10.0f );
             }
             else
             {
-                bounds.reset( new bounding_box_t( transform ) );
+                collisionBounds.reset( new bounding_box_t( transform ) );
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
@@ -604,7 +612,7 @@ tile_generator_t::tile_generator_t( collision_provider_t& collision_ )
                 {
                     assert( t->type != map_tile_t::WALL );
 
-                    bounds_region_t* boundsRegion = r->FindAdjacentOwner( t );
+                    adjacent_region_t* boundsRegion = r->FindAdjacentOwner( t );
                     assert( boundsRegion );
 
                     boundsRegion->tiles.push_back( &tile );
@@ -612,7 +620,32 @@ tile_generator_t::tile_generator_t( collision_provider_t& collision_ )
                 else
                 {
                     assert( t->type == map_tile_t::WALL );
-                    r->wallTiles.push_back( &tile );
+
+                    // We'll be testing wall collisions
+                    // in the region's quad tree, so it's important that
+                    // we don't add any walls which lack half spaces
+                    if ( t->halfSpaceIndex < 0 )
+                    {
+                        return;
+                    }
+
+                    // If we already have an adjacent_wall_t member, add it to the adjacency list.
+                    // Otherwise, create a new one.
+                    for ( adjacent_wall_t& w: r->wallTiles )
+                    {
+                        if ( w.source == &tile )
+                        {
+                            w.walls.push_back( t );
+                            return;
+                        }
+                    }
+
+                    adjacent_wall_t w;
+                    w.source = &tile;
+                    w.walls.push_back( t );
+                    w.governingRegion = r;
+
+                    r->wallTiles.push_back( std::move( w ) );
                 }
             }
         });
@@ -644,6 +677,18 @@ namespace {
         const map_tile_t* t;
         int32_t index;
     };
+}
+
+shared_tile_region_t tile_generator_t::FetchRegionFromPosition( const glm::vec3& p )
+{
+    int32_t x, z;
+    M_ComputeTileCoords( x, z, p );
+
+    auto pRegion = tiles[ TileIndex( x, z ) ].owner.lock();
+
+    assert( pRegion );
+
+    return pRegion;
 }
 
 bool tile_generator_t::FindRegions( const map_tile_t* tile )
@@ -833,7 +878,7 @@ void tile_generator_t::FindAdjacentRegions( void )
     // Find all regions which lie adjacent to each individual region
     for ( ref_tile_region_t region: regions )
     {
-        bounds_region_list_t unique;
+        adjacent_region_list_t unique;
         auto r0 = region.lock();
         assert( r0 );
 
@@ -852,7 +897,7 @@ void tile_generator_t::FindAdjacentRegions( void )
 
             if ( addIt )
             {
-                bounds_region_t br;
+                adjacent_region_t br;
                 br.region = rr;
 
                 unique.push_back( br );
@@ -860,7 +905,7 @@ void tile_generator_t::FindAdjacentRegions( void )
         });
 
         // Add the adjacent regions to r0's list
-        for ( const bounds_region_t& r: unique )
+        for ( const adjacent_region_t& r: unique )
         {
             assert( r.region != region );
             if ( !Vector_Contains( r0->adjacent, r ) )
@@ -954,7 +999,7 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
         isWall = RangeCount( tile, -1, 1 ) >= 5 || predicates[ pass - 1 ]( RangeCount( tile, -2, 2 ) );
 	}
 
-    tile.bounds.reset();
+    tile.collisionBounds.reset();
     tile.type = map_tile_t::EMPTY;
 
 	// Multiply x and z values by 2 to accomodate for bounds scaling on the axis
@@ -991,10 +1036,7 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
 	{
         tile.size = 1.0f;
 
-        glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
-                     glm::vec3( TRANSLATE_STRIDE * tile.x, 0.0f, TRANSLATE_STRIDE * tile.z ) ) );
-
-        tile.Set( t * tile.GenScaleTransform() );
+        tile.Set( M_TransformFromTile( tile ) );
 	}
 }
 
@@ -1037,7 +1079,8 @@ bool tile_generator_t::CollidesWall( glm::vec3& normal, const map_tile_t& t,
 	return false;
 }
 
-void tile_generator_t::GetEntities( map_tile_list_t& outBillboards,
+void tile_generator_t::GetEntities(
+                               map_tile_list_t& outBillboards,
                                map_tile_list_t& outWalls,
                                map_tile_list_t& outFreeSpace,
                                const frustum_t& frustum,
@@ -1047,8 +1090,8 @@ void tile_generator_t::GetEntities( map_tile_list_t& outBillboards,
 	outWalls.clear();
 	outFreeSpace.clear();
 
-	int32_t centerX = ( int32_t )( viewParams.origin.x * 0.5f );
-	int32_t centerZ = ( int32_t )( viewParams.origin.z * 0.5f );
+    int32_t centerX, centerZ;
+    M_ComputeTileCoords( centerX, centerZ, viewParams.origin );
 
 	if ( centerX < 0 || centerZ < 0 )
 	{
@@ -1129,7 +1172,7 @@ bool tile_region_t::ShouldDestroy( void ) const
     return destroy;
 }
 
-bounds_region_t* tile_region_t::FindAdjacentOwner( const map_tile_t* t )
+adjacent_region_t* tile_region_t::FindAdjacentOwner( const map_tile_t* t )
 {
     for ( auto i = adjacent.begin(); i != adjacent.end(); ++i )
     {
@@ -1147,9 +1190,19 @@ quad_hierarchy_t::entity_list_t tile_region_t::GetEntityList( void ) const
     quad_hierarchy_t::entity_list_t entities;
     entities.resize( tiles.size() );
 
-    for ( uint32_t i = 0; i < entities.size(); ++i )
+    uint32_t i;
+    for ( i = 0; i < entities.size(); ++i )
     {
         entities[ i ] = ( const entity_t* ) tiles[ i ];
+    }
+
+    for ( const adjacent_wall_t& w: wallTiles )
+    {
+        entities.resize( entities.size() + w.walls.size() );
+        for ( const map_tile_t* wall: w.walls )
+        {
+            entities[ i++ ] = wall;
+        }
     }
 
     return std::move( entities );

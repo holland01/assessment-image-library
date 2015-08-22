@@ -46,10 +46,16 @@ struct game_t
    ~game_t( void );
 
 	void ResetMap( void );
-	void ToggleCulling( void );
-	void Tick( void );
-	void Draw( void );
+
+    void ToggleCulling( void );
+
+    void Tick( void );
+
+    void Draw( void );
+
     void FireGun( void );
+
+    void Update( void );
 
 	static game_t& GetInstance( void );
 };

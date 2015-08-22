@@ -24,12 +24,12 @@ struct entity_t
 
     float size;
 
-    std::shared_ptr< bounds_primitive_t > bounds;
+    std::shared_ptr< bounds_primitive_t > collisionBounds;
 
     std::shared_ptr< body_t > body;
 
     entity_t( dependent_t dep,
-              bounds_primitive_t* bounds = nullptr,
+              bounds_primitive_t* collisionBounds = nullptr,
               body_t* body = nullptr,
               const glm::vec4& color = glm::vec4( 1.0f ) );
 
@@ -53,26 +53,26 @@ INLINE glm::mat4 entity_t::GenScaleTransform( void ) const
 
 INLINE bounding_box_t* entity_t::GetBoundsAsBox( void )
 {
-    assert( bounds->type == BOUNDS_PRIM_BOX );
-    return ( bounding_box_t* )bounds.get();
+    assert( collisionBounds->type == BOUNDS_PRIM_BOX );
+    return ( bounding_box_t* )collisionBounds.get();
 }
 
 INLINE const bounding_box_t* entity_t::GetBoundsAsBox( void ) const
 {
-    assert( bounds->type == BOUNDS_PRIM_BOX );
-    return ( const bounding_box_t* )bounds.get();
+    assert( collisionBounds->type == BOUNDS_PRIM_BOX );
+    return ( const bounding_box_t* )collisionBounds.get();
 }
 
 INLINE primitive_lookup_t* entity_t::GetBoundsAsLookup( void )
 {
-    assert( bounds->type == BOUNDS_PRIM_LOOKUP );
-    return ( primitive_lookup_t* )bounds.get();
+    assert( collisionBounds->type == BOUNDS_PRIM_LOOKUP );
+    return ( primitive_lookup_t* )collisionBounds.get();
 }
 
 INLINE const primitive_lookup_t* entity_t::GetBoundsAsLookup( void ) const
 {
-    assert( bounds->type == BOUNDS_PRIM_LOOKUP );
-    return ( const primitive_lookup_t* )bounds.get();
+    assert( collisionBounds->type == BOUNDS_PRIM_LOOKUP );
+    return ( const primitive_lookup_t* )collisionBounds.get();
 }
 
 

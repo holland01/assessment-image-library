@@ -49,7 +49,7 @@ namespace {
 
     collision_entity_fn_t gDoLookupFn = []( collision_entity_t& e )
     {
-        assert( e.collidee->bounds->type == BOUNDS_PRIM_LOOKUP );
+        assert( e.collidee->collisionBounds->type == BOUNDS_PRIM_LOOKUP );
         gLookupCollisionTable[ e.collidee->GetBoundsAsLookup()->lookupType ]( e );
     };
 
@@ -70,8 +70,8 @@ namespace {
             // BOUNDS_BOUNDS
             []( collision_entity_t& e )
             {
-                assert( e.collider->bounds->type == BOUNDS_PRIM_BOX );
-                assert( e.collidee->bounds->type == BOUNDS_PRIM_BOX );
+                assert( e.collider->collisionBounds->type == BOUNDS_PRIM_BOX );
+                assert( e.collidee->collisionBounds->type == BOUNDS_PRIM_BOX );
 
                 const bounding_box_t& a = *( e.collider->GetBoundsAsBox() );
                 const bounding_box_t& b = *( e.collidee->GetBoundsAsBox() );
@@ -129,10 +129,10 @@ uint32_t collision_provider_t::GenHalfSpace( const bounding_box_t& bounds, colli
 
 bool collision_provider_t::EvalCollision( collision_entity_t& ce ) const
 {
-    assert( ce.collider->bounds );
-    assert( ce.collidee->bounds );
+    assert( ce.collider->collisionBounds );
+    assert( ce.collidee->collisionBounds );
 
-    gCollisionTable[ ce.collider->bounds->type ][ ce.collidee->bounds->type ]( ce );
+    gCollisionTable[ ce.collider->collisionBounds->type ][ ce.collidee->collisionBounds->type ]( ce );
 
     return ce.colliding;
 }

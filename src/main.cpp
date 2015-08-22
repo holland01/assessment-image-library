@@ -68,6 +68,10 @@ static void Draw_Group( game_t& game,
                  map_tile_list_t& walls,
                  map_tile_list_t& freeSpace );
 
+static void Draw_Hud( const game_t& game );
+
+static void Draw_Axes( const game_t& game, const view_params_t& vp );
+
 game_t::game_t( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
 	  height( height_ ),
@@ -230,51 +234,6 @@ void game_t::Draw( void )
 	{
 		Draw_Group( *this, vp, billboards, walls, freeSpace );
 	}
-
-    // Clear depth buffer so the reticule renders over anything else it tests
-    // against by default
-    GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
-
-    {
-        const shader_program_t& ssSingleColor = pipeline->programs.at( "single_color_ss" );
-
-        ssSingleColor.Bind();
-        ssSingleColor.LoadVec4( "color", glm::vec4( 1.0f ) );
-
-        imm_draw_t drawer( ssSingleColor );
-
-        // Draw reticule
-        drawer.Begin( GL_POINTS );
-        drawer.Vertex( glm::vec3( 0.0f ) );
-        drawer.End();
-
-        ssSingleColor.Release();
-    }
-
-    {
-        const shader_program_t& singleColor = pipeline->programs.at( "single_color" );
-
-        singleColor.Bind();
-        singleColor.LoadMat4( "modelToView", vp.transform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-        singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-
-        imm_draw_t drawer( singleColor );
-
-        const float AXIS_SIZE = 100.0f;
-
-        // Draw coordinate space axes
-        drawer.Begin( GL_LINES );
-        drawer.Vertex( glm::vec3( 0.0f ) );
-        drawer.Vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ) );
-        drawer.Vertex( glm::vec3( 0.0f ) );
-        drawer.Vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ) );
-        drawer.Vertex( glm::vec3( 0.0f ) );
-        drawer.Vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ) );
-        drawer.End();
-
-        singleColor.Release();
-    }
-
 }
 
 void game_t::FireGun( void )
@@ -288,7 +247,7 @@ void game_t::FireGun( void )
     }
 }
 
-void Draw_Bounds( game_t& game, const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
+static void Draw_Bounds( const game_t& game, const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
@@ -298,6 +257,53 @@ void Draw_Bounds( game_t& game, const bounding_box_t& bounds, const glm::vec3& c
     singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
     coloredCube.Render( singleColor );
 }
+
+static void Draw_Hud( const game_t& game )
+{
+    // Clear depth buffer so the reticule renders over anything else it tests
+    // against by default
+    GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
+
+    const shader_program_t& ssSingleColor = game.pipeline->programs.at( "single_color_ss" );
+
+    ssSingleColor.Bind();
+    ssSingleColor.LoadVec4( "color", glm::vec4( 1.0f ) );
+
+    imm_draw_t drawer( ssSingleColor );
+
+    // Draw reticule
+    drawer.Begin( GL_POINTS );
+    drawer.Vertex( glm::vec3( 0.0f ) );
+    drawer.End();
+
+    ssSingleColor.Release();
+}
+
+static void Draw_Axes( const game_t& game, const view_params_t& vp )
+{
+    const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
+
+    singleColor.Bind();
+    singleColor.LoadMat4( "modelToView", vp.transform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
+    singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+
+    imm_draw_t drawer( singleColor );
+
+    const float AXIS_SIZE = 100.0f;
+
+    // Draw coordinate space axes
+    drawer.Begin( GL_LINES );
+    drawer.Vertex( glm::vec3( 0.0f ) );
+    drawer.Vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ) );
+    drawer.Vertex( glm::vec3( 0.0f ) );
+    drawer.Vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ) );
+    drawer.Vertex( glm::vec3( 0.0f ) );
+    drawer.Vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ) );
+    drawer.End();
+
+    singleColor.Release();
+}
+
 
 namespace {
 
@@ -316,7 +322,30 @@ glm::mat4 quadTransform(
     }()
 );
 
-void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
+void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body );
+
+INLINE bool Tile_TestCollision( game_t& game,
+    const entity_t* entity, const glm::vec3& entityPos, const map_tile_t* tile )
+{
+    if ( glm::distance( entityPos, glm::vec3( tile->box[ 3 ] ) ) < 2.0f )
+    {
+        collision_entity_t ce( game.collision,
+                               entity,
+                               ( const entity_t* )tile );
+
+        if ( game.collision.EvalCollision( ce ) )
+        {
+            Draw_Bounds( game, tile->box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
+            Apply_Force( game, ce.normal, *( tile->body ) );
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void Draw_Quad( const game_t& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
@@ -329,9 +358,64 @@ void Draw_Quad( game_t& game, const glm::mat4& transform, const glm::vec3& color
     singleColor.Release();
 }
 
-void Draw_Tiles( const std::vector< const map_tile_t* >& tiles )
+INLINE void Draw_Tiles( const game_t& game, const std::vector< const map_tile_t* >& tiles, const glm::vec3& color, float alpha = 1.0f )
 {
-    UNUSEDPARAM( tiles );
+    for ( const map_tile_t* tile: tiles )
+    {
+        Draw_Quad( game, tile->box.transform, color, alpha );
+    }
+}
+
+INLINE void Draw_Tiles( const game_t& game, const std::vector< const map_tile_t* >& tiles, const glm::vec4& color )
+{
+    Draw_Tiles( game, tiles, glm::vec3( color ), color.a );
+}
+
+INLINE void Draw_AdjacentTiles( const game_t& game, const adjacent_region_list_t& adjRegions )
+{
+    for ( const adjacent_region_t& br: adjRegions )
+    {
+        auto adj = br.region.lock();
+
+        if ( !adj )
+        {
+            continue;
+        }
+
+        Draw_Tiles( game, adj->tiles, glm::vec3( adj->color ), 1.0f );
+    }
+}
+
+INLINE void Draw_BoundsTiles( const game_t& game, const shared_tile_region_t& region )
+{
+    load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+    glm::vec3 color( 1.0f, 0.0f, 0.0f );
+
+    for ( const adjacent_wall_t& br: region->wallTiles )
+    {
+        Draw_Quad( game, br.source->box.transform, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
+        Draw_Tiles( game, br.walls, color, 1.0f );
+    }
+
+    assert( region->origin );
+
+    Draw_Quad( game, region->origin->box.transform, glm::vec3( 1.0f ), 1.0f );
+
+    region->boundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
+}
+
+INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
+{
+    for ( const adjacent_region_t& r: adjRegions )
+    {
+        if ( source == r.region )
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
@@ -345,19 +429,8 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
             continue;
         }
 
-        bool canDraw = game.gen->regions[ regionIter ] != region;
-
-        if ( canDraw )
-        {
-            for ( const bounds_region_t& r: game.gen->regions[ regionIter ]->adjacent )
-            {
-                if ( weakRegion == r.region )
-                {
-                    canDraw = false;
-                    break;
-                }
-            }
-        }
+        bool canDraw = game.gen->regions[ regionIter ] != region
+                && !InAdjacentRegionList( weakRegion, game.gen->regions[ regionIter ]->adjacent );
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
@@ -365,65 +438,24 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
         // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
         {
-            for ( const map_tile_t* tile: region->tiles )
-            {
-                Draw_Quad( game, tile->GetBoundsAsBox()->GetTransform(), glm::vec3( region->color ) );
-            }
+            Draw_Tiles( game, region->tiles, region->color );
         }
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
         {
-            // Prioritization: if drawAdjacent is turned on,
+            // Note: if drawAdjacent is turned on,
             // it's pretty hard seeing which tile is current
             // without a full alpha channel.
-            float firstAlpha;
-            if ( drawAdjacent )
-            {
-                firstAlpha = 1.0f;
-            }
-            else
-            {
-                firstAlpha = 0.4f;
-            }
 
             if ( drawAdjacent )
             {
-                for ( const bounds_region_t& br: region->adjacent )
-                {
-                    auto adj = br.region.lock();
-
-                    if ( !adj )
-                    {
-                        continue;
-                    }
-
-                    for ( const map_tile_t* tile: adj->tiles )
-                    {
-                        Draw_Quad( game, tile->GetBoundsAsBox()->GetTransform(), glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
-                    }
-                }
+                Draw_AdjacentTiles( game, region->adjacent );
             }
 
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
-                load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-
-                glm::vec3 color( 1.0f, 0.0f, 0.0f );
-
-                for ( const bounds_region_t& br: region->adjacent )
-                {
-                    for ( const map_tile_t* t: br.tiles )
-                    {
-                        Draw_Quad( game, t->GetBoundsAsBox()->GetTransform(), color, 0.4f );
-                    }
-                }
-
-                assert( region->origin );
-
-                Draw_Quad( game, region->origin->GetBoundsAsBox()->GetTransform(), glm::vec3( 1.0f ), 1.0f );
-
-                region->boundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
+                Draw_BoundsTiles( game, region );
             }
         }
     }
@@ -437,7 +469,65 @@ void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body )
     }
 }
 
-void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& billboards )
+INLINE void Billboard_DrawBounds( const game_t& game, const view_params_t& vp, const shader_program_t& singleColor, const bounding_box_t& billboardBounds )
+{
+    singleColor.Bind();
+    Draw_Bounds( game, billboardBounds, glm::vec3( 0.5f ), 0.5f );
+
+    singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+    singleColor.LoadMat4( "modelToView", vp.transform * billboardBounds.transform );
+
+    imm_draw_t drawer( singleColor );
+
+    drawer.Begin( GL_LINES );
+    drawer.Vertex( glm::vec3( 0.0f ) );
+    drawer.Vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
+    drawer.End();
+}
+
+INLINE void Billboard_LoadParams( map_tile_t& tile, const view_params_t& vp, const shader_program_t& billboard )
+{
+    const bounding_box_t& bounds = *( tile.GetBoundsAsBox() );
+
+    glm::vec3 boundsOrigin( bounds[ 3 ] );
+
+    billboard.LoadVec3( "origin", boundsOrigin );
+
+    glm::vec3 dirToCam( vp.origin - boundsOrigin );
+    dirToCam.y = 0.0f;
+    dirToCam = glm::normalize( dirToCam );
+
+    glm::mat3 orient(
+        G_OrientByDirection(
+                dirToCam,
+                glm::vec3( 0.0f, 0.0f, 1.0f ),
+                glm::vec3( -1.0f, 0.0f, 0.0f )
+        )
+    );
+
+    // This load ensures that the billboard is always facing the viewer
+    billboard.LoadMat3( "viewOrient", orient );
+
+    // Set orientation so collisions are properly computed regardless of direction
+    tile.body->SetOrientation( orient );
+    tile.Sync();
+}
+
+INLINE void Billboard_TestBulletCollision( game_t& game, map_tile_t* tile )
+{
+    if ( game.bullet )
+    {
+        if( Tile_TestCollision( game,
+                            game.bullet.get(),
+                            game.bullet->body->GetPosition(),
+                            tile ) )
+        {
+            game.bullet.release();
+        }
+    }
+}
+
+void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& billboards )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
@@ -449,26 +539,9 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& bi
     billboard.LoadMat4( "modelToView", vp.transform );
     billboard.LoadMat4( "viewToClip", vp.clipTransform );
 
-    imm_draw_t drawer( singleColor );
-
     for ( map_tile_t* tile: billboards )
     {
-        glm::vec3 boundsOrigin( ( *( tile->GetBoundsAsBox() ) )[ 3 ] );
-
-        billboard.LoadVec3( "origin", boundsOrigin );
-
-        glm::vec3 dirToCam( vp.origin - boundsOrigin );
-        dirToCam.y = 0.0f;
-        dirToCam = glm::normalize( dirToCam );
-
-        glm::mat3 orient( G_OrientByDirection( dirToCam, glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( -1.0f, 0.0f, 0.0f ) ) );
-
-        // This load ensures that the billboard is always facing the viewer
-        billboard.LoadMat3( "viewOrient", orient );
-
-        // Set orientation so collisions are properly computed regardless of direction
-        tile->body->SetOrientation( orient );
-        tile->Sync();
+        Billboard_LoadParams( *tile, vp, billboard  );
 
         if ( glm::distance( tile->body->GetPosition(), vp.origin ) <= DISTANCE_THRESHOLD )
         {
@@ -480,22 +553,9 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& bi
             }
         }
 
-        if ( game.bullet )
-        {
-            glm::vec3 normal;
-
-            // Scale the initial bounds by a smaller size, since it will make hitting
-            // the enemies more challenging and not cause issues with enemies
-            // which are near each other with their overlapping bounds.
-            glm::mat4 s( glm::scale( glm::mat4( 1.0f ), glm::vec3( 0.4f ) ) );
-            bounding_box_t bounds( tile->GetBoundsAsBox()->GetTransform() * s );
-
-            if ( game.bullet->GetBoundsAsBox()->IntersectsBounds( normal, bounds ) )
-            {
-                tile->color = glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
-                game.bullet.release();
-            }
-        }
+        singleColor.Bind();
+        Billboard_TestBulletCollision( game, tile );
+        billboard.Bind();
 
         billboard.LoadVec4( "color", tile->color );
 
@@ -505,15 +565,7 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& bi
 
         if ( gDrawFlags & DRAW_BILLBOARD_BOUNDS )
         {
-            singleColor.Bind();
-            Draw_Bounds( game, *( tile->GetBoundsAsBox() ), glm::vec3( 0.5f ), 0.5f );
-
-            singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-            singleColor.LoadMat4( "modelToView", vp.transform * tile->GetBoundsAsBox()->GetTransform() );
-            drawer.Begin( GL_LINES );
-            drawer.Vertex( glm::vec3( 0.0f ) );
-            drawer.Vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
-            drawer.End();
+            Billboard_DrawBounds( game, vp, singleColor, *( tile->GetBoundsAsBox() ) );
         }
 
         billboard.Bind();
@@ -522,6 +574,8 @@ void Draw_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& bi
 }
 
 } // end namespace
+
+
 
 static void Draw_Group( game_t& game,
                  const view_params_t& vp,
@@ -550,24 +604,8 @@ static void Draw_Group( game_t& game,
         {
             Draw_Bounds( game, tile->box, glm::vec3( 0.5f ) );
 
-            if ( glm::distance( vp.origin, glm::vec3( tile->box[ 3 ] ) ) < 2.0f )
-            {
-                // don't test collision unless distance from player to object is within a certain range
-                ///half_space_t hs;
-                ///glm::vec3 normal;
-
-                //if ( game.gen->CollidesWall( normal, *tile, *( game.camera->GetBoundsAsBox() ), hs ) )
-
-                collision_entity_t ce( game.collision,
-                                       ( const entity_t* )game.camera,
-                                       ( const entity_t* )tile );
-
-                if ( game.collision.EvalCollision( ce ) )
-                {
-                   Draw_Bounds( game, tile->box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
-                   Apply_Force( game, ce.normal, *( tile->body ) );
-                }
-            }
+            Tile_TestCollision( game,
+                ( const entity_t* )game.camera, vp.origin, tile  );
         }
     }
 
@@ -578,7 +616,7 @@ static void Draw_Group( game_t& game,
 
     if ( gDrawFlags & DRAW_BILLBOARDS )
     {
-        Draw_Billboards( game, vp, billboards );
+        Process_Billboards( game, vp, billboards );
     }
 
     singleColor.Bind();
@@ -608,19 +646,6 @@ static void Draw_Group( game_t& game,
             }
         }
     }
-
-    {
-        glm::vec3 color( 1.0f );
-
-        if ( game.spec.GetBoundsAsBox()->Encloses( *( gBoundsTest.e.GetBoundsAsBox() ) ) )
-        {
-            color.g = 0.0f;
-            color.b = 0.0f;
-        }
-
-        Draw_Bounds( game, *( gBoundsTest.e.GetBoundsAsBox() ), color );
-    }
-
 
     // Draw the bounds of the camera not currently being used
     Draw_Bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
@@ -800,7 +825,7 @@ float GetTime( void )
 
 int main( void ) 
 {
-    gDrawFlags = gDrawTestConfig[ "default" ];
+    gDrawFlags = gDrawTestConfig[ "bounds_tiles_test" ];
 
 	return Game_Exec();
 }

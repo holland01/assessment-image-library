@@ -73,7 +73,7 @@ entity_t::entity_t( dependent_t dep, bounds_primitive_t* bounds_, body_t* body_,
     : depType( dep ),
       color( color_ ),
       size( 1.0f ),
-      bounds( bounds_ ),
+      collisionBounds( bounds_ ),
       body( body_ )
 {
 }
@@ -83,15 +83,15 @@ void entity_t::Sync( void )
     switch ( depType )
     {
         case entity_t::BOUNDS_DEPENDENT:
-            if ( bounds )
+            if ( collisionBounds )
             {
-                gSyncBoundsDepTable[ bounds->type ]( bounds.get(), body.get() );
+                gSyncBoundsDepTable[ collisionBounds->type ]( collisionBounds.get(), body.get() );
             }
             break;
         case entity_t::BODY_DEPENDENT:
-            if ( bounds )
+            if ( collisionBounds )
             {
-                gSyncBodyDepTable[ bounds->type ]( bounds.get(), body.get() );
+                gSyncBodyDepTable[ collisionBounds->type ]( collisionBounds.get(), body.get() );
             }
             break;
     }

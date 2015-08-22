@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "def.h"
 #include "entity.h"
@@ -23,27 +23,49 @@ using shared_tile_region_t = std::shared_ptr< tile_region_t >;
 struct region_merge_predicates_t;
 
 //-------------------------------------------------------------------------------------------------------
-// bounds_region_t
+// adjacent_region_t
 //-------------------------------------------------------------------------------------------------------
 
-struct bounds_region_t
+struct adjacent_region_t
 {
     static const uint32_t UNKNOWN = UINT32_MAX;
+
     static uint32_t count;
+
     uint32_t id;
 
-    std::vector< const map_tile_t* > tiles; // tiles touching the given region from within another region
-    ref_tile_region_t region; // Region which the tiles are adjacent to
+    std::vector< const map_tile_t* > tiles;
 
-    bounds_region_t( void );
-    bounds_region_t( const bounds_region_t& c );
+    ref_tile_region_t region;
+
+    adjacent_region_t( void );
+
+    adjacent_region_t( const adjacent_region_t& c );
 };
 
-bool operator == ( const bounds_region_t& a, const bounds_region_t& b );
+bool operator == ( const adjacent_region_t& a, const adjacent_region_t& b );
 
-bool operator != ( const bounds_region_t& a, const bounds_region_t& b );
+bool operator != ( const adjacent_region_t& a, const adjacent_region_t& b );
 
-using bounds_region_list_t = std::vector< bounds_region_t >;
+using adjacent_region_list_t = std::vector< adjacent_region_t >;
+
+//-------------------------------------------------------------------------------------------------------
+// adjacent_wall_t
+//-------------------------------------------------------------------------------------------------------
+
+struct adjacent_wall_t
+{
+    const map_tile_t* source;
+
+    ref_tile_region_t governingRegion;
+
+    std::vector< const map_tile_t* > walls;
+
+    adjacent_wall_t( void )
+        : source( nullptr )
+    {
+    }
+};
 
 //-------------------------------------------------------------------------------------------------------
 // tile_t
@@ -137,29 +159,31 @@ public:
 
                 tile_generator_t( collision_provider_t& collision );
 
-    bool        FindRegions( const map_tile_t* tile );
+    shared_tile_region_t    FetchRegionFromPosition( const glm::vec3& p );
 
-    void        FindAdjacentRegions( void );
+    bool                    FindRegions( const map_tile_t* tile );
 
-    void        PurgeDefunctRegions( void );
+    void                    FindAdjacentRegions( void );
 
-    void        MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
+    void                    PurgeDefunctRegions( void );
 
-    void        SetTile( map_tile_t& tile, int32_t pass );
+    void                    MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
-    int32_t     RangeCount( const map_tile_t& t, int32_t startOffset, int32_t offsetEnd );
+    void                    SetTile( map_tile_t& tile, int32_t pass );
 
-    bool        CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
+    int32_t                 RangeCount( const map_tile_t& t, int32_t startOffset, int32_t offsetEnd );
 
-    void        GetEntities( map_tile_list_t& billboards,
-                              map_tile_list_t& walls,
-                              map_tile_list_t& freeSpace,
-                              const frustum_t& frustum_t,
-                              const view_params_t& viewParams );
+    bool                    CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
 
-    void         GenHalfSpacesFromWalls( map_tile_list_t& wallTiles );
+    void                    GetEntities( map_tile_list_t& billboards,
+                                          map_tile_list_t& walls,
+                                          map_tile_list_t& freeSpace,
+                                          const frustum_t& frustum_t,
+                                          const view_params_t& viewParams );
 
-    half_space_t GenHalfSpace( const map_tile_t& t, const glm::vec3& normal );
+    void                    GenHalfSpacesFromWalls( map_tile_list_t& wallTiles );
+
+    half_space_t            GenHalfSpace( const map_tile_t& t, const glm::vec3& normal );
 };
 
 //-------------------------------------------------------------------------------------------------------
@@ -171,6 +195,7 @@ struct quad_hierarchy_t;
 struct tile_region_t
 {
 private:
+
     mutable bool destroy;
 
 public:
@@ -181,9 +206,9 @@ public:
 
     std::vector< const map_tile_t* > tiles;
 
-    std::vector< const map_tile_t* > wallTiles; // tiles which touch walls
+    std::vector< adjacent_wall_t > wallTiles; // tiles which touch walls
 
-    bounds_region_list_t adjacent;
+    adjacent_region_list_t adjacent;
 
     quad_hierarchy_t::ptr_t boundsVolume;
 
@@ -195,12 +220,19 @@ public:
 
     bool ShouldDestroy( void ) const;
 
-    bounds_region_t* FindAdjacentOwner( const map_tile_t* t );
+    adjacent_region_t* FindAdjacentOwner( const map_tile_t* t );
 
     quad_hierarchy_t::entity_list_t GetEntityList( void ) const;
 
     void Update( void );
 };
 
+//-------------------------------------------------------------------------------------------------------
+// global
+//-------------------------------------------------------------------------------------------------------
 
+static INLINE void M_ComputeTileCoords( int32_t& x, int32_t& z, const glm::vec3& v );
 
+static INLINE glm::mat4 M_TransformFromTile( const map_tile_t& t );
+
+#include "map.inl"
