@@ -102,7 +102,9 @@ void quad_hierarchy_t::node_t::Update( quad_hierarchy_t::entity_list_t entities,
 
             if ( p )
             {
-                if ( children[ i ]->bounds.Encloses( *( p->GetBoundsAsBox() ) ) )
+                const bounding_box_t* pbox = ENTITY_PTR_GET_BOX( p, ENTITY_BOUNDS_AREA_EVAL );
+
+                if ( children[ i ]->bounds.Encloses( *pbox ) )
                 {
                     subregions[ i ].push_back( p );
                     e = entities.erase( e );

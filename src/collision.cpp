@@ -3,18 +3,27 @@
 #include "entity.h"
 #include <glm/glm.hpp>
 
+#define DUMMY_LAMBDA \
+    []( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee ) \
+    { \
+         assert( false ); \
+         UNUSEDPARAM( e ); \
+         UNUSEDPARAM( collider ); \
+         UNUSEDPARAM( collidee ); \
+    }
+
 namespace {
 
-    using collision_entity_fn_t = std::function< void( collision_entity_t& e ) >;
+    using collision_entity_fn_t = std::function< void( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee ) >;
     using collision_fn_table_t = std::array< collision_entity_fn_t, NUM_BOUNDS_PRIMTYPE >;
 
     collision_fn_table_t gLookupCollisionTable =
     {{
         // HALFSPACE
-        []( collision_entity_t& e )
+        []( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee )
         {
-            const bounding_box_t& a = *( e.collider->GetBoundsAsBox() );
-            const primitive_lookup_t& b = *( e.collidee->GetBoundsAsLookup() );
+            const bounding_box_t& a = *( collider->ToBox() );
+            const primitive_lookup_t& b = *( collidee->ToLookup() );
 
             if ( b.index < 0 )
             {
@@ -43,38 +52,41 @@ namespace {
                 }
             }
         },
-        []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
-        []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
-    }};
+        DUMMY_LAMBDA,
+        DUMMY_LAMBDA
+     }};
 
-    collision_entity_fn_t gDoLookupFn = []( collision_entity_t& e )
+    collision_entity_fn_t gDoLookupFn = []( collision_entity_t& e,
+        const bounds_primitive_t* cer, const bounds_primitive_t* cee )
     {
-        assert( e.collidee->collisionBounds->type == BOUNDS_PRIM_LOOKUP );
-        gLookupCollisionTable[ e.collidee->GetBoundsAsLookup()->lookupType ]( e );
+        assert( cee->type == BOUNDS_PRIM_LOOKUP );
+        gLookupCollisionTable[ cee->ToLookup()->lookupType ]( e, cer, cee );
     };
 
     std::array< collision_fn_table_t, NUM_BOUNDS_PRIMTYPE > gCollisionTable =
     {{
         // HALFSPACE
         {{
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
+            DUMMY_LAMBDA,
+            DUMMY_LAMBDA,
             gDoLookupFn,
         }},
 
         // BOX
         {{
             // BOUNDS_HALFSPACE
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
+            DUMMY_LAMBDA,
 
             // BOUNDS_BOUNDS
-            []( collision_entity_t& e )
+            []( collision_entity_t& e,
+                const bounds_primitive_t* collider,
+                const bounds_primitive_t* collidee )
             {
-                assert( e.collider->collisionBounds->type == BOUNDS_PRIM_BOX );
-                assert( e.collidee->collisionBounds->type == BOUNDS_PRIM_BOX );
+                assert( collider->type == BOUNDS_PRIM_BOX );
+                assert( collidee->type == BOUNDS_PRIM_BOX );
 
-                const bounding_box_t& a = *( e.collider->GetBoundsAsBox() );
-                const bounding_box_t& b = *( e.collidee->GetBoundsAsBox() );
+                const bounding_box_t& a = *( collider->ToBox() );
+                const bounding_box_t& b = *( collidee->ToBox() );
 
                 e.colliding = a.IntersectsBounds( e.normal, b );
             },
@@ -83,9 +95,9 @@ namespace {
 
         // LOOKUP
         {{
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); },
-            []( collision_entity_t& e ) { assert( false ); UNUSEDPARAM( e ); }
+            DUMMY_LAMBDA,
+            DUMMY_LAMBDA,
+            DUMMY_LAMBDA
         }}
     }};
 }
@@ -96,8 +108,13 @@ namespace {
 
 collision_entity_t::collision_entity_t( const collision_provider_t& provider_,
                                         const entity_t* a_,
-                                        const entity_t* b_ )
-    : collider( a_ ),
+                                        const entity_t* b_,
+                                        const uint32_t colliderBoundsUseFlags,
+                                        const uint32_t collideeBoundsUseFlags )
+    :
+      colliderUseFlags( colliderBoundsUseFlags ),
+      collideeUseFlags( collideeBoundsUseFlags ),
+      collider( a_ ),
       collidee( b_ ),
       colliding( false ),
       normal( 0.0f ),
@@ -129,10 +146,13 @@ uint32_t collision_provider_t::GenHalfSpace( const bounding_box_t& bounds, colli
 
 bool collision_provider_t::EvalCollision( collision_entity_t& ce ) const
 {
-    assert( ce.collider->collisionBounds );
-    assert( ce.collidee->collisionBounds );
+    const bounds_primitive_t* collider = ce.collider->QueryBounds( ce.colliderUseFlags );
+    const bounds_primitive_t* collidee = ce.collidee->QueryBounds( ce.collideeUseFlags );
 
-    gCollisionTable[ ce.collider->collisionBounds->type ][ ce.collidee->collisionBounds->type ]( ce );
+    assert( collider );
+    assert( collidee );
+
+    gCollisionTable[ collider->type ][ collidee->type ]( ce, collider, collidee );
 
     return ce.colliding;
 }

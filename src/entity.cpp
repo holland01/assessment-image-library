@@ -3,21 +3,21 @@
 #include "geom.h"
 
 namespace {
-    std::array<
-        std::function< void( bounds_primitive_t* prim, const body_t* body ) >,
-        NUM_BOUNDS_PRIMTYPE >
 
-    gSyncBodyDepTable =
+    using entity_dep_table_t =
+        std::array< std::function< void( bounds_primitive_t* prim, body_t* body ) >, NUM_BOUNDS_PRIMTYPE >;
+
+    entity_dep_table_t gSyncBodyDepTable =
     {{
         // BOUNDS_PRIMTYPE_HALFSPACE
-        []( bounds_primitive_t* prim, const body_t* body )
+        []( bounds_primitive_t* prim, body_t* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
         },
 
         // BOUNDS_PRIMTYPE_BOX
-        []( bounds_primitive_t* prim, const body_t* body )
+        []( bounds_primitive_t* prim, body_t* body )
         {
             bounding_box_t* box = ( bounding_box_t* )prim;
 
@@ -29,18 +29,14 @@ namespace {
         },
 
         // BOUNDS_PRIMTYPE_LOOKUP
-        []( bounds_primitive_t* prim, const body_t* body )
+        []( bounds_primitive_t* prim, body_t* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
         }
     }};
 
-    std::array<
-        std::function< void( const bounds_primitive_t* prim, body_t* body ) >,
-        NUM_BOUNDS_PRIMTYPE >
-
-    gSyncBoundsDepTable =
+    entity_dep_table_t gSyncBoundsDepTable =
     {{
         // BOUNDS_PRIMTYPE_HALFSPACE
         []( const bounds_primitive_t* prim, body_t* body )
@@ -69,30 +65,102 @@ namespace {
     }};
 }
 
-entity_t::entity_t( dependent_t dep, bounds_primitive_t* bounds_, body_t* body_, const glm::vec4& color_ )
-    : depType( dep ),
+entity_bounds_primitive_t::entity_bounds_primitive_t( uint32_t flags, bounds_primitive_t* bounds_ )
+    : usageFlags( flags ),
+      bounds( bounds_ ),
+      next( nullptr )
+{
+}
+
+//-------------------------------------------------------------------------------------------------------
+// entity_bounds_primitive_t
+//-------------------------------------------------------------------------------------------------------
+
+entity_t::entity_t( dependent_t dep, body_t* body_, const glm::vec4& color_ )
+    : bounds( nullptr ),
+      depType( dep ),
       color( color_ ),
       size( 1.0f ),
-      collisionBounds( bounds_ ),
       body( body_ )
 {
 }
 
+void entity_t::AddBounds( uint32_t usageFlags, bounds_primitive_t* newBounds )
+{
+    std::unique_ptr< entity_bounds_primitive_t >* b = &bounds;
+
+    while ( *b )
+    {
+        if ( usageFlags & ( *b )->usageFlags )
+        {
+            ( *b )->usageFlags ^= usageFlags;
+        }
+
+        b = &( *b )->next;
+    }
+
+    ( *b ).reset( new entity_bounds_primitive_t( usageFlags, newBounds ) );
+}
+
+namespace {
+
+   INLINE bounds_primitive_t* __QueryBounds( entity_bounds_primitive_t* b, uint32_t flags )
+    {
+        while ( b )
+        {
+            if ( b->usageFlags & flags )
+            {
+                return b->bounds.get();
+            }
+
+            b = b->next.get();
+        }
+
+        return nullptr;
+    }
+}
+
+bounds_primitive_t* entity_t::QueryBounds( uint32_t flags )
+{
+    return __QueryBounds( bounds.get(), flags );
+}
+
+const bounds_primitive_t* entity_t::QueryBounds( uint32_t flags ) const
+{
+    return __QueryBounds( bounds.get(), flags );
+}
+
+namespace {
+    const  uint32_t NUM_ENTITY_BOUNDS_PRIM_TYPES = 3;
+
+    std::array< uint32_t, NUM_ENTITY_BOUNDS_PRIM_TYPES + 1 > gEntBoundsPrims =
+    {
+        ENTITY_BOUNDS_ALL,
+        ENTITY_BOUNDS_AIR_COLLIDE,
+        ENTITY_BOUNDS_AREA_EVAL,
+        ENTITY_BOUNDS_MOVE_COLLIDE
+    };
+}
+
 void entity_t::Sync( void )
 {
-    switch ( depType )
+    for ( auto key: gEntBoundsPrims )
     {
-        case entity_t::BOUNDS_DEPENDENT:
-            if ( collisionBounds )
+        bounds_primitive_t* prim = QueryBounds( key );
+
+        if ( prim )
+        {
+            switch ( depType )
             {
-                gSyncBoundsDepTable[ collisionBounds->type ]( collisionBounds.get(), body.get() );
+                case entity_t::BOUNDS_DEPENDENT:
+                    gSyncBoundsDepTable[ prim->type ]( prim, body.get() );
+                    break;
+
+                case entity_t::BODY_DEPENDENT:
+                    gSyncBodyDepTable[ prim->type ]( prim, body.get() );
+                    break;
             }
-            break;
-        case entity_t::BODY_DEPENDENT:
-            if ( collisionBounds )
-            {
-                gSyncBodyDepTable[ collisionBounds->type ]( collisionBounds.get(), body.get() );
-            }
-            break;
+        }
+
     }
 }

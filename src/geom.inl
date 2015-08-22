@@ -216,3 +216,38 @@ INLINE const glm::vec4& bounding_box_t::operator[]( uint32_t i ) const
 
     return transform[ i ];
 }
+
+//-------------------------------------------------------------------------------------------------------
+// bounds_primitive_t
+//-------------------------------------------------------------------------------------------------------
+
+INLINE primitive_lookup_t* bounds_primitive_t::ToLookup( void )
+{
+    assert( type == BOUNDS_PRIM_LOOKUP );
+    return ( primitive_lookup_t* ) this;
+}
+
+INLINE const primitive_lookup_t* bounds_primitive_t::ToLookup( void ) const
+{
+    assert( type == BOUNDS_PRIM_LOOKUP );
+    return ( const primitive_lookup_t* ) this;
+}
+
+
+INLINE bounding_box_t* bounds_primitive_t::ToBox( void )
+{
+    assert( type == BOUNDS_PRIM_BOX );
+    return ( bounding_box_t* ) this;
+}
+
+INLINE const bounding_box_t* bounds_primitive_t::ToBox( void ) const
+{
+    assert( type == BOUNDS_PRIM_BOX );
+    return ( const bounding_box_t* ) this;
+}
+
+INLINE half_space_t* bounds_primitive_t::ToHalfSpace( void )
+{
+    assert( type == BOUNDS_PRIM_BOX );
+    return ( half_space_t* ) this;
+}

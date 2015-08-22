@@ -391,18 +391,9 @@ map_tile_t::map_tile_t( void )
 {
 }
 
-namespace {
-    struct m_tile_type_data_t
-    {
-
-    };
-}
-
 void map_tile_t::Set( const glm::mat4& transform )
 {
     body.reset( new body_t );
-
-    box.transform = transform;
 
     switch ( type )
     {
@@ -410,18 +401,25 @@ void map_tile_t::Set( const glm::mat4& transform )
             depType = entity_t::BODY_DEPENDENT;
             body->SetFromTransform( transform );
             body->SetMass( 100.0f );
-            collisionBounds.reset( new bounding_box_t );
+
+            AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t( transform ) );
+
             break;
 
         default:
             if ( type == map_tile_t::WALL )
             {
-                collisionBounds.reset( new primitive_lookup_t( BOUNDS_PRIM_HALFSPACE, halfSpaceIndex ) );
+                AddBounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
+                           new primitive_lookup_t( BOUNDS_PRIM_HALFSPACE, halfSpaceIndex ) );
+
+                AddBounds( ENTITY_BOUNDS_AREA_EVAL,
+                           new bounding_box_t( transform ) );
+
                 body->SetMass( 10.0f );
             }
             else
             {
-                collisionBounds.reset( new bounding_box_t( transform ) );
+                AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t( transform ) );
             }
 
             depType = entity_t::BOUNDS_DEPENDENT;
@@ -472,34 +470,40 @@ tile_generator_t::tile_generator_t( collision_provider_t& collision_ )
 
         bool hasHalfSpace = false;
 
+        const bounding_box_t& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
+
         if ( tiles[ left ].type != map_tile_t::WALL && ( wall->x - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_LEFT );
+            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )collision.GenHalfSpace( box, COLLISION_FACE_LEFT );
             hasHalfSpace = true;
         }
 
         if ( tiles[ forward ].type != map_tile_t::WALL && ( wall->z - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_FORWARD );
+            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )collision.GenHalfSpace( box, COLLISION_FACE_FORWARD );
             hasHalfSpace = true;
         }
 
         if ( tiles[ right ].type != map_tile_t::WALL && ( wall->x + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_RIGHT );
+            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )collision.GenHalfSpace( box, COLLISION_FACE_RIGHT );
             hasHalfSpace = true;
         }
 
         if ( tiles[ back ].type != map_tile_t::WALL && ( wall->z + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )collision.GenHalfSpace( wall->box, COLLISION_FACE_BACK );
+            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )collision.GenHalfSpace( box, COLLISION_FACE_BACK );
             hasHalfSpace = true;
         }
 
         if ( hasHalfSpace )
         {
             wall->halfSpaceIndex = ( int32_t ) collision.halfSpaceTable.size();
-            wall->GetBoundsAsLookup()->index = wall->halfSpaceIndex;
+
+            wall->QueryBounds( ENTITY_BOUNDS_MOVE_COLLIDE )
+                    ->ToLookup()
+                    ->index = wall->halfSpaceIndex;
+
             collision.halfSpaceTable.push_back( std::move( halfSpaces ) );
         }
     }
@@ -999,7 +1003,7 @@ void tile_generator_t::SetTile( map_tile_t& tile, int32_t pass )
         isWall = RangeCount( tile, -1, 1 ) >= 5 || predicates[ pass - 1 ]( RangeCount( tile, -2, 2 ) );
 	}
 
-    tile.collisionBounds.reset();
+    tile.bounds.reset();
     tile.type = map_tile_t::EMPTY;
 
 	// Multiply x and z values by 2 to accomodate for bounds scaling on the axis
@@ -1120,8 +1124,10 @@ void tile_generator_t::GetEntities(
 
 			int32_t index = TileModIndex( x, z );
 
+            const bounding_box_t& areaBox = *ENTITY_GET_BOX( tiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
+
             // cull frustum, insert into appropriate type, etc.
-            if ( !frustum.IntersectsBox( tiles[ index ].box ) )
+            if ( !frustum.IntersectsBox( areaBox ) )
 			{
 				continue;
 			}
@@ -1196,6 +1202,7 @@ quad_hierarchy_t::entity_list_t tile_region_t::GetEntityList( void ) const
         entities[ i ] = ( const entity_t* ) tiles[ i ];
     }
 
+    /*
     for ( const adjacent_wall_t& w: wallTiles )
     {
         entities.resize( entities.size() + w.walls.size() );
@@ -1204,6 +1211,7 @@ quad_hierarchy_t::entity_list_t tile_region_t::GetEntityList( void ) const
             entities[ i++ ] = wall;
         }
     }
+    */
 
     return std::move( entities );
 }

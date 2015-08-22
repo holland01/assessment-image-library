@@ -46,7 +46,6 @@ input_client_t::input_client_t( void )
 
 input_client_t::input_client_t( const view_params_t& view )
     : entity_t( entity_t::BODY_DEPENDENT,
-                new bounding_box_t,
                 []( void ) -> body_t*
                 {
                     return nullptr;
@@ -55,6 +54,7 @@ input_client_t::input_client_t( const view_params_t& view )
 	  mode( MODE_PLAY )
 {
 	keysPressed.fill( 0 );
+    AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t() );
 }
 
 input_client_t::input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
@@ -212,7 +212,8 @@ void input_client_t::Sync( void )
 	}
 	else
 	{
-        bounding_box_t* b = GetBoundsAsBox();
+        bounding_box_t* b = QueryBounds( ENTITY_BOUNDS_ALL )->ToBox();
+        assert( b );
 
         b->SetCenter( viewParams.origin );
         b->SetOrientation( glm::mat3( viewParams.inverseOrient ) );

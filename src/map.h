@@ -2,6 +2,7 @@
 
 #include "def.h"
 #include "entity.h"
+#include "collision.h"
 #include "physics.h"
 #include "geom.h"
 #include "renderer.h"
@@ -82,15 +83,12 @@ private:
     mutable ref_tile_region_t owner;
 
 public:
-
     enum type_t
     {
         BILLBOARD = 0,
         WALL,
         EMPTY
     };
-
-    bounding_box_t box;
 
     type_t type;
 	int32_t x, z, halfSpaceIndex;

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "def.h"
+#include "entity.h"
 #include <stdint.h>
 #include <memory>
 #include <vector>
 #include <array>
 #include <glm/vec3.hpp>
 
-
-struct entity_t;
 struct bounds_primitive_t;
 struct half_space_t;
 struct bounding_box_t;
@@ -21,6 +20,9 @@ struct collision_provider_t;
 
 struct collision_entity_t
 {
+    const uint32_t colliderUseFlags;
+    const uint32_t collideeUseFlags;
+
     const entity_t* collider;
     const entity_t* collidee;
 
@@ -31,7 +33,9 @@ struct collision_entity_t
 
     collision_entity_t( const collision_provider_t& provider,
                         const entity_t* collider = nullptr,
-                        const entity_t* collidee = nullptr );
+                        const entity_t* collidee = nullptr,
+                        const uint32_t colliderBoundsUseFlags = ENTITY_BOUNDS_ALL,
+                        const uint32_t collideeBoundsUseFlags = ENTITY_BOUNDS_ALL );
 };
 
 //-------------------------------------------------------------------------------------------------------

@@ -33,7 +33,6 @@ namespace {
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
-    uint32_t gDrawFlags = 0;
 
     std::unordered_map< std::string, uint32_t > gDrawTestConfig =
     {
@@ -43,23 +42,7 @@ namespace {
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
     };
 
-    struct bounds_test_t
-    {
-        entity_t e;
-
-        bounds_test_t( void );
-
-        void Update( void );
-    };
-
-    bounds_test_t::bounds_test_t( void )
-        : e( entity_t::BOUNDS_DEPENDENT, new bounding_box_t( glm::scale( glm::mat4( 1.0f ), glm::vec3( 10.0f ) ) ) )
-    {
-        e.GetBoundsAsBox()->SetCenter( glm::vec3( 0.0f, 10.0f, 0.0f ) );
-        e.Sync();
-    }
-
-    bounds_test_t gBoundsTest;
+     uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
 }
 
 static void Draw_Group( game_t& game,
@@ -178,7 +161,7 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
     LMakeBody( spec, input_client_t::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
 
 	camera = &player;
-    drawBounds = spec.GetBoundsAsBox();
+    drawBounds = spec.QueryBounds( ENTITY_BOUNDS_MOVE_COLLIDE )->ToBox();
 
 	running = true;
 }
@@ -240,10 +223,13 @@ void game_t::FireGun( void )
 {
     if ( camera->body )
     {
-        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new bounding_box_t, new body_t ) );
+        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new body_t ) );
+
         bullet->body->SetOrientation( glm::mat3( 0.1f ) * camera->body->GetOrientation() );
         bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
         bullet->body->SetPosition( camera->GetViewParams().origin );
+
+        bullet->AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t() );
     }
 }
 
@@ -324,18 +310,27 @@ glm::mat4 quadTransform(
 
 void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body );
 
-INLINE bool Tile_TestCollision( game_t& game,
-    const entity_t* entity, const glm::vec3& entityPos, const map_tile_t* tile )
+INLINE bool Tile_TestCollision(
+    game_t& game,
+    const entity_t* entity,
+    const glm::vec3& entityPos,
+    entity_bounds_use_flags_t entFlags,
+    const map_tile_t* tile,
+    entity_bounds_use_flags_t tileFlags )
 {
-    if ( glm::distance( entityPos, glm::vec3( tile->box[ 3 ] ) ) < 2.0f )
+    const bounding_box_t& box = *ENTITY_PTR_GET_BOX( tile, tileFlags );
+
+    if ( glm::distance( entityPos, glm::vec3( box[ 3 ] ) ) < 2.0f )
     {
         collision_entity_t ce( game.collision,
                                entity,
-                               ( const entity_t* )tile );
+                               ( const entity_t* )tile,
+                               entFlags,
+                               tileFlags );
 
         if ( game.collision.EvalCollision( ce ) )
         {
-            Draw_Bounds( game, tile->box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
+            Draw_Bounds( game, box, glm::vec3( 0.0f, 1.0f, 0.0f ) );
             Apply_Force( game, ce.normal, *( tile->body ) );
 
             return true;
@@ -358,11 +353,15 @@ void Draw_Quad( const game_t& game, const glm::mat4& transform, const glm::vec3&
     singleColor.Release();
 }
 
-INLINE void Draw_Tiles( const game_t& game, const std::vector< const map_tile_t* >& tiles, const glm::vec3& color, float alpha = 1.0f )
+INLINE void Draw_Tiles( const game_t& game,
+                        const std::vector< const map_tile_t* >& tiles,
+                        const glm::vec3& color, float alpha = 1.0f )
 {
     for ( const map_tile_t* tile: tiles )
     {
-        Draw_Quad( game, tile->box.transform, color, alpha );
+        const bounding_box_t& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
+
+        Draw_Quad( game, box.transform, color, alpha );
     }
 }
 
@@ -394,13 +393,17 @@ INLINE void Draw_BoundsTiles( const game_t& game, const shared_tile_region_t& re
 
     for ( const adjacent_wall_t& br: region->wallTiles )
     {
-        Draw_Quad( game, br.source->box.transform, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
+        const bounding_box_t& box = *ENTITY_PTR_GET_BOX( br.source, ENTITY_BOUNDS_AREA_EVAL );
+
+        Draw_Quad( game, box.transform, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
         Draw_Tiles( game, br.walls, color, 1.0f );
     }
 
     assert( region->origin );
 
-    Draw_Quad( game, region->origin->box.transform, glm::vec3( 1.0f ), 1.0f );
+    const bounding_box_t& box = *ENTITY_PTR_GET_BOX( region->origin, ENTITY_BOUNDS_AREA_EVAL );
+
+    Draw_Quad( game, box.transform, glm::vec3( 1.0f ), 1.0f );
 
     region->boundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
 }
@@ -487,7 +490,7 @@ INLINE void Billboard_DrawBounds( const game_t& game, const view_params_t& vp, c
 
 INLINE void Billboard_LoadParams( map_tile_t& tile, const view_params_t& vp, const shader_program_t& billboard )
 {
-    const bounding_box_t& bounds = *( tile.GetBoundsAsBox() );
+    const bounding_box_t& bounds = *( tile.QueryBounds( ENTITY_BOUNDS_AREA_EVAL )->ToBox() );
 
     glm::vec3 boundsOrigin( bounds[ 3 ] );
 
@@ -520,7 +523,9 @@ INLINE void Billboard_TestBulletCollision( game_t& game, map_tile_t* tile )
         if( Tile_TestCollision( game,
                             game.bullet.get(),
                             game.bullet->body->GetPosition(),
-                            tile ) )
+                            ENTITY_BOUNDS_AIR_COLLIDE,
+                            tile,
+                            ENTITY_BOUNDS_AIR_COLLIDE ) )
         {
             game.bullet.release();
         }
@@ -543,11 +548,16 @@ void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t&
     {
         Billboard_LoadParams( *tile, vp, billboard  );
 
+        bounding_box_t* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
+
         if ( glm::distance( tile->body->GetPosition(), vp.origin ) <= DISTANCE_THRESHOLD )
         {
             // Check for an intersection...
             glm::vec3 normal;
-            if ( game.camera->GetBoundsAsBox()->IntersectsBounds( normal, *( tile->GetBoundsAsBox() ) ) )
+
+            bounding_box_t* box = ENTITY_PTR_GET_BOX( game.camera, ENTITY_BOUNDS_MOVE_COLLIDE );
+
+            if ( box->IntersectsBounds( normal, *tileBounds ) )
             {
                 Apply_Force( game, normal, *( tile->body ) );
             }
@@ -565,7 +575,7 @@ void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t&
 
         if ( gDrawFlags & DRAW_BILLBOARD_BOUNDS )
         {
-            Billboard_DrawBounds( game, vp, singleColor, *( tile->GetBoundsAsBox() ) );
+            Billboard_DrawBounds( game, vp, singleColor, *tileBounds );
         }
 
         billboard.Bind();
@@ -602,16 +612,20 @@ static void Draw_Group( game_t& game,
     {
         for ( const map_tile_t* tile: walls )
         {
-            Draw_Bounds( game, tile->box, glm::vec3( 0.5f ) );
+            Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
 
             Tile_TestCollision( game,
-                ( const entity_t* )game.camera, vp.origin, tile  );
+             ( const entity_t* )game.camera,
+                                vp.origin,
+                                ENTITY_BOUNDS_MOVE_COLLIDE,
+                                tile,
+                                ENTITY_BOUNDS_AREA_EVAL  );
         }
     }
 
     if ( game.bullet )
     {
-        Draw_Bounds( game, *( game.bullet->GetBoundsAsBox() ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+        Draw_Bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
 
     if ( gDrawFlags & DRAW_BILLBOARDS )
@@ -761,12 +775,12 @@ uint32_t Game_Exec( void )
 						case SDLK_c:
 							if ( game.camera == &game.player )
 							{
-                                game.drawBounds = game.player.GetBoundsAsBox();
+                                game.drawBounds = ENTITY_GET_BOX( game.player, ENTITY_BOUNDS_MOVE_COLLIDE );
 								game.camera = &game.spec;
 							}
 							else
 							{
-                                game.drawBounds = game.spec.GetBoundsAsBox();
+                                game.drawBounds = ENTITY_GET_BOX( game.spec, ENTITY_BOUNDS_MOVE_COLLIDE );
 								game.camera = &game.player;
 							}
 							break;
@@ -825,8 +839,6 @@ float GetTime( void )
 
 int main( void ) 
 {
-    gDrawFlags = gDrawTestConfig[ "bounds_tiles_test" ];
-
 	return Game_Exec();
 }
 

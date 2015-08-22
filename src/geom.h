@@ -123,6 +123,11 @@ enum bounds_primtype_t
     NUM_BOUNDS_PRIMTYPE
 };
 
+
+struct primitive_lookup_t;
+struct bounding_box_t;
+struct half_space_t;
+
 struct bounds_primitive_t
 {
 protected:
@@ -132,6 +137,16 @@ protected:
 
 public:
     const bounds_primtype_t type;
+
+    primitive_lookup_t*         ToLookup( void );
+
+    const primitive_lookup_t*   ToLookup( void ) const;
+
+    bounding_box_t*             ToBox( void );
+
+    const bounding_box_t*       ToBox( void ) const;
+
+    half_space_t*               ToHalfSpace( void );
 };
 
 //-------------------------------------------------------------------------------------------------------
