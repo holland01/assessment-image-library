@@ -6,8 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 struct rigid_body;
-struct pipeline_t;
-struct view_params_t;
+struct render_pipeline;
+struct view_data;
 
 //-------------------------------------------------------------------------------------------------------
 // entity_bounds_primitive_t

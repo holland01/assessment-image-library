@@ -187,7 +187,7 @@ struct halfspace : public bounds_primitive
     halfspace& operator=( halfspace c );
 
     bool test_bounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
-    void draw( imm_draw_t& drawer ) const;
+    void draw( imm_draw& drawer ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------

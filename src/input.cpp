@@ -40,121 +40,121 @@ enum
 };
 
 input_client::input_client( void )
-    : input_client( view_params_t() )
+    : input_client( view_data() )
 {
 }
 
-input_client::input_client( const view_params_t& view )
+input_client::input_client( const view_data& view )
     : entity( entity::BODY_DEPENDENT,
                 []( void ) -> rigid_body*
                 {
                     return nullptr;
                 }() ),
-      viewParams( view ),
-	  mode( MODE_PLAY )
+      mViewParams( view ),
+	  mMode( MODE_PLAY )
 {
-	keysPressed.fill( 0 );
+	mKeysPressed.fill( 0 );
     add_bounds( ENTITY_BOUNDS_ALL, new obb() );
 }
 
 input_client::input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
-    : input_client( view_params_t() )
+    : input_client( view_data() )
 {
-	viewParams.origin = glm::vec3( -viewTransform[ 3 ] );
-	viewParams.transform = viewTransform;
-	viewParams.clipTransform = projection;
-	viewParams.orientation = viewTransform;
-	viewParams.orientation[ 3 ] = glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f );
-	viewParams.inverseOrient = glm::inverse( viewParams.orientation );
-	viewParams.forward = Forward();
-	viewParams.up = Up();
-	viewParams.right = Right();
-	viewParams.width = width;
-	viewParams.height = height;
+    mViewParams.mOrigin = glm::vec3( -viewTransform[ 3 ] );
+    mViewParams.mTransform = viewTransform;
+    mViewParams.mClipTransform = projection;
+    mViewParams.mOrientation = viewTransform;
+    mViewParams.mOrientation[ 3 ] = glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f );
+    mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
+    mViewParams.mForward = forward();
+    mViewParams.mUp = up();
+    mViewParams.mRight = right();
+    mViewParams.mWidth = width;
+    mViewParams.mHeight = height;
 }
 
-void input_client::EvalMouseMove( float x, float y, bool calcRelative )
+void input_client::eval_mouse_move( float x, float y, bool calcRelative )
 {
 	if ( calcRelative )
 	{
-		viewParams.currRot.x += ( y - viewParams.lastMouse.y ) * MOUSE_SENSE;
-		viewParams.currRot.y += ( x - viewParams.lastMouse.x ) * MOUSE_SENSE;
+        mViewParams.mCurrRot.x += ( y - mViewParams.mLastMouse.y ) * MOUSE_SENSE;
+        mViewParams.mCurrRot.y += ( x - mViewParams.mLastMouse.x ) * MOUSE_SENSE;
 	}
 	else
 	{
-		viewParams.currRot.x += y * MOUSE_SENSE;
-		viewParams.currRot.y += x * MOUSE_SENSE;
+        mViewParams.mCurrRot.x += y * MOUSE_SENSE;
+        mViewParams.mCurrRot.y += x * MOUSE_SENSE;
 	}
 
-	viewParams.lastMouse.x = x;
-	viewParams.lastMouse.y = y;
+    mViewParams.mLastMouse.x = x;
+    mViewParams.mLastMouse.y = y;
 }
 
-void input_client::EvalKeyPress( input_key key )
+void input_client::eval_key_press( input_key key )
 {
 	switch( key )
 	{
 		case input_key::W:
-			keysPressed[ KEY_FORWARD ] = KEY_PRESSED;
+			mKeysPressed[ KEY_FORWARD ] = KEY_PRESSED;
 			break;
 
 		case input_key::S:
-			keysPressed[ KEY_BACKWARD ] = KEY_PRESSED;
+			mKeysPressed[ KEY_BACKWARD ] = KEY_PRESSED;
 			break;
 
 		case input_key::A:
-			keysPressed[ KEY_LEFT ] = KEY_PRESSED;
+			mKeysPressed[ KEY_LEFT ] = KEY_PRESSED;
 			break;
 
 		case input_key::D:
-			keysPressed[ KEY_RIGHT ] = KEY_PRESSED;
+			mKeysPressed[ KEY_RIGHT ] = KEY_PRESSED;
 			break;
 
 		case input_key::LSHIFT:
-			keysPressed[ KEY_DOWN ] = KEY_PRESSED;
+			mKeysPressed[ KEY_DOWN ] = KEY_PRESSED;
 			break;
 
 		case input_key::SPACE:
-			keysPressed[ KEY_UP ] = KEY_PRESSED;
+			mKeysPressed[ KEY_UP ] = KEY_PRESSED;
 			break;
 		case input_key::E:
-			keysPressed[ KEY_IN ] = KEY_PRESSED;
+			mKeysPressed[ KEY_IN ] = KEY_PRESSED;
 			break;
 		case input_key::Q:
-			keysPressed[ KEY_OUT ] = KEY_PRESSED;
+			mKeysPressed[ KEY_OUT ] = KEY_PRESSED;
 			break;
 		default:
 			break;
 	}
 }
 
-void input_client::EvalKeyRelease( input_key key )
+void input_client::eval_key_release( input_key key )
 {
 	switch( key )
 	{
 		case input_key::W:
-			keysPressed[ KEY_FORWARD ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_FORWARD ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::S:
-			keysPressed[ KEY_BACKWARD ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_BACKWARD ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::A:
-			keysPressed[ KEY_LEFT ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_LEFT ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::D:
-			keysPressed[ KEY_RIGHT ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_RIGHT ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::LSHIFT:
-			keysPressed[ KEY_DOWN ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_DOWN ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::SPACE:
-			keysPressed[ KEY_UP ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_UP ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::E:
-			keysPressed[ KEY_IN ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_IN ] = KEY_NOT_PRESSED;
 			break;
 		case input_key::Q:
-			keysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
+			mKeysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
 			break;
 		default:
 			break;
@@ -162,37 +162,37 @@ void input_client::EvalKeyRelease( input_key key )
 	}
 }
 
-void input_client::ApplyMovement( void )
+void input_client::apply_movement( void )
 {
-	NormalizeRotation( viewParams.currRot );
+    NormalizeRotation( mViewParams.mCurrRot );
 
-	viewParams.lastRot = viewParams.currRot;
+    mViewParams.mLastRot = mViewParams.mCurrRot;
 
-	viewParams.forward = Forward();
-	viewParams.right = Right();
-	viewParams.up = Up();
+    mViewParams.mForward = forward();
+    mViewParams.mRight = right();
+    mViewParams.mUp = up();
 
-	if ( keysPressed[ KEY_FORWARD ] ) AddDir( viewParams.forward, viewParams.moveStep );
-	if ( keysPressed[ KEY_BACKWARD ] ) AddDir( viewParams.forward, -viewParams.moveStep );
-	if ( keysPressed[ KEY_RIGHT ] ) AddDir( viewParams.right, viewParams.moveStep );
-	if ( keysPressed[ KEY_LEFT ] ) AddDir( viewParams.right, -viewParams.moveStep );
-	if ( keysPressed[ KEY_UP ] ) AddDir( viewParams.up, viewParams.moveStep );
-	if ( keysPressed[ KEY_DOWN ] ) AddDir( viewParams.up, -viewParams.moveStep );
-	if ( keysPressed[ KEY_IN ] ) viewParams.currRot.z += viewParams.moveStep;
-	if ( keysPressed[ KEY_OUT ] ) viewParams.currRot.z -= viewParams.moveStep;
+    if ( mKeysPressed[ KEY_FORWARD ] ) add_dir( mViewParams.mForward, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_BACKWARD ] ) add_dir( mViewParams.mForward, -mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_RIGHT ] ) add_dir( mViewParams.mRight, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_LEFT ] ) add_dir( mViewParams.mRight, -mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_IN ] ) mViewParams.mCurrRot.z += mViewParams.mMoveStep;
+    if ( mKeysPressed[ KEY_OUT ] ) mViewParams.mCurrRot.z -= mViewParams.mMoveStep;
 }
 
 void input_client::sync( void )
 {
-	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( viewParams.currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
+    mViewParams.mOrientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( mViewParams.mCurrRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+    mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+    mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
 
-    viewParams.inverseOrient = glm::inverse( viewParams.orientation );
+    mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
-    viewParams.transform = viewParams.orientation * glm::translate( glm::mat4( 1.0f ), -viewParams.origin );
+    mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
 
-	if ( mode == MODE_PLAY )
+	if ( mMode == MODE_PLAY )
 	{
 		if ( mBody )
 		{
@@ -200,14 +200,14 @@ void input_client::sync( void )
 		}
 		else
 		{
-			viewParams.origin.y = 0.0f;
+            mViewParams.mOrigin.y = 0.0f;
 		}
 	}
 
 	if ( mBody )
 	{
-        viewParams.origin = mBody->position();
-        mBody->orientation( viewParams.inverseOrient );
+        mViewParams.mOrigin = mBody->position();
+        mBody->orientation( mViewParams.mInverseOrient );
         entity::sync();
 	}
 	else
@@ -215,12 +215,12 @@ void input_client::sync( void )
         obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
         assert( b );
 
-        b->center( viewParams.origin );
-        b->orientation( glm::mat3( viewParams.inverseOrient ) );
+        b->center( mViewParams.mOrigin );
+        b->orientation( glm::mat3( mViewParams.mInverseOrient ) );
 	}
 }
 
-void input_client::PrintOrigin( void ) const
+void input_client::print_origin( void ) const
 {
-	printf( "Origin: %s\n", glm::to_string( viewParams.origin ).c_str() );
+    printf( "Origin: %s\n", glm::to_string( mViewParams.mOrigin ).c_str() );
 }

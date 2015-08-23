@@ -319,20 +319,20 @@ bool halfspace::test_bounds( glm::vec3& normal, const glm::mat3& srcExtents, con
 	return false;
 }
 
-void halfspace::draw( imm_draw_t& drawer ) const
+void halfspace::draw( imm_draw& drawer ) const
 {
-	drawer.Begin( GL_LINES );
+    drawer.begin( GL_LINES );
 
-	drawer.Vertex( origin );
-	drawer.Vertex( origin + extents[ 0 ] );
+    drawer.vertex( origin );
+    drawer.vertex( origin + extents[ 0 ] );
 
-	drawer.Vertex( origin );
-	drawer.Vertex( origin + extents[ 1 ] );
+    drawer.vertex( origin );
+    drawer.vertex( origin + extents[ 1 ] );
 
-	drawer.Vertex( origin );
-	drawer.Vertex( origin + extents[ 2 ] * 2.0f );
+    drawer.vertex( origin );
+    drawer.vertex( origin + extents[ 2 ] * 2.0f );
 
-	drawer.End();
+    drawer.end();
 }
 
 //-------------------------------------------------------------------------------------------------------

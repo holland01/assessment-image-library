@@ -100,7 +100,7 @@ void physics_world::update( application& game )
         mBodies.push_back( game.bullet->mBody );
     }
 
-    game.camera->ApplyMovement();
+    game.camera->apply_movement();
 
     float measure = mDT;
 

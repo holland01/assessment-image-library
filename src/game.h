@@ -24,7 +24,7 @@ struct application
 	float frameTime, lastTime, startTime;
 
     std::unique_ptr< map_tile_generator > gen;
-	std::unique_ptr< pipeline_t > pipeline;
+    std::unique_ptr< render_pipeline > pipeline;
 
     plane groundPlane;
 
@@ -36,9 +36,9 @@ struct application
 
     physics_world world;
 
-    frustum_t frustum;
+    view_frustum frustum;
 
-    texture_t billTexture;
+    texture billTexture;
 
     collision_provider collision;
 

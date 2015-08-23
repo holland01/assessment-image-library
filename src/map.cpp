@@ -1073,9 +1073,9 @@ bool map_tile_generator::collides_wall( glm::vec3& normal, const map_tile& t,
                 return true;
             }
 
-            if ( immDrawer )
+            if ( gImmDrawer )
             {
-                hs.draw( *immDrawer );
+                hs.draw( *gImmDrawer );
             }
         }
     }
@@ -1088,15 +1088,15 @@ void map_tile_generator::find_entities(
                                map_tile_list_t& outBillboards,
                                map_tile_list_t& outWalls,
                                map_tile_list_t& outFreeSpace,
-                               const frustum_t& frustum,
-                               const view_params_t& viewParams )
+                               const view_frustum& frustum,
+                               const view_data& viewParams )
 {
 	outBillboards.clear();
 	outWalls.clear();
 	outFreeSpace.clear();
 
     int32_t centerX, centerZ;
-    get_tile_coords( centerX, centerZ, viewParams.origin );
+    get_tile_coords( centerX, centerZ, viewParams.mOrigin );
 
 	if ( centerX < 0 || centerZ < 0 )
 	{
@@ -1128,7 +1128,7 @@ void map_tile_generator::find_entities(
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 
             // cull frustum, insert into appropriate type, etc.
-            if ( !frustum.IntersectsBox( areaBox ) )
+            if ( !frustum.intersects( areaBox ) )
 			{
 				continue;
 			}
@@ -1163,7 +1163,7 @@ map_tile_region::map_tile_region( const map_tile* origin_ )
 {
 }
 
-void map_tile_region::draw( const pipeline_t& pl, const view_params_t& vp )
+void map_tile_region::draw( const render_pipeline& pl, const view_data& vp )
 {
     UNUSEDPARAM( pl );
     UNUSEDPARAM( vp );
@@ -1203,16 +1203,14 @@ quad_hierarchy::entity_list_t map_tile_region::entity_list( void ) const
         entities[ i ] = ( const entity* ) mTiles[ i ];
     }
 
-    /*
-    for ( const adjacent_wall_t& w: wallTiles )
+    for ( const adjacent_wall& w: mWalls )
     {
-        entities.resize( entities.size() + w.walls.size() );
-        for ( const map_tile_t* wall: w.walls )
+        entities.resize( entities.size() + w.mWalls.size() );
+        for ( const map_tile* wall: w.mWalls )
         {
             entities[ i++ ] = wall;
         }
     }
-    */
 
     return std::move( entities );
 }

@@ -2,16 +2,16 @@
 #include "base.h"
 #include "geom.h"
 
-view_params_t::view_params_t( void )
-    : forward( 0.0f ), up( 0.0f ), right( 0.0f ),
-      origin( 0.0f ),
-      fovy( 0.0f ), aspect( 0.0f ), zNear( 0.0f ), zFar( 0.0f ),
-      width( 0.0f ), height( 0.0f ),
-      moveStep( OP_DEFAULT_MOVE_STEP ),
-      transform( 1.0f ),
-      orientation( 1.0f ),
-      inverseOrient( 1.0f ),
-      clipTransform( 1.0f )
+view_data::view_data( void )
+    : mForward( 0.0f ), mUp( 0.0f ), mRight( 0.0f ),
+      mOrigin( 0.0f ),
+      mFovy( 0.0f ), mAspect( 0.0f ), mZNear( 0.0f ), mZFar( 0.0f ),
+      mWidth( 0.0f ), mHeight( 0.0f ),
+      mMoveStep( OP_DEFAULT_MOVE_STEP ),
+      mTransform( 1.0f ),
+      mOrientation( 1.0f ),
+      mInverseOrient( 1.0f ),
+      mClipTransform( 1.0f )
 {
 }
 
@@ -20,19 +20,19 @@ view_params_t::view_params_t( void )
 //-------------------------------------------------------------------------------------------------------
 #define _DEBUG_FRUSTUM
 
-frustum_t::frustum_t( void )
-	:	acceptCount( 0 ),
-		rejectCount( 0 ),
-		mvp( 1.0f )
+view_frustum::view_frustum( void )
+	:	mAcceptCount( 0 ),
+		mRejectCount( 0 ),
+		mMvp( 1.0f )
 {
-	memset( frustPlanes, 0, sizeof( plane ) * FRUST_NUM_PLANES );
+	memset( mFrustPlanes, 0, sizeof( plane ) * FRUST_NUM_PLANES );
 }
 
-frustum_t::~frustum_t( void )
+view_frustum::~view_frustum( void )
 {
 }
 
-glm::vec4 frustum_t::CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin )
+glm::vec4 view_frustum::get_plane_from_origin( const glm::vec4& position, const glm::vec4& origin )
 {
 	glm::vec4 plane( 0.0f );
 	plane.x = position.x;
@@ -50,20 +50,20 @@ glm::vec4 frustum_t::CalcPlaneFromOrigin( const glm::vec4& position, const glm::
 // Update the frustum by computing the world-relative frustum of the camera.
 // We calculaute the top, bottom, left, and right planes
 // by taking the basis vectors of the camera's world-relative orientation
-void frustum_t::Update( const view_params_t& view )
+void view_frustum::update( const view_data& view )
 {
 	glm::mat4 inverseOrient(
-		glm::normalize( view.inverseOrient[ 0 ] ),
-		glm::normalize( view.inverseOrient[ 1 ] ),
-		glm::normalize( view.inverseOrient[ 2 ] ),
+		glm::normalize( view.mInverseOrient[ 0 ] ),
+		glm::normalize( view.mInverseOrient[ 1 ] ),
+		glm::normalize( view.mInverseOrient[ 2 ] ),
 		glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f )
 	);
 
-	float tanHalfFovy = glm::tan( view.fovy * 0.5f );
+	float tanHalfFovy = glm::tan( view.mFovy * 0.5f );
 
 	// We compute the reference angle since we want to base the sin/cosine on the angle from the x-axis;
 	// without we have an angle from the z. // 0.75
-	float fov = glm::atan( view.aspect * 0.75f * tanHalfFovy );
+	float fov = glm::atan( view.mAspect * 0.75f * tanHalfFovy );
 
 	float fovDeg = glm::degrees( fov );
 	UNUSEDPARAM( fovDeg );
@@ -81,15 +81,15 @@ void frustum_t::Update( const view_params_t& view )
 
 	//planeLine += 2.0f * view.origin;
 
-	frustPlanes[ FRUST_RIGHT ].normal = F_CalcNormal( planeLine, -w );
-	frustPlanes[ FRUST_RIGHT ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_RIGHT ].normal );
+	mFrustPlanes[ FRUST_RIGHT ].normal = F_CalcNormal( planeLine, -w );
+	mFrustPlanes[ FRUST_RIGHT ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_RIGHT ].normal );
 
 	planeLine = -u + v;
 
 	//planeLine += 2.0f * view.origin;
 
-	frustPlanes[ FRUST_LEFT  ].normal = F_CalcNormal( planeLine, w );
-	frustPlanes[ FRUST_LEFT  ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_LEFT ].normal );
+	mFrustPlanes[ FRUST_LEFT  ].normal = F_CalcNormal( planeLine, w );
+	mFrustPlanes[ FRUST_LEFT  ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_LEFT ].normal );
 
 	// Z is the initial axis for the horizontal planes
 	fov = glm::atan( tanHalfFovy );
@@ -99,12 +99,12 @@ void frustum_t::Update( const view_params_t& view )
 	w = glm::vec3( inverseOrient[ 0 ] );
 
 	planeLine = -u + v;
-	frustPlanes[ FRUST_TOP ].normal = F_CalcNormal( w, planeLine );
-	frustPlanes[ FRUST_TOP ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_TOP ].normal );
+	mFrustPlanes[ FRUST_TOP ].normal = F_CalcNormal( w, planeLine );
+	mFrustPlanes[ FRUST_TOP ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_TOP ].normal );
 
 	planeLine = u + v;
-	frustPlanes[ FRUST_BOTTOM ].normal = F_CalcNormal( w, planeLine );
-	frustPlanes[ FRUST_BOTTOM ].d = glm::dot( view.origin + planeLine, frustPlanes[ FRUST_BOTTOM ].normal );
+	mFrustPlanes[ FRUST_BOTTOM ].normal = F_CalcNormal( w, planeLine );
+	mFrustPlanes[ FRUST_BOTTOM ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_BOTTOM ].normal );
 }
 #undef F_CalcNormal
 
@@ -117,7 +117,7 @@ namespace {
 	}
 }
 
-bool frustum_t::IntersectsBox( const obb& box ) const
+bool view_frustum::intersects( const obb& box ) const
 {
 	std::array< glm::vec3, 8 > clipBounds;
 	box.points( clipBounds );
@@ -125,16 +125,16 @@ bool frustum_t::IntersectsBox( const obb& box ) const
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-        if ( test_point_plane< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
+        if ( test_point_plane< 8, PointPlanePredicate >( clipBounds, mFrustPlanes[ i ] ) )
 		{
 			continue;
 		}
 
-		rejectCount++;
+		mRejectCount++;
 		return false;
 	}
 
-	acceptCount++;
+	mAcceptCount++;
 	return true;
 }
 

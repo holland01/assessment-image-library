@@ -23,23 +23,23 @@ struct quad_hierarchy
     {
         using ptr_t = std::unique_ptr< node >;
 
-        obb bounds;
+        obb mBounds;
 
         // Only leaf nodes will have entities
-        entity_list_t entities;
+        entity_list_t mEntities;
 
-        std::array< ptr_t, NODE_COUNT > children;
+        std::array< ptr_t, NODE_COUNT > mChildren;
 
-        node( uint32_t curDepth, const uint32_t maxDepth, obb bounds );
+        node( uint32_t curDepth, const uint32_t maxDepth, obb mBounds );
 
-        void Draw( const pipeline_t& pl, const view_params_t& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
+        void draw( const render_pipeline& pl, const view_data& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
 
-        void Update( entity_list_t entities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
+        void update( entity_list_t mEntities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
 
-        bool Leaf( void ) const;
+        bool leaf( void ) const;
     };
 
-    node::ptr_t root;
+    node::ptr_t mRoot;
 
     quad_hierarchy( obb bounds, const uint32_t maxDepth, entity_list_t entities );
 

@@ -12,30 +12,30 @@
 #	define OP_DEFAULT_MOVE_STEP 0.1f
 #endif
 
-struct view_params_t
+struct view_data
 {
-    glm::vec3   forward;
-    glm::vec3   up;
-    glm::vec3   right;
+    glm::vec3   mForward;
+    glm::vec3   mUp;
+    glm::vec3   mRight;
 
-    glm::vec3   origin;
+    glm::vec3   mOrigin;
 
-	glm::vec3   currRot, lastRot;
+    glm::vec3   mCurrRot, mLastRot;
 
-	glm::vec3   lastMouse;
+    glm::vec3   mLastMouse;
 
-    float       fovy, aspect, zNear, zFar;
-    float		width, height;
-	float		moveStep;
+    float       mFovy, mAspect, mZNear, mZFar;
+    float		mWidth, mHeight;
+    float		mMoveStep;
 
-    glm::mat4   transform;
+    glm::mat4   mTransform;
 
-    glm::mat4   orientation;
-    glm::mat4   inverseOrient;
+    glm::mat4   mOrientation;
+    glm::mat4   mInverseOrient;
 
-    glm::mat4   clipTransform;
+    glm::mat4   mClipTransform;
 
-    view_params_t( void );
+    view_data( void );
 };
 
 
@@ -56,32 +56,32 @@ enum
 	FRUST_FAR       = 5
 };
 
-struct frustum_t
+struct view_frustum
 {
-    plane    frustPlanes[ FRUST_NUM_PLANES ];
+    plane    mFrustPlanes[ FRUST_NUM_PLANES ];
 
-	mutable uint32_t acceptCount;
+    mutable uint32_t mAcceptCount;
 
-	mutable uint32_t rejectCount;
+    mutable uint32_t mRejectCount;
 
-	glm::mat4 mvp;
+    glm::mat4 mMvp;
 
-	glm::vec4 CalcPlaneFromOrigin( const glm::vec4& position, const glm::vec4& origin );
+    glm::vec4 get_plane_from_origin( const glm::vec4& position, const glm::vec4& origin );
 
-    frustum_t( void );
+    view_frustum( void );
 
-    ~frustum_t( void );
+    ~view_frustum( void );
 
-    void    Update( const view_params_t& params );
+    void    update( const view_data& params );
 
-	void	PrintMetrics( void ) const;
+    void	print_metrics( void ) const;
 
-	void	ResetMetrics( void ) const { rejectCount = 0; acceptCount = 0; }
+    void	reset_metrics( void ) const { mRejectCount = 0; mAcceptCount = 0; }
 
-    bool    IntersectsBox( const obb& box ) const;
+    bool    intersects( const obb& box ) const;
 };
 
-INLINE void frustum_t::PrintMetrics( void ) const
+INLINE void view_frustum::print_metrics( void ) const
 {
-	printf( "Reject Count: %iu; Accept Count: %iu\r", rejectCount, acceptCount );
+    printf( "Reject Count: %iu; Accept Count: %iu\r", mRejectCount, mAcceptCount );
 }

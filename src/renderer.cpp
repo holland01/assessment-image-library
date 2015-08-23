@@ -144,12 +144,12 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
 // Texture Utils
 //-----------------------------------------------------------
 
-void BindTexture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program_t& program )
+void rend_bind_texture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program& program )
 {
 	GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
 	GL_CHECK( glBindTexture( target, handle ) );
 
-	program.LoadInt( uniform, offset );
+    program.load_int( uniform, offset );
 }
 
 // Saved until further notice
@@ -169,125 +169,125 @@ static INLINE void FlipBytes( byte* out, const byte* src, int width, int height,
 //-------------------------------------------------------------------------------------------------
 // texture_t
 //-------------------------------------------------------------------------------------------------
-texture_t::texture_t( void )
-	: srgb( false ), mipmap( false ),
-      handle( 0 ),
-	  wrap( GL_CLAMP_TO_EDGE ), minFilter( GL_LINEAR ), magFilter( GL_LINEAR ),
-	  format( 0 ), internalFormat( 0 ), target( GL_TEXTURE_2D ), maxMip( 0 ),
-	  width( 0 ),
-	  height( 0 ),
-	  depth( 0 ),
-	  bpp( 0 )
+texture::texture( void )
+    : mSrgb( false ), mMipmap( false ),
+      mHandle( 0 ),
+      mWrap( GL_CLAMP_TO_EDGE ), mMinFilter( GL_LINEAR ), mMagFilter( GL_LINEAR ),
+      mFormat( 0 ), mInternalFormat( 0 ), mTarget( GL_TEXTURE_2D ), mMaxMip( 0 ),
+      mWidth( 0 ),
+      mHeight( 0 ),
+      mDepth( 0 ),
+      mBpp( 0 )
 {
 }
 
-texture_t::~texture_t( void )
+texture::~texture( void )
 {
-	if ( handle )
+    if ( mHandle )
 	{
-		GL_CHECK( glDeleteTextures( 1, &handle ) );
+        GL_CHECK( glDeleteTextures( 1, &mHandle ) );
 	}
 }
 
-void texture_t::Bind( int offset, const std::string& unif, const shader_program_t& prog ) const
+void texture::bind( int offset, const std::string& unif, const shader_program& prog ) const
 {
-    BindTexture( GL_TEXTURE_2D, handle, offset, unif, prog );
+    rend_bind_texture( GL_TEXTURE_2D, mHandle, offset, unif, prog );
 }
 
-void texture_t::LoadCubeMap( void )
+void texture::load_cube_map( void )
 {
-	target = GL_TEXTURE_CUBE_MAP;
+    mTarget = GL_TEXTURE_CUBE_MAP;
 	
-	GenHandle();
-	Bind();
+    gen_handle();
+    bind();
 	for ( int i = 0; i < 6; ++i )
 	{
 		GL_CHECK( glTexImage2D( GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, 
-			internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, &pixels[ 0 ] ) );
+            mInternalFormat, mWidth, mHeight, 0, mFormat, GL_UNSIGNED_BYTE, &mPixels[ 0 ] ) );
 	}
-	Release();
+    release();
 
-	LoadSettings();
+    load_settings();
 }
 
-void texture_t::Load2D( void )
+void texture::load_2d( void )
 {
-	target = GL_TEXTURE_2D;
-	GenHandle();
-	Bind();
+    mTarget = GL_TEXTURE_2D;
+    gen_handle();
+    bind();
 
-	if ( mipmap )
+    if ( mMipmap )
 	{
-		maxMip = Texture_CalcMipLevels2D< texture_t >( *this, width, height, 0 );
-		minFilter = GL_LINEAR_MIPMAP_LINEAR;
-		GL_CHECK( glGenerateMipmap( target ) );
+        mMaxMip = rend_get_mip2d< texture >( *this, mWidth, mHeight, 0 );
+        mMinFilter = GL_LINEAR_MIPMAP_LINEAR;
+        GL_CHECK( glGenerateMipmap( mTarget ) );
 	}
 	else
 	{
-		GL_CHECK( glTexImage2D( target, 
-			0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, &pixels[ 0 ] ) );
+        GL_CHECK( glTexImage2D( mTarget,
+            0, mInternalFormat, mWidth, mHeight, 0, mFormat, GL_UNSIGNED_BYTE, &mPixels[ 0 ] ) );
 	}
 
-	Release();
+    release();
 
-	LoadSettings();
+    load_settings();
 }
 
-void texture_t::LoadSettings( void )
+void texture::load_settings( void )
 {
-	Bind();
+    bind();
 	// For some reason setting this through SDL's GL ES context on the desktop (in Linux) causes really bad texture sampling to happen,
 	// regardless of the value passed. WTF?!
 
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MIN_FILTER, minFilter ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_MAG_FILTER, magFilter ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_S, wrap ) );
-	GL_CHECK( glTexParameteri( target, GL_TEXTURE_WRAP_T, wrap ) );
+    GL_CHECK( glTexParameteri( mTarget, GL_TEXTURE_MIN_FILTER, mMinFilter ) );
+    GL_CHECK( glTexParameteri( mTarget, GL_TEXTURE_MAG_FILTER, mMagFilter ) );
+    GL_CHECK( glTexParameteri( mTarget, GL_TEXTURE_WRAP_S, mWrap ) );
+    GL_CHECK( glTexParameteri( mTarget, GL_TEXTURE_WRAP_T, mWrap ) );
 	
-	Release();
+    release();
 }
 
-bool texture_t::LoadFromFile( const char* texPath )
+bool texture::load_from_file( const char* texPath )
 {
-    file_get_pixels( texPath, pixels, bpp, width, height );
+    file_get_pixels( texPath, mPixels, mBpp, mWidth, mHeight );
 
-	if ( !DetermineFormats() )
+    if ( !determine_formats() )
 	{
 		MLOG_ERROR( "Unsupported bits per pixel of %i specified; this needs to be fixed. For image file \'%s\'",
-			bpp, texPath );
+            mBpp, texPath );
 		return false;
 	}
 	
 	return true;
 }
 
-bool texture_t::SetBufferSize( int32_t width0, int32_t height0, int32_t bpp0, uint8_t fill )
+bool texture::set_buffer_size( int32_t width0, int32_t height0, int32_t bpp0, uint8_t fill )
 {
-	width = width0;
-	height = height0;
-	bpp = bpp0;
-	pixels.resize( width * height * bpp, fill );
+    mWidth = width0;
+    mHeight = height0;
+    mBpp = bpp0;
+    mPixels.resize( mWidth * mHeight * mBpp, fill );
 
-	return DetermineFormats();
+    return determine_formats();
 }
 
-bool texture_t::DetermineFormats( void )
+bool texture::determine_formats( void )
 {
-	switch( bpp )
+    switch( mBpp )
 	{
 	case 1:
-		format = GL_ALPHA;
-		internalFormat = GL_ALPHA8;
+        mFormat = GL_ALPHA;
+        mInternalFormat = GL_ALPHA8;
 		break;
 
 	case 3:
-		format = GL_RGB;
-		internalFormat = GL_RGB8;
+        mFormat = GL_RGB;
+        mInternalFormat = GL_RGB8;
 		break;
 
 	case 4:
-		format = GL_RGBA;
-		internalFormat = GL_RGBA8;
+        mFormat = GL_RGBA;
+        mInternalFormat = GL_RGBA8;
 		break;
 
 	default:
@@ -302,16 +302,16 @@ bool texture_t::DetermineFormats( void )
 // shader_program_t
 //-------------------------------------------------------------------------------------------------
 
-const shader_program_t* shader_program_t::lastAttribLoad = nullptr;
-const draw_buffer_t* shader_program_t::lastDrawBuffer = nullptr;
+const shader_program* shader_program::lastAttribLoad = nullptr;
+const draw_buffer* shader_program::lastDrawBuffer = nullptr;
 
-shader_program_t::shader_program_t( void )
-    : program( 0 )
+shader_program::shader_program( void )
+    : mProgram( 0 )
 {
 }
 
-shader_program_t::shader_program_t( const std::string& vertexShader, const std::string& fragmentShader )
-	: program( 0 )
+shader_program::shader_program( const std::string& vertexShader, const std::string& fragmentShader )
+    : mProgram( 0 )
 {
 	GLuint shaders[] = 
 	{
@@ -319,58 +319,58 @@ shader_program_t::shader_program_t( const std::string& vertexShader, const std::
 		CompileShaderSource( fragmentShader.c_str(), ( int32_t ) fragmentShader.size(), GL_FRAGMENT_SHADER )
 	};
 
-	program = LinkProgram( shaders, 2 );
+    mProgram = LinkProgram( shaders, 2 );
 }
 
-shader_program_t::shader_program_t( const std::string& vertexShader, const std::string& fragmentShader,
+shader_program::shader_program( const std::string& vertexShader, const std::string& fragmentShader,
     const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs )
-    : shader_program_t( vertexShader, fragmentShader )
+    : shader_program( vertexShader, fragmentShader )
 {
-    GenData( uniforms, attribs );
+    gen_data( uniforms, attribs );
 }
 
-shader_program_t::shader_program_t( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader,
+shader_program::shader_program( const std::vector< char >& vertexShader, const std::vector< char >& fragmentShader,
         const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs )
-        : shader_program_t( std::string( &vertexShader[ 0 ], vertexShader.size() ),
+        : shader_program( std::string( &vertexShader[ 0 ], vertexShader.size() ),
 				std::string( &fragmentShader[ 0 ], fragmentShader.size() ) )
 {
-    GenData( uniforms, attribs );
+    gen_data( uniforms, attribs );
 }
 
-shader_program_t::shader_program_t( const shader_program_t& copy )
-	: program( copy.program ),
-	  uniforms( copy.uniforms ),
-	  attribs( copy.attribs )
+shader_program::shader_program( const shader_program& copy )
+    : mProgram( copy.mProgram ),
+      mUniforms( copy.mUniforms ),
+      mAttribs( copy.mAttribs )
 {
 }
 
-shader_program_t::shader_program_t( shader_program_t&& original )
+shader_program::shader_program( shader_program&& original )
 {
     *this = std::move( original );
 }
 
-shader_program_t& shader_program_t::operator=( shader_program_t&& original )
+shader_program& shader_program::operator=( shader_program&& original )
 {
-    program = original.program;
-    uniforms = std::move( original.uniforms );
-    attribs = std::move( original.attribs );
-    disableAttribs = std::move( original.disableAttribs );
+    mProgram = original.mProgram;
+    mUniforms = std::move( original.mUniforms );
+    mAttribs = std::move( original.mAttribs );
+    mDisableAttribs = std::move( original.mDisableAttribs );
 
-    original.program = 0;
+    original.mProgram = 0;
 
     return *this;
 }
 
-shader_program_t::~shader_program_t( void )
+shader_program::~shader_program( void )
 {
-    if ( program )
+    if ( mProgram )
     {
-        Release();
-        GL_CHECK( glDeleteProgram( program ) );
+        release();
+        GL_CHECK( glDeleteProgram( mProgram ) );
     }
 }
 
-void shader_program_t::GenData( const std::vector< std::string >& uniforms,
+void shader_program::gen_data( const std::vector< std::string >& uniforms,
     const std::vector< std::string >& attribs )
 {
 	uint32_t max = ( uint32_t ) glm::max( attribs.size(), uniforms.size() );
@@ -378,17 +378,17 @@ void shader_program_t::GenData( const std::vector< std::string >& uniforms,
 	{
 		if ( i < attribs.size() )
 		{
-			AddAttrib( attribs[ i ] );
+            add_attrib( attribs[ i ] );
 		}
 
 		if ( i < uniforms.size() )
 		{
-			AddUnif( uniforms[ i ] );
+            add_unif( uniforms[ i ] );
 		}
 	}
 }
 
-std::vector< std::string > shader_program_t::ArrayLocationNames( const std::string& name, int32_t length )
+std::vector< std::string > shader_program::array_location_names( const std::string& name, int32_t length )
 {
 	std::vector< std::string > names;
 	names.resize( length );
@@ -403,17 +403,17 @@ std::vector< std::string > shader_program_t::ArrayLocationNames( const std::stri
 //-------------------------------------------------------------------------------------------------
 // loadBlend_t
 //-------------------------------------------------------------------------------------------------
-load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
-    : prevSrcFactor( 0 ),
-      prevDstFactor( 0 ),
-      enabled( true )
+set_blend_mode::set_blend_mode( GLenum srcFactor, GLenum dstFactor )
+    : mPrevSrcFactor( 0 ),
+      mPrevDstFactor( 0 ),
+      mEnabled( true )
 {
-    GL_CHECK( enabled = !!glIsEnabled( GL_BLEND ) );
+    GL_CHECK( mEnabled = !!glIsEnabled( GL_BLEND ) );
 
-	GL_CHECK( glGetIntegerv( GL_BLEND_SRC_RGB, ( GLint* ) &prevSrcFactor ) );
-	GL_CHECK( glGetIntegerv( GL_BLEND_DST_RGB, ( GLint* ) &prevDstFactor ) );
+    GL_CHECK( glGetIntegerv( GL_BLEND_SRC_RGB, ( GLint* ) &mPrevSrcFactor ) );
+    GL_CHECK( glGetIntegerv( GL_BLEND_DST_RGB, ( GLint* ) &mPrevDstFactor ) );
 
-    if ( !enabled )
+    if ( !mEnabled )
     {
         GL_CHECK( glEnable( GL_BLEND ) );
     }
@@ -421,11 +421,11 @@ load_blend_t::load_blend_t( GLenum srcFactor, GLenum dstFactor )
 	GL_CHECK( glBlendFunc( srcFactor, dstFactor ) );
 }
 
-load_blend_t::~load_blend_t( void )
+set_blend_mode::~set_blend_mode( void )
 {
-	GL_CHECK( glBlendFunc( prevSrcFactor, prevDstFactor ) );
+    GL_CHECK( glBlendFunc( mPrevSrcFactor, mPrevDstFactor ) );
 
-    if ( !enabled )
+    if ( !mEnabled )
     {
         GL_CHECK( glDisable( GL_BLEND ) );
     }
@@ -435,207 +435,207 @@ load_blend_t::~load_blend_t( void )
 // draw_buffer_t
 //---------------------------------------------------------------------
 
-draw_buffer_t::draw_buffer_t( void )
-	: vbo(	[]( void ) -> GLuint
+draw_buffer::draw_buffer( void )
+    : mVbo(	[]( void ) -> GLuint
 			{
 				GLuint buf;
 				GL_CHECK( glGenBuffers( 1, &buf ) );
 				return buf;
 			}() ),
-	  ibo( 0 ),
-	  count( 0 ),
-	  mode( 0 ),
-	  usage( 0 )
+      mIbo( 0 ),
+      mCount( 0 ),
+      mMode( 0 ),
+      mUsage( 0 )
 {
 }
 
-draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
+draw_buffer::draw_buffer( const std::vector< draw_vertex_t >& vertexData,
 							  GLenum mode_, GLenum usage_ )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
-	  ibo( 0 ),
-	  count( ( GLsizei ) vertexData.size() ),
-	  mode( mode_ ),
-	  usage( usage_ )
+    : mVbo( rend_make_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
+      mIbo( 0 ),
+      mCount( ( GLsizei ) vertexData.size() ),
+      mMode( mode_ ),
+      mUsage( usage_ )
 {
 }
 
-draw_buffer_t::draw_buffer_t( const std::vector< draw_vertex_t >& vertexData,
+draw_buffer::draw_buffer( const std::vector< draw_vertex_t >& vertexData,
 							  const std::vector< GLuint >& indexData,
 							  GLenum mode_, GLenum usage_ )
-	: vbo( GenBufferObject< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
-	  ibo( GenBufferObject< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
-	  count( ( GLsizei ) indexData.size() ),
-	  mode( mode_ ),
-	  usage( usage_ )
+    : mVbo( rend_make_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
+      mIbo( rend_make_buffer< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
+      mCount( ( GLsizei ) indexData.size() ),
+      mMode( mode_ ),
+      mUsage( usage_ )
 {
 }
 
-draw_buffer_t::draw_buffer_t( draw_buffer_t&& buffer )
+draw_buffer::draw_buffer( draw_buffer&& buffer )
 {
 	*this = std::move( buffer );
 }
 
-draw_buffer_t::~draw_buffer_t( void )
+draw_buffer::~draw_buffer( void )
 {
-	DeleteBufferObject( GL_ARRAY_BUFFER, vbo );
-	DeleteBufferObject( GL_ELEMENT_ARRAY_BUFFER, ibo );
+    rend_free_buffer( GL_ARRAY_BUFFER, mVbo );
+    rend_free_buffer( GL_ELEMENT_ARRAY_BUFFER, mIbo );
 }
 
-draw_buffer_t& draw_buffer_t::operator= ( draw_buffer_t&& buffer )
+draw_buffer& draw_buffer::operator= ( draw_buffer&& buffer )
 {
 	if ( this != &buffer )
 	{
-		vbo = buffer.vbo;
-		ibo = buffer.ibo;
-		count = buffer.count;
-		mode = buffer.mode;
+        mVbo = buffer.mVbo;
+        mIbo = buffer.mIbo;
+        mCount = buffer.mCount;
+        mMode = buffer.mMode;
 
-		buffer.mode = 0;
-		buffer.count = 0;
-		buffer.ibo = 0;
-		buffer.vbo = 0;
+        buffer.mMode = 0;
+        buffer.mCount = 0;
+        buffer.mIbo = 0;
+        buffer.mVbo = 0;
 	}
 
 	return *this;
 }
 
-void draw_buffer_t::Bind( void ) const
+void draw_buffer::bind( void ) const
 {
-	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, vbo ) );
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, mVbo ) );
 }
 
-void draw_buffer_t::Release( void ) const
+void draw_buffer::release( void ) const
 {
 	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
 }
 
-void draw_buffer_t::ReallocVertices( const std::vector< draw_vertex_t >& vertexData )
+void draw_buffer::realloc( const std::vector< draw_vertex_t >& vertexData )
 {
-	Bind();
-	GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( draw_vertex_t ) * vertexData.size(), &vertexData[ 0 ], usage ) );
-	Release();
+    bind();
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( draw_vertex_t ) * vertexData.size(), &vertexData[ 0 ], mUsage ) );
+    release();
 
-	if ( !ibo )
+    if ( !mIbo )
 	{
-		count = vertexData.size();
+        mCount = vertexData.size();
 	}
 }
 
-void draw_buffer_t::Update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex ) const
+void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex ) const
 {
-	Bind();
+    bind();
 	GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER,
 							   ( GLintptr )( vertexOffsetIndex * sizeof( draw_vertex_t ) ),
 							   sizeof( draw_vertex_t ) * vertexData.size(),
 							   &vertexData[ 0 ] ) );
-	Release();
+    release();
 }
 
-void draw_buffer_t::Render( const shader_program_t& program ) const
+void draw_buffer::render( const shader_program& program ) const
 {
-	Bind();
-    shader_program_t::LoadAttribLayout< draw_vertex_t >( *this, program );
+    bind();
+    shader_program::load_attrib_layout< draw_vertex_t >( *this, program );
 
-	if ( ibo )
+    if ( mIbo )
 	{
-		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
-		GL_CHECK( glDrawElements( mode, count, GL_UNSIGNED_INT, 0 ) );
+        GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIbo ) );
+        GL_CHECK( glDrawElements( mMode, mCount, GL_UNSIGNED_INT, 0 ) );
 		GL_CHECK( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
 	}
 	else
 	{
-		GL_CHECK( glDrawArrays( mode, 0, count ) );
+        GL_CHECK( glDrawArrays( mMode, 0, mCount ) );
 	}
-	Release();
+    release();
 }
 
 //-------------------------------------------------------------------------------------------------
 // buffer_store_t
 //-------------------------------------------------------------------------------------------------
 
-buffer_store_t::buffer_store_t( void )
-    : lastSize( 0 ),
-      buffer( nullptr )
+buffer_store::buffer_store( void )
+    : mLastSize( 0 ),
+      mBuffer( nullptr )
 {
 }
 
-void buffer_store_t::Update( void )
+void buffer_store::update( void )
 {
-    if ( lastSize != vertices.size() )
+    if ( mLastSize != mVertices.size() )
     {
-        buffer->ReallocVertices( vertices );
-        lastSize = vertices.size();
+        mBuffer->realloc( mVertices );
+        mLastSize = mVertices.size();
     }
     else
     {
-        buffer->Update( vertices );
+        mBuffer->update( mVertices );
     }
 
-    vertices.clear();
+    mVertices.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
 // imm_draw_t
 //-------------------------------------------------------------------------------------------------
 
-buffer_store_t imm_draw_t::bufferStore;
+buffer_store imm_draw::mBufferStore;
 
-imm_draw_t::imm_draw_t( const shader_program_t& prog )
-      : enabled( true ),
-        program( prog )
+imm_draw::imm_draw( const shader_program& prog )
+      : mEnabled( true ),
+        mProgram( prog )
 {
 }
 
-void imm_draw_t::Begin( GLenum mode )
+void imm_draw::begin( GLenum mode )
 {
-	if ( !enabled )
+    if ( !mEnabled )
 	{
 		return;
 	}
 
-    if ( !bufferStore.buffer )
+    if ( !mBufferStore.mBuffer )
 	{
-        bufferStore.buffer.reset( new draw_buffer_t() );
-        bufferStore.buffer->usage = GL_DYNAMIC_DRAW;
+        mBufferStore.mBuffer.reset( new draw_buffer() );
+        mBufferStore.mBuffer->mUsage = GL_DYNAMIC_DRAW;
 	}
 
-    bufferStore.buffer->mode = mode;
+    mBufferStore.mBuffer->mMode = mode;
 }
 
-void imm_draw_t::Vertex( const draw_vertex_t& v )
+void imm_draw::vertex( const draw_vertex_t& v )
 {
-	if ( !enabled )
-	{
-		return;
-	}
-
-    bufferStore.vertices.push_back( v );
-}
-
-void imm_draw_t::Vertex( const glm::vec3& position )
-{
-	if ( !enabled )
+    if ( !mEnabled )
 	{
 		return;
 	}
 
-    bufferStore.vertices.push_back( draw_vertex_t_Make( position ) );
+    mBufferStore.mVertices.push_back( v );
 }
 
-void imm_draw_t::End( void )
+void imm_draw::vertex( const glm::vec3& position )
 {
-	if ( !enabled )
+    if ( !mEnabled )
 	{
 		return;
 	}
 
-    bufferStore.Update();
-    bufferStore.buffer->Render( program );
+    mBufferStore.mVertices.push_back( rend_make_draw_vertex( position ) );
 }
 
-void imm_draw_t::SetEnabled( bool value )
+void imm_draw::end( void )
 {
-	enabled = value;
+    if ( !mEnabled )
+	{
+		return;
+	}
+
+    mBufferStore.update();
+    mBufferStore.mBuffer->render( mProgram );
+}
+
+void imm_draw::enabled( bool value )
+{
+    mEnabled = value;
 }
 
 
@@ -671,8 +671,8 @@ namespace {
 	};
 }
 
-pipeline_t::pipeline_t( void )
-	: vao( 0 )
+render_pipeline::render_pipeline( void )
+    : mVao( 0 )
 {
     std::array< program_def_t, 3 > defs =
 	{{
@@ -718,22 +718,22 @@ pipeline_t::pipeline_t( void )
 
 		printf( "VERTEX: \n %s \n FRAGMENT: \n %s \n", vshader.c_str(), fshader.c_str() );
 
-		programs[ def.programName ] = std::move( shader_program_t( vertexBuf, fragmentBuf, def.uniforms, def.attribs ) );
+        mPrograms[ def.programName ] = std::move( shader_program( vertexBuf, fragmentBuf, def.uniforms, def.attribs ) );
 	}
 
     std::vector< draw_vertex_t > cubeVertexData =
     {
      // back
-        draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
 
      // front
-        draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
-        draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, -1.0f ) )
+        rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+        rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, -1.0f ) )
     };
 
 
@@ -785,10 +785,10 @@ pipeline_t::pipeline_t( void )
 			GL_TRIANGLE_STRIP,
 			GL_STATIC_DRAW,
 			{
-				draw_vertex_t_Make( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
-				draw_vertex_t_Make( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
-				draw_vertex_t_Make( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
-				draw_vertex_t_Make( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
+                rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
+                rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
+                rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+                rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
 			},
 			{}
         }
@@ -798,28 +798,28 @@ pipeline_t::pipeline_t( void )
 	{
 		if ( def.indexData.empty() )
 		{
-			drawBuffers[ def.name ] = std::move( draw_buffer_t( def.vertexData, def.mode, def.usage ) );
+            mDrawBuffers[ def.name ] = std::move( draw_buffer( def.vertexData, def.mode, def.usage ) );
 		}
 		else
 		{
-			drawBuffers[ def.name ] = std::move( draw_buffer_t( def.vertexData, def.indexData, def.mode, def.usage ) );
+            mDrawBuffers[ def.name ] = std::move( draw_buffer( def.vertexData, def.indexData, def.mode, def.usage ) );
 		}
 	}
 
 #ifndef OP_GL_USE_ES
-	GL_CHECK( glGenVertexArrays( 1, &vao ) );
-	GL_CHECK( glBindVertexArray( vao ) );
+    GL_CHECK( glGenVertexArrays( 1, &mVao ) );
+    GL_CHECK( glBindVertexArray( mVao ) );
 #endif
 }
 
-pipeline_t::~pipeline_t( void )
+render_pipeline::~render_pipeline( void )
 {
 #ifndef OP_GL_USE_ES
-	if ( vao )
+    if ( mVao )
 	{
-		GL_CHECK( glDeleteVertexArrays( 1, &vao ) );
+        GL_CHECK( glDeleteVertexArrays( 1, &mVao ) );
 	}
 #endif
 }
 
-imm_draw_t* immDrawer = nullptr;
+imm_draw* gImmDrawer = nullptr;

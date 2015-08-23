@@ -11,7 +11,7 @@
 #include <set>
 #include <unordered_set>
 
-struct frustum_t;
+struct view_frustum;
 
 struct map_tile;
 struct map_tile_region;
@@ -176,8 +176,8 @@ public:
     void                    find_entities( map_tile_list_t& mBillboards,
                                           map_tile_list_t& mWalls,
                                           map_tile_list_t& mFreeSpace,
-                                          const frustum_t& frustum_t,
-                                          const view_params_t& viewParams );
+                                          const view_frustum& view_frustum,
+                                          const view_data& viewParams );
 
     const map_tile_list_t& walls( void ) const { return mWalls; }
 };
@@ -210,7 +210,7 @@ public:
 
     map_tile_region( const map_tile* mOrigin = nullptr );
 
-    void draw( const pipeline_t& pl, const view_params_t& vp );
+    void draw( const render_pipeline& pl, const view_data& vp );
 
     void destroy( void ) const;
 
