@@ -8,7 +8,7 @@
 #include <SDL2/SDL_main.h>
 #include <memory>
 
-struct game_t
+struct application
 {
 	bool running = false, mouseShown = true, drawAll = false;
 	SDL_Window* window = nullptr;
@@ -23,39 +23,39 @@ struct game_t
 
 	float frameTime, lastTime, startTime;
 
-    std::unique_ptr< tile_generator_t > gen;
+    std::unique_ptr< map_tile_generator > gen;
 	std::unique_ptr< pipeline_t > pipeline;
 
-    plane_t groundPlane;
+    plane groundPlane;
 
-	input_client_t player, spec;
-	input_client_t* camera;
-    bounding_box_t* drawBounds;
+    input_client player, spec;
+    input_client* camera;
+    obb* drawBounds;
 
-    std::unique_ptr< entity_t > bullet;
+    std::unique_ptr< entity > bullet;
 
-	world_t world;
+    physics_world world;
 
     frustum_t frustum;
 
     texture_t billTexture;
 
-    collision_provider_t collision;
+    collision_provider collision;
 
-	game_t( uint32_t width, uint32_t height );
-   ~game_t( void );
+    application( uint32_t width, uint32_t height );
+   ~application( void );
 
-	void ResetMap( void );
+    void reset_map( void );
 
-    void ToggleCulling( void );
+    void toggle_culling( void );
 
-    void Tick( void );
+    void tick( void );
 
-    void Draw( void );
+    void draw( void );
 
-    void FireGun( void );
+    void fire_gun( void );
 
-    void Update( void );
+    void update( void );
 
-	static game_t& GetInstance( void );
+    static application& get_instance( void );
 };

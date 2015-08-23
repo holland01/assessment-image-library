@@ -39,14 +39,14 @@ enum
 	KEY_OUT = 7
 };
 
-input_client_t::input_client_t( void )
-    : input_client_t( view_params_t() )
+input_client::input_client( void )
+    : input_client( view_params_t() )
 {
 }
 
-input_client_t::input_client_t( const view_params_t& view )
-    : entity_t( entity_t::BODY_DEPENDENT,
-                []( void ) -> body_t*
+input_client::input_client( const view_params_t& view )
+    : entity( entity::BODY_DEPENDENT,
+                []( void ) -> rigid_body*
                 {
                     return nullptr;
                 }() ),
@@ -54,11 +54,11 @@ input_client_t::input_client_t( const view_params_t& view )
 	  mode( MODE_PLAY )
 {
 	keysPressed.fill( 0 );
-    AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t() );
+    add_bounds( ENTITY_BOUNDS_ALL, new obb() );
 }
 
-input_client_t::input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
-    : input_client_t( view_params_t() )
+input_client::input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
+    : input_client( view_params_t() )
 {
 	viewParams.origin = glm::vec3( -viewTransform[ 3 ] );
 	viewParams.transform = viewTransform;
@@ -73,7 +73,7 @@ input_client_t::input_client_t( float width, float height, const glm::mat4& view
 	viewParams.height = height;
 }
 
-void input_client_t::EvalMouseMove( float x, float y, bool calcRelative )
+void input_client::EvalMouseMove( float x, float y, bool calcRelative )
 {
 	if ( calcRelative )
 	{
@@ -90,37 +90,37 @@ void input_client_t::EvalMouseMove( float x, float y, bool calcRelative )
 	viewParams.lastMouse.y = y;
 }
 
-void input_client_t::EvalKeyPress( input_key_t key )
+void input_client::EvalKeyPress( input_key key )
 {
 	switch( key )
 	{
-		case input_key_t::W:
+		case input_key::W:
 			keysPressed[ KEY_FORWARD ] = KEY_PRESSED;
 			break;
 
-		case input_key_t::S:
+		case input_key::S:
 			keysPressed[ KEY_BACKWARD ] = KEY_PRESSED;
 			break;
 
-		case input_key_t::A:
+		case input_key::A:
 			keysPressed[ KEY_LEFT ] = KEY_PRESSED;
 			break;
 
-		case input_key_t::D:
+		case input_key::D:
 			keysPressed[ KEY_RIGHT ] = KEY_PRESSED;
 			break;
 
-		case input_key_t::LSHIFT:
+		case input_key::LSHIFT:
 			keysPressed[ KEY_DOWN ] = KEY_PRESSED;
 			break;
 
-		case input_key_t::SPACE:
+		case input_key::SPACE:
 			keysPressed[ KEY_UP ] = KEY_PRESSED;
 			break;
-		case input_key_t::E:
+		case input_key::E:
 			keysPressed[ KEY_IN ] = KEY_PRESSED;
 			break;
-		case input_key_t::Q:
+		case input_key::Q:
 			keysPressed[ KEY_OUT ] = KEY_PRESSED;
 			break;
 		default:
@@ -128,32 +128,32 @@ void input_client_t::EvalKeyPress( input_key_t key )
 	}
 }
 
-void input_client_t::EvalKeyRelease( input_key_t key )
+void input_client::EvalKeyRelease( input_key key )
 {
 	switch( key )
 	{
-		case input_key_t::W:
+		case input_key::W:
 			keysPressed[ KEY_FORWARD ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::S:
+		case input_key::S:
 			keysPressed[ KEY_BACKWARD ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::A:
+		case input_key::A:
 			keysPressed[ KEY_LEFT ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::D:
+		case input_key::D:
 			keysPressed[ KEY_RIGHT ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::LSHIFT:
+		case input_key::LSHIFT:
 			keysPressed[ KEY_DOWN ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::SPACE:
+		case input_key::SPACE:
 			keysPressed[ KEY_UP ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::E:
+		case input_key::E:
 			keysPressed[ KEY_IN ] = KEY_NOT_PRESSED;
 			break;
-		case input_key_t::Q:
+		case input_key::Q:
 			keysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
 			break;
 		default:
@@ -162,7 +162,7 @@ void input_client_t::EvalKeyRelease( input_key_t key )
 	}
 }
 
-void input_client_t::ApplyMovement( void )
+void input_client::ApplyMovement( void )
 {
 	NormalizeRotation( viewParams.currRot );
 
@@ -182,7 +182,7 @@ void input_client_t::ApplyMovement( void )
 	if ( keysPressed[ KEY_OUT ] ) viewParams.currRot.z -= viewParams.moveStep;
 }
 
-void input_client_t::Sync( void )
+void input_client::sync( void )
 {
 	viewParams.orientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( viewParams.currRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
 	viewParams.orientation = glm::rotate( viewParams.orientation, glm::radians( viewParams.currRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
@@ -194,9 +194,9 @@ void input_client_t::Sync( void )
 
 	if ( mode == MODE_PLAY )
 	{
-		if ( body )
+		if ( mBody )
 		{
-            body->SetPositionAxis( 1.0f, 0.0f );
+            mBody->position( 1.0f, 0.0f );
 		}
 		else
 		{
@@ -204,23 +204,23 @@ void input_client_t::Sync( void )
 		}
 	}
 
-	if ( body )
+	if ( mBody )
 	{
-        viewParams.origin = body->GetPosition();
-        body->SetOrientation( viewParams.inverseOrient );
-        entity_t::Sync();
+        viewParams.origin = mBody->position();
+        mBody->orientation( viewParams.inverseOrient );
+        entity::sync();
 	}
 	else
 	{
-        bounding_box_t* b = QueryBounds( ENTITY_BOUNDS_ALL )->ToBox();
+        obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
         assert( b );
 
-        b->SetCenter( viewParams.origin );
-        b->SetOrientation( glm::mat3( viewParams.inverseOrient ) );
+        b->center( viewParams.origin );
+        b->orientation( glm::mat3( viewParams.inverseOrient ) );
 	}
 }
 
-void input_client_t::PrintOrigin( void ) const
+void input_client::PrintOrigin( void ) const
 {
 	printf( "Origin: %s\n", glm::to_string( viewParams.origin ).c_str() );
 }

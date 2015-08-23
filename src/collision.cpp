@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 #define DUMMY_LAMBDA \
-    []( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee ) \
+    []( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee ) \
     { \
          assert( false ); \
          UNUSEDPARAM( e ); \
@@ -14,16 +14,16 @@
 
 namespace {
 
-    using collision_entity_fn_t = std::function< void( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee ) >;
+    using collision_entity_fn_t = std::function< void( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee ) >;
     using collision_fn_table_t = std::array< collision_entity_fn_t, NUM_BOUNDS_PRIMTYPE >;
 
     collision_fn_table_t gLookupCollisionTable =
     {{
         // HALFSPACE
-        []( collision_entity_t& e, const bounds_primitive_t* collider, const bounds_primitive_t* collidee )
+        []( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee )
         {
-            const bounding_box_t& a = *( collider->ToBox() );
-            const primitive_lookup_t& b = *( collidee->ToLookup() );
+            const obb& a = *( collider->to_box() );
+            const primitive_lookup& b = *( collidee->to_lookup() );
 
             if ( b.index < 0 )
             {
@@ -37,9 +37,9 @@ namespace {
             {
                 if ( i >= 0 )
                 {
-                    const half_space_t& hs = e.provider.halfSpaces[ i ];
+                    const halfspace& hs = e.provider.halfSpaces[ i ];
 
-                    if ( a.IntersectsHalfSpace( e.normal, hs ) )
+                    if ( a.intersects( e.normal, hs ) )
                     {
                         if ( glm::length( e.normal ) < 1.0f )
                         {
@@ -56,11 +56,11 @@ namespace {
         DUMMY_LAMBDA
      }};
 
-    collision_entity_fn_t gDoLookupFn = []( collision_entity_t& e,
-        const bounds_primitive_t* cer, const bounds_primitive_t* cee )
+    collision_entity_fn_t gDoLookupFn = []( collision_entity& e,
+        const bounds_primitive* cer, const bounds_primitive* cee )
     {
         assert( cee->type == BOUNDS_PRIM_LOOKUP );
-        gLookupCollisionTable[ cee->ToLookup()->lookupType ]( e, cer, cee );
+        gLookupCollisionTable[ cee->to_lookup()->lookupType ]( e, cer, cee );
     };
 
     std::array< collision_fn_table_t, NUM_BOUNDS_PRIMTYPE > gCollisionTable =
@@ -78,17 +78,17 @@ namespace {
             DUMMY_LAMBDA,
 
             // BOUNDS_BOUNDS
-            []( collision_entity_t& e,
-                const bounds_primitive_t* collider,
-                const bounds_primitive_t* collidee )
+            []( collision_entity& e,
+                const bounds_primitive* collider,
+                const bounds_primitive* collidee )
             {
                 assert( collider->type == BOUNDS_PRIM_BOX );
                 assert( collidee->type == BOUNDS_PRIM_BOX );
 
-                const bounding_box_t& a = *( collider->ToBox() );
-                const bounding_box_t& b = *( collidee->ToBox() );
+                const obb& a = *( collider->to_box() );
+                const obb& b = *( collidee->to_box() );
 
-                e.colliding = a.IntersectsBounds( e.normal, b );
+                e.colliding = a.intersects( e.normal, b );
             },
             gDoLookupFn,
         }},
@@ -106,9 +106,9 @@ namespace {
 // collision_entity_t
 //-------------------------------------------------------------------------------------------------------
 
-collision_entity_t::collision_entity_t( const collision_provider_t& provider_,
-                                        const entity_t* a_,
-                                        const entity_t* b_,
+collision_entity::collision_entity( const collision_provider& provider_,
+                                        const entity* a_,
+                                        const entity* b_,
                                         const uint32_t colliderBoundsUseFlags,
                                         const uint32_t collideeBoundsUseFlags )
     :
@@ -126,7 +126,7 @@ collision_entity_t::collision_entity_t( const collision_provider_t& provider_,
 // collision_provider_t
 //-------------------------------------------------------------------------------------------------------
 
-uint32_t collision_provider_t::GenHalfSpace( const bounding_box_t& bounds, collision_face_t face )
+uint32_t collision_provider::GenHalfSpace( const obb& bounds, collision_face face )
 {
     std::array< glm::vec3, NUM_COLLISION_FACES > halfSpaceNormals =
     {{
@@ -138,16 +138,16 @@ uint32_t collision_provider_t::GenHalfSpace( const bounding_box_t& bounds, colli
 
     uint32_t index = ( int32_t ) halfSpaces.size();
 
-    half_space_t hs( bounds, halfSpaceNormals[ face ] );
+    halfspace hs( bounds, halfSpaceNormals[ face ] );
     halfSpaces.push_back( std::move( hs ) );
 
     return index;
 }
 
-bool collision_provider_t::EvalCollision( collision_entity_t& ce ) const
+bool collision_provider::EvalCollision( collision_entity& ce ) const
 {
-    const bounds_primitive_t* collider = ce.collider->QueryBounds( ce.colliderUseFlags );
-    const bounds_primitive_t* collidee = ce.collidee->QueryBounds( ce.collideeUseFlags );
+    const bounds_primitive* collider = ce.collider->query_bounds( ce.colliderUseFlags );
+    const bounds_primitive* collidee = ce.collidee->query_bounds( ce.collideeUseFlags );
 
     assert( collider );
     assert( collidee );

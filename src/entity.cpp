@@ -5,31 +5,31 @@
 namespace {
 
     using entity_dep_table_t =
-        std::array< std::function< void( bounds_primitive_t* prim, body_t* body ) >, NUM_BOUNDS_PRIMTYPE >;
+        std::array< std::function< void( bounds_primitive* prim, rigid_body* body ) >, NUM_BOUNDS_PRIMTYPE >;
 
     entity_dep_table_t gSyncBodyDepTable =
     {{
         // BOUNDS_PRIMTYPE_HALFSPACE
-        []( bounds_primitive_t* prim, body_t* body )
+        []( bounds_primitive* prim, rigid_body* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
         },
 
         // BOUNDS_PRIMTYPE_BOX
-        []( bounds_primitive_t* prim, body_t* body )
+        []( bounds_primitive* prim, rigid_body* body )
         {
-            bounding_box_t* box = ( bounding_box_t* )prim;
+            obb* box = ( obb* )prim;
 
             if ( box )
             {
-                box->SetCenter( body->GetPosition() );
-                box->SetOrientation( body->GetOrientation() );
+                box->center( body->position() );
+                box->orientation( body->orientation() );
             }
         },
 
         // BOUNDS_PRIMTYPE_LOOKUP
-        []( bounds_primitive_t* prim, body_t* body )
+        []( bounds_primitive* prim, rigid_body* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
@@ -39,25 +39,25 @@ namespace {
     entity_dep_table_t gSyncBoundsDepTable =
     {{
         // BOUNDS_PRIMTYPE_HALFSPACE
-        []( const bounds_primitive_t* prim, body_t* body )
+        []( const bounds_primitive* prim, rigid_body* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
         },
 
         // BOUNDS_PRIMTYPE_BOX
-        []( const bounds_primitive_t* prim, body_t* body )
+        []( const bounds_primitive* prim, rigid_body* body )
         {
-            bounding_box_t* box = ( bounding_box_t* )prim;
+            obb* box = ( obb* )prim;
 
             if ( body )
             {
-                body->SetFromTransform( box->GetTransform() );
+                body->set( box->axes() );
             }
         },
 
         // BOUNDS_PRIMTYPE_LOOKUP
-        []( const bounds_primitive_t* prim, body_t* body )
+        []( const bounds_primitive* prim, rigid_body* body )
         {
             UNUSEDPARAM( prim );
             UNUSEDPARAM( body );
@@ -65,7 +65,7 @@ namespace {
     }};
 }
 
-entity_bounds_primitive_t::entity_bounds_primitive_t( uint32_t flags, bounds_primitive_t* bounds_ )
+entity_bounds_primitive::entity_bounds_primitive( uint32_t flags, bounds_primitive* bounds_ )
     : usageFlags( flags ),
       bounds( bounds_ ),
       next( nullptr )
@@ -76,18 +76,18 @@ entity_bounds_primitive_t::entity_bounds_primitive_t( uint32_t flags, bounds_pri
 // entity_bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
-entity_t::entity_t( dependent_t dep, body_t* body_, const glm::vec4& color_ )
-    : bounds( nullptr ),
-      depType( dep ),
-      color( color_ ),
-      size( 1.0f ),
-      body( body_ )
+entity::entity( dependent_t dep, rigid_body* body_, const glm::vec4& color_ )
+    : mBounds( nullptr ),
+      mDepType( dep ),
+      mColor( color_ ),
+      mSize( 1.0f ),
+      mBody( body_ )
 {
 }
 
-void entity_t::AddBounds( uint32_t usageFlags, bounds_primitive_t* newBounds )
+void entity::add_bounds( uint32_t usageFlags, bounds_primitive* newBounds )
 {
-    std::unique_ptr< entity_bounds_primitive_t >* b = &bounds;
+    std::unique_ptr< entity_bounds_primitive >* b = &mBounds;
 
     while ( *b )
     {
@@ -99,12 +99,12 @@ void entity_t::AddBounds( uint32_t usageFlags, bounds_primitive_t* newBounds )
         b = &( *b )->next;
     }
 
-    ( *b ).reset( new entity_bounds_primitive_t( usageFlags, newBounds ) );
+    ( *b ).reset( new entity_bounds_primitive( usageFlags, newBounds ) );
 }
 
 namespace {
 
-   INLINE bounds_primitive_t* __QueryBounds( entity_bounds_primitive_t* b, uint32_t flags )
+   INLINE bounds_primitive* __QueryBounds( entity_bounds_primitive* b, uint32_t flags )
     {
         while ( b )
         {
@@ -120,44 +120,44 @@ namespace {
     }
 }
 
-bounds_primitive_t* entity_t::QueryBounds( uint32_t flags )
+bounds_primitive* entity::query_bounds( uint32_t flags )
 {
-    return __QueryBounds( bounds.get(), flags );
+    return __QueryBounds( mBounds.get(), flags );
 }
 
-const bounds_primitive_t* entity_t::QueryBounds( uint32_t flags ) const
+const bounds_primitive* entity::query_bounds( uint32_t flags ) const
 {
-    return __QueryBounds( bounds.get(), flags );
+    return __QueryBounds( mBounds.get(), flags );
 }
 
 namespace {
     const  uint32_t NUM_ENTITY_BOUNDS_PRIM_TYPES = 3;
 
     std::array< uint32_t, NUM_ENTITY_BOUNDS_PRIM_TYPES + 1 > gEntBoundsPrims =
-    {
+    {{
         ENTITY_BOUNDS_ALL,
         ENTITY_BOUNDS_AIR_COLLIDE,
         ENTITY_BOUNDS_AREA_EVAL,
         ENTITY_BOUNDS_MOVE_COLLIDE
-    };
+    }};
 }
 
-void entity_t::Sync( void )
+void entity::sync( void )
 {
     for ( auto key: gEntBoundsPrims )
     {
-        bounds_primitive_t* prim = QueryBounds( key );
+        bounds_primitive* prim = query_bounds( key );
 
         if ( prim )
         {
-            switch ( depType )
+            switch ( mDepType )
             {
-                case entity_t::BOUNDS_DEPENDENT:
-                    gSyncBoundsDepTable[ prim->type ]( prim, body.get() );
+                case entity::BOUNDS_DEPENDENT:
+                    gSyncBoundsDepTable[ prim->type ]( prim, mBody.get() );
                     break;
 
-                case entity_t::BODY_DEPENDENT:
-                    gSyncBodyDepTable[ prim->type ]( prim, body.get() );
+                case entity::BODY_DEPENDENT:
+                    gSyncBodyDepTable[ prim->type ]( prim, mBody.get() );
                     break;
             }
         }

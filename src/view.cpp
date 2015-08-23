@@ -25,7 +25,7 @@ frustum_t::frustum_t( void )
 		rejectCount( 0 ),
 		mvp( 1.0f )
 {
-	memset( frustPlanes, 0, sizeof( plane_t ) * FRUST_NUM_PLANES );
+	memset( frustPlanes, 0, sizeof( plane ) * FRUST_NUM_PLANES );
 }
 
 frustum_t::~frustum_t( void )
@@ -117,15 +117,15 @@ namespace {
 	}
 }
 
-bool frustum_t::IntersectsBox( const bounding_box_t& box ) const
+bool frustum_t::IntersectsBox( const obb& box ) const
 {
 	std::array< glm::vec3, 8 > clipBounds;
-	box.GetPoints( clipBounds );
+	box.points( clipBounds );
 
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-        if ( G_PointPlaneTest< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
+        if ( test_point_plane< 8, PointPlanePredicate >( clipBounds, frustPlanes[ i ] ) )
 		{
 			continue;
 		}

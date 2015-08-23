@@ -1,4 +1,3 @@
-
 #ifdef EMSCRIPTEN
 
 #include <emscripten.h>
@@ -8,19 +7,19 @@ void App_Frame( void );
 
 namespace {
 
-const std::vector< input_key_t > emKeyMap =
+const std::vector< input_key > emKeyMap =
 {
-    input_key_t::W,
-    input_key_t::S,
-    input_key_t::A,
-    input_key_t::D,
-    input_key_t::E,
-    input_key_t::Q,
-    input_key_t::R,
-    input_key_t::V,
-    input_key_t::ESC,
-    input_key_t::SPACE,
-    input_key_t::LSHIFT
+    input_key::W,
+    input_key::S,
+    input_key::A,
+    input_key::D,
+    input_key::E,
+    input_key::Q,
+    input_key::R,
+    input_key::V,
+    input_key::ESC,
+    input_key::SPACE,
+    input_key::LSHIFT
 };
 
 INLINE std::string EmscriptenResultFromEnum( int32_t result )
@@ -52,7 +51,7 @@ INLINE std::string EmscriptenResultFromEnum( int32_t result )
 	}\
 	while( 0 )
 
-typedef void ( input_client_t::*camKeyFunc_t )( input_key_t key );
+typedef void ( input_client::*camKeyFunc_t )( input_key key );
 
 template< camKeyFunc_t cameraKeyFunc >
 INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* keyEvent, void* userData )
@@ -61,7 +60,7 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 
 	game_t& app = game_t::GetInstance();
 
-    auto entry = std::find( emKeyMap.begin(), emKeyMap.end(), ( input_key_t ) keyEvent->keyCode );
+    auto entry = std::find( emKeyMap.begin(), emKeyMap.end(), ( input_key ) keyEvent->keyCode );
 
 	if ( entry == emKeyMap.end() )
 	{
@@ -70,16 +69,16 @@ INLINE EM_BOOL KeyInputFunc( int32_t eventType, const EmscriptenKeyboardEvent* k
 
     switch ( *entry )
 	{
-		case input_key_t::ESC:
+        case input_key::ESC:
 			app.running = false;
 			break;
-		case input_key_t::R:
+        case input_key::R:
 			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
 			{
 				app.ResetMap();
 			}
 			break;
-		case input_key_t::V:
+        case input_key::V:
 			if ( eventType == EMSCRIPTEN_EVENT_KEYDOWN )
 			{
 				app.ToggleCulling();
@@ -132,8 +131,8 @@ EM_BOOL MouseDownFunc( int32_t eventType, const EmscriptenMouseEvent* mouseEvent
 void InitEmInput( void )
 {
 	int32_t ret;
-	SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyPress > ) );
-	SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client_t::EvalKeyRelease > ) );
+    SET_CALLBACK_RESULT( emscripten_set_keydown_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client::EvalKeyPress > ) );
+    SET_CALLBACK_RESULT( emscripten_set_keyup_callback( nullptr, nullptr, 0, ( em_key_callback_func )&KeyInputFunc< &input_client::EvalKeyRelease > ) );
 	SET_CALLBACK_RESULT( emscripten_set_mousemove_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseMoveFunc ) );
     SET_CALLBACK_RESULT( emscripten_set_mousedown_callback( "#canvas", nullptr, 1, ( em_mouse_callback_func )&MouseDownFunc ) );
 

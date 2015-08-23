@@ -8,7 +8,7 @@
 #include "physics.h"
 #include "view.h"
 
-enum class input_key_t : uint32_t
+enum class input_key : uint32_t
 {
 #ifdef EMSCRIPTEN
     ESC = 27,
@@ -36,31 +36,31 @@ enum class input_key_t : uint32_t
 #endif
 };
 
-struct input_client_t : public entity_t
+struct input_client : public entity
 {
     view_params_t viewParams;
 
 	std::array< uint8_t, 8 > keysPressed;
 
-	enum mode_t
+    enum client_mode
 	{
 		MODE_PLAY = 0,
 		MODE_SPEC
 	};
 
-	mode_t mode;
+    client_mode mode;
 
-	input_client_t( void );
-    input_client_t( const view_params_t& viewParams );
-	input_client_t( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
+    input_client( void );
+    input_client( const view_params_t& viewParams );
+    input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
-	void    EvalKeyPress( input_key_t key );
-	void    EvalKeyRelease( input_key_t key );
+    void    EvalKeyPress( input_key key );
+    void    EvalKeyRelease( input_key key );
 	void    EvalMouseMove( float x, float y, bool calcRelative );
 
 	void	ApplyMovement( void );
 	void    Update( void );
-    void    Sync( void ) override;
+    void    sync( void ) override;
 
 	void	AddDir( const glm::vec3& dir, float scale );
 
@@ -79,12 +79,12 @@ struct input_client_t : public entity_t
 	void PrintOrigin( void ) const;
 };
 
-INLINE glm::vec3 input_client_t::Forward( void ) const
+INLINE glm::vec3 input_client::Forward( void ) const
 {
     // If we have a body defined, then we're going to update its orientation
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
-    if ( body )
+    if ( mBody )
     {
         return glm::vec3( 0.0f, 0.0f, -1.0f );
     }
@@ -93,12 +93,12 @@ INLINE glm::vec3 input_client_t::Forward( void ) const
 	return glm::normalize( glm::vec3( forward ) );
 }
 
-INLINE glm::vec3 input_client_t::Right( void ) const
+INLINE glm::vec3 input_client::Right( void ) const
 {
     // If we have a body defined, then we're going to update its orientation
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
-    if ( body )
+    if ( mBody )
     {
         return glm::vec3( 1.0f, 0.0f, 0.0f );
     }
@@ -107,12 +107,12 @@ INLINE glm::vec3 input_client_t::Right( void ) const
 	return glm::normalize( glm::vec3( right ) );
 }
 
-INLINE glm::vec3 input_client_t::Up( void ) const
+INLINE glm::vec3 input_client::Up( void ) const
 {
     // If we have a body defined, then we're going to update its orientation
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
-    if ( body )
+    if ( mBody )
     {
         return glm::vec3( 0.0f, 1.0f, 0.0f );
     }
@@ -121,11 +121,11 @@ INLINE glm::vec3 input_client_t::Up( void ) const
 	return glm::normalize( glm::vec3( up ) );
 }
 
-INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
+INLINE void input_client::AddDir( const glm::vec3& dir, float scale )
 {
-	if ( body )
+    if ( mBody )
 	{
-        body->ApplyVelocity( dir * scale );
+        mBody->apply_velocity( dir * scale );
 	}
 	else
 	{
@@ -134,7 +134,7 @@ INLINE void input_client_t::AddDir( const glm::vec3& dir, float scale )
 }
 
 
-INLINE void input_client_t::SetPerspective( float fovy, float width, float height, float zNear, float zFar )
+INLINE void input_client::SetPerspective( float fovy, float width, float height, float zNear, float zFar )
 {
 	fovy = glm::radians( fovy );
 
@@ -151,22 +151,22 @@ INLINE void input_client_t::SetPerspective( float fovy, float width, float heigh
 	viewParams.height = height;
 }
 
-INLINE void input_client_t::SetClipTransform( const glm::mat4& proj )
+INLINE void input_client::SetClipTransform( const glm::mat4& proj )
 {
 	viewParams.clipTransform = proj;
 }
 
-INLINE void input_client_t::SetViewTransform( const glm::mat4& view )
+INLINE void input_client::SetViewTransform( const glm::mat4& view )
 {
 	viewParams.transform = view;
 }
 
-INLINE void input_client_t::SetPosition( const glm::vec3& origin )
+INLINE void input_client::SetPosition( const glm::vec3& origin )
 {
 	viewParams.origin = origin;
 }
 
-INLINE const view_params_t& input_client_t::GetViewParams( void ) const
+INLINE const view_params_t& input_client::GetViewParams( void ) const
 {
 	return viewParams;
 }

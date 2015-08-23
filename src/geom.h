@@ -11,8 +11,8 @@
 #include <memory>
 #include <stack>
 
-struct plane_t;
-struct ray_t;
+struct plane;
+struct ray;
 
 static const glm::vec3 G_DIR_RIGHT( 1.0f, 0.0f, 0.0f );
 static const glm::vec3 G_DIR_UP( 0.0f, 1.0f, 0.0f );
@@ -26,26 +26,26 @@ static const glm::vec3 G_DIR_FORWARD( 0.0f, 0.0f, -1.0f );
 // dir is the terminating axis ending the angle, and backAxis is the axis which is orthogonal to the rightAxis
 // such that the angle between the two is 270 degrees, counter-clockwise.
 // All are assumed to be normalized
-static INLINE glm::mat3 G_OrientByDirection( const glm::vec3& dir, const glm::vec3& rightAxis, const glm::vec3& backAxis );
+static INLINE glm::mat3 orient_by_direction( const glm::vec3& dir, const glm::vec3& rightAxis, const glm::vec3& backAxis );
 
-static INLINE void G_RotateMatrixXYZ( glm::mat4& r, const glm::vec3& rotation );
+static INLINE void rotate_matrix_xyz( glm::mat4& r, const glm::vec3& rotation );
 
 using point_predicate_t = bool ( * )( float );
 template < size_t N, point_predicate_t predicate >
-static INLINE bool G_PointPlaneTest( const std::array< glm::vec3, N >& points, const plane_t& plane );
+static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, const plane& plane );
 
-static INLINE float G_TripleProduct( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c );
+static INLINE float triple_product( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c );
 
-glm::vec3 G_PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal );
+glm::vec3 plane_project( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal );
 
-bool G_RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 );
+bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 );
 
 
 //-------------------------------------------------------------------------------------------------------
 // plane_t
 //-------------------------------------------------------------------------------------------------------
 
-struct plane_t
+struct plane
 {
     float       d;
     glm::vec3   normal;
@@ -55,7 +55,7 @@ struct plane_t
 // ray_t
 //-------------------------------------------------------------------------------------------------------
 
-struct ray_t
+struct ray
 {
 	glm::vec3 p;
 	glm::vec3 d;
@@ -65,58 +65,58 @@ struct ray_t
 // transform_t
 //-------------------------------------------------------------------------------------------------------
 
-struct transform_t
+struct transform_stack
 {
 protected:
-    glm::vec3 scale;
+    glm::vec3 mScale;
 
-    glm::vec3 rotation;
+    glm::vec3 mRotation;
 
-    glm::vec3 translation;
+    glm::vec3 mTranslation;
 
-    glm::mat4 top;
+    glm::mat4 mTop;
 
-    std::stack< glm::mat4 > matStack;
+    std::stack< glm::mat4 > mMatStack;
 
 public:
-    transform_t( void );
+    transform_stack( void );
 
-    void PushTransform( void );
+    void push( void );
 
-    void PopTransform( void );
+    void pop( void );
 
-    const glm::mat4& PeekTransform( void ) const;
+    const glm::mat4& peek( void ) const;
 
-    void SetScale( const glm::vec3& s );
+    void scale( const glm::vec3& s );
 
-    void SetRotation( const glm::vec3& r );
+    void rotation( const glm::vec3& r );
 
-    void SetTranslation( const glm::vec3& t );
+    void translation( const glm::vec3& t );
 
-    void ApplyScale( void );
+    void apply_scale( void );
 
-    void ApplyRotation( void );
+    void apply_rotation( void );
 
-    void ApplyTranslation( void );
+    void apply_translation( void );
 
-    void ApplyScale( const glm::vec3& s );
+    void apply_scale( const glm::vec3& s );
 
-    void ApplyRotation( const glm::vec3& r );
+    void apply_rotation( const glm::vec3& r );
 
-    void ApplyTranslation( const glm::vec3& t );
+    void apply_translation( const glm::vec3& t );
 
-    glm::mat3 GetScale( void ) const;
+    glm::mat3 scale( void ) const;
 
-    glm::mat3 GetRotation3( void ) const;
+    glm::mat3 rotation( void ) const;
 
-    glm::mat4 GetTranslation( void ) const;
+    glm::mat4 translation( void ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------
 // bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
-enum bounds_primtype_t
+enum bounds_primtype
 {   BOUNDS_PRIM_HALFSPACE = 0,
     BOUNDS_PRIM_BOX,
     BOUNDS_PRIM_LOOKUP,
@@ -124,44 +124,44 @@ enum bounds_primtype_t
 };
 
 
-struct primitive_lookup_t;
-struct bounding_box_t;
-struct half_space_t;
+struct primitive_lookup;
+struct obb;
+struct halfspace;
 
-struct bounds_primitive_t
+struct bounds_primitive
 {
 protected:
-    bounds_primitive_t( bounds_primtype_t type_ )
+    bounds_primitive( bounds_primtype type_ )
         : type( type_ )
     {}
 
 public:
-    const bounds_primtype_t type;
+    const bounds_primtype type;
 
-    primitive_lookup_t*         ToLookup( void );
+    primitive_lookup*         to_lookup( void );
 
-    const primitive_lookup_t*   ToLookup( void ) const;
+    const primitive_lookup*   to_lookup( void ) const;
 
-    bounding_box_t*             ToBox( void );
+    obb*             to_box( void );
 
-    const bounding_box_t*       ToBox( void ) const;
+    const obb*       to_box( void ) const;
 
-    half_space_t*               ToHalfSpace( void );
+    halfspace*               to_halfspace( void );
 };
 
 //-------------------------------------------------------------------------------------------------------
 // primitive_lookup_t
 //-------------------------------------------------------------------------------------------------------
 
-struct primitive_lookup_t : public bounds_primitive_t
+struct primitive_lookup : public bounds_primitive
 {
     static const int32_t LOOKUP_UNSET = -1;
 
-    bounds_primtype_t lookupType;
+    bounds_primtype lookupType;
     int32_t index = 0;
 
-    primitive_lookup_t( bounds_primtype_t lookupType_, int32_t index_ = LOOKUP_UNSET )
-        : bounds_primitive_t( BOUNDS_PRIM_LOOKUP ),
+    primitive_lookup( bounds_primtype lookupType_, int32_t index_ = LOOKUP_UNSET )
+        : bounds_primitive( BOUNDS_PRIM_LOOKUP ),
           lookupType( lookupType_ ),
           index( index_ )
     {}
@@ -171,36 +171,36 @@ struct primitive_lookup_t : public bounds_primitive_t
 // half_space_t
 //-------------------------------------------------------------------------------------------------------
 
-struct bounding_box_t;
+struct obb;
 
-struct half_space_t : public bounds_primitive_t
+struct halfspace : public bounds_primitive
 {
 	glm::mat3 extents;
 	glm::vec3 origin;
 	float distance;
 
-    half_space_t( void );
-    half_space_t( const glm::mat3& extents, const glm::vec3& origin, float distance );
-    half_space_t( const bounding_box_t& bounds, const glm::vec3& normal );
+    halfspace( void );
+    halfspace( const glm::mat3& extents, const glm::vec3& origin, float distance );
+    halfspace( const obb& bounds, const glm::vec3& normal );
 
-    half_space_t( const half_space_t& c );
-    half_space_t& operator=( half_space_t c );
+    halfspace( const halfspace& c );
+    halfspace& operator=( halfspace c );
 
-	bool TestBounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
-	void Draw( imm_draw_t& drawer ) const;
+    bool test_bounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
+    void draw( imm_draw_t& drawer ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-struct bounding_box_t : public bounds_primitive_t
+struct obb : public bounds_primitive
 {
 public:
-	glm::mat4 transform;
-    glm::vec4 color;
+    glm::mat4 mAxes;
+    glm::vec4 mColor;
 
-    enum face_t
+    enum face_type
     {
         FACE_TOP = 0,
         FACE_RIGHT,
@@ -210,7 +210,7 @@ public:
         FACE_BOTTOM
     };
 
-	enum corner_t
+    enum corner_type
 	{
 		CORNER_MIN = 0,
 		CORNER_NEAR_DOWN_RIGHT,
@@ -222,55 +222,55 @@ public:
 		CORNER_MAX = 7
 	};
 
-    bounding_box_t( const glm::mat4& transform = glm::mat4( 1.0f ) );
+    obb( const glm::mat4& mAxes = glm::mat4( 1.0f ) );
 
-    bounding_box_t( bounding_box_t&& m );
+    obb( obb&& m );
 
 	// We make this movable only because of the drawBuffer member
-    bounding_box_t( const bounding_box_t& toCopy ) = delete;
-    bounding_box_t& operator =( bounding_box_t toAssign ) = delete;
+    obb( const obb& toCopy ) = delete;
+    obb& operator =( obb toAssign ) = delete;
 
-    bool			Encloses( const bounding_box_t& box ) const;
+    bool			encloses( const obb& box ) const;
 
-	glm::vec3       GetCenter( void ) const;
+    glm::vec3       center( void ) const;
 
-	glm::vec3       GetSize( void ) const;
+    glm::vec3       size( void ) const;
 
-	glm::vec3       GetRadius( void ) const;
+    glm::vec3       radius( void ) const;
 
-	glm::vec3       GetCorner( corner_t index ) const;
+    glm::vec3       corner( corner_type index ) const;
 
-	glm::vec3       GetCornerIdentity( corner_t index ) const;
+    glm::vec3       corner_identity( corner_type index ) const;
 
-    const glm::mat4& GetTransform( void ) const;
+    const glm::mat4& axes( void ) const;
 
-	void			GetEdgesFromCorner( corner_t index, glm::mat3& edges ) const;
+    void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
-    void            GetPoints( std::array< glm::vec3, 8 >& points ) const;
+    void            points( std::array< glm::vec3, 8 >& points ) const;
 
-    void			GetFacePlane( face_t face, plane_t& plane_t ) const;
+    void			face_plane( face_type face, plane& plane_t ) const;
 
-    void			SetDrawable( const glm::vec4& color );
+    void			color( const glm::vec4& mColor );
 
-    void            SetCenter( const glm::vec3& position );
+    void            center( const glm::vec3& position );
 
-    void            SetOrientation( const glm::mat3& orient );
+    void            orientation( const glm::mat3& orient );
 
     const glm::vec4& operator[]( uint32_t i ) const;
 
-    bool			InXRange( const glm::vec3& v ) const;
+    bool			range_x( const glm::vec3& v ) const;
 
-    bool			InYRange( const glm::vec3& v ) const;
+    bool			range_y( const glm::vec3& v ) const;
 
-    bool			InZRange( const glm::vec3& v ) const;
+    bool			range_z( const glm::vec3& v ) const;
 
-	bool			EnclosesPoint( const glm::vec3& v ) const;
+    bool			range( const glm::vec3& v ) const;
 
-    bool			IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const;
+    bool			intersects( glm::vec3& normal, const obb& bounds ) const;
 
-    bool			IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const;
+    bool			intersects( glm::vec3& normal, const halfspace& halfSpace ) const;
 
-    bool			CalcIntersection( float& t0, const glm::vec3& ray_t, const glm::vec3& origin ) const;
+    bool			ray_intersection( float& t0, const glm::vec3& ray_t, const glm::vec3& origin ) const;
 
 };
 
@@ -286,7 +286,7 @@ public:
 // dir is the terminating axis ending the angle, and backAxis is the axis which is orthogonal to the rightAxis
 // such that the angle between the two is 270 degrees, counter-clockwise.
 // All are assumed to be normalized
-static INLINE glm::mat3 G_OrientByDirection( const glm::vec3& dir, const glm::vec3& rightAxis, const glm::vec3& backAxis )
+static INLINE glm::mat3 orient_by_direction( const glm::vec3& dir, const glm::vec3& rightAxis, const glm::vec3& backAxis )
 {
     float rot = glm::acos( glm::dot( rightAxis, dir ) );
 
@@ -298,7 +298,7 @@ static INLINE glm::mat3 G_OrientByDirection( const glm::vec3& dir, const glm::ve
     return std::move( glm::mat3( glm::rotate( glm::mat4( 1.0f ), rot, glm::vec3( 0.0f, 1.0f, 0.0f ) ) ) );
 }
 
-static INLINE void G_RotateMatrixXYZ( glm::mat4& r, const glm::vec3& rotation )
+static INLINE void rotate_matrix_xyz( glm::mat4& r, const glm::vec3& rotation )
 {
     r = glm::rotate( glm::mat4( 1.0f ), rotation.x, glm::vec3( 1.0f, 0.0f, 0.0f ) );
     r = glm::rotate( r, rotation.y, glm::vec3( 0.0f, 1.0f, 0.0f ) );
@@ -308,7 +308,7 @@ static INLINE void G_RotateMatrixXYZ( glm::mat4& r, const glm::vec3& rotation )
 using point_predicate_t = bool ( * )( float );
 
 template < size_t N, point_predicate_t predicate >
-static INLINE bool G_PointPlaneTest( const std::array< glm::vec3, N >& points, const plane_t& pln )
+static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, const plane& pln )
 {
     for ( const glm::vec3& p: points )
     {
@@ -323,7 +323,7 @@ static INLINE bool G_PointPlaneTest( const std::array< glm::vec3, N >& points, c
     return false;
 }
 
-static INLINE float G_TripleProduct( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c )
+static INLINE float triple_product( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c )
 {
     return glm::dot( a, glm::cross( b, c ) );
 }
@@ -332,100 +332,100 @@ static INLINE float G_TripleProduct( const glm::vec3& a, const glm::vec3& b, con
 // transform
 //-------------------------------------------------------------------------------------------------------
 
-INLINE transform_t::transform_t( void )
-    : scale( 0.0f ), rotation( 0.0f ),
-      translation( 0.0f ),
-      top( 1.0f )
+INLINE transform_stack::transform_stack( void )
+    : mScale( 0.0f ), mRotation( 0.0f ),
+      mTranslation( 0.0f ),
+      mTop( 1.0f )
 {
 }
 
-INLINE void transform_t::PushTransform( void )
+INLINE void transform_stack::push( void )
 {
-    matStack.push( top );
+    mMatStack.push( mTop );
 }
 
-INLINE void transform_t::PopTransform( void )
+INLINE void transform_stack::pop( void )
 {
-    matStack.pop();
+    mMatStack.pop();
 }
 
-INLINE const glm::mat4& transform_t::PeekTransform( void ) const
+INLINE const glm::mat4& transform_stack::peek( void ) const
 {
-    return top;
+    return mTop;
 }
 
-INLINE void transform_t::SetScale( const glm::vec3& s )
+INLINE void transform_stack::scale( const glm::vec3& s )
 {
-    scale = s;
+    mScale = s;
 }
 
-INLINE void transform_t::SetRotation( const glm::vec3& r )
+INLINE void transform_stack::rotation( const glm::vec3& r )
 {
-    rotation = r;
+    mRotation = r;
 }
 
-INLINE void transform_t::SetTranslation( const glm::vec3& t )
+INLINE void transform_stack::translation( const glm::vec3& t )
 {
-    translation = t;
+    mTranslation = t;
 }
 
-INLINE void transform_t::ApplyScale( void )
+INLINE void transform_stack::apply_scale( void )
 {
-    top *= glm::scale( glm::mat4( 1.0f ), scale );
+    mTop *= glm::scale( glm::mat4( 1.0f ), mScale );
 }
 
-INLINE void transform_t::ApplyRotation( void )
+INLINE void transform_stack::apply_rotation( void )
 {
     glm::mat4 r( 1.0f );
-    G_RotateMatrixXYZ( r, rotation );
-    top *= r;
+    rotate_matrix_xyz( r, mRotation );
+    mTop *= r;
 }
 
-INLINE void transform_t::ApplyTranslation( void )
+INLINE void transform_stack::apply_translation( void )
 {
-    top *= glm::translate( glm::mat4( 1.0f ), translation );
+    mTop *= glm::translate( glm::mat4( 1.0f ), mTranslation );
 }
 
-INLINE void transform_t::ApplyScale( const glm::vec3& s )
+INLINE void transform_stack::apply_scale( const glm::vec3& s )
 {
-    scale = s;
-    ApplyScale();
+    mScale = s;
+    apply_scale();
 }
 
-INLINE void transform_t::ApplyRotation( const glm::vec3& r )
+INLINE void transform_stack::apply_rotation( const glm::vec3& r )
 {
-    rotation = r;
-    ApplyRotation();
+    mRotation = r;
+    apply_rotation();
 }
 
-INLINE void transform_t::ApplyTranslation( const glm::vec3& t )
+INLINE void transform_stack::apply_translation( const glm::vec3& t )
 {
-    translation = t;
-    ApplyTranslation();
+    mTranslation = t;
+    apply_translation();
 }
 
-INLINE glm::mat3 transform_t::GetScale( void ) const
+INLINE glm::mat3 transform_stack::scale( void ) const
 {
-    return std::move( glm::mat3( glm::scale( glm::mat4( 1.0f ), scale ) ) );
+    return std::move( glm::mat3( glm::scale( glm::mat4( 1.0f ), mScale ) ) );
 }
 
-INLINE glm::mat3 transform_t::GetRotation3( void ) const
+INLINE glm::mat3 transform_stack::rotation( void ) const
 {
     glm::mat4 r;
-    G_RotateMatrixXYZ( r, rotation );
+    rotate_matrix_xyz( r, mRotation );
     return std::move( glm::mat3( r ) );
 }
 
-INLINE glm::mat4 transform_t::GetTranslation( void ) const
+INLINE glm::mat4 transform_stack::translation( void ) const
 {
-    return std::move( glm::translate( glm::mat4( 1.0f ), translation ) );
+    return std::move( glm::translate( glm::mat4( 1.0f ), mTranslation ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-INLINE glm::vec3 bounding_box_t::GetCornerIdentity( corner_t index ) const
+INLINE glm::vec3 obb::corner_identity( corner_type index ) const
 {
     return glm::vec3(
         ( ( int32_t ) index & 1 ) ? 1.0f : -1.0f,
@@ -434,99 +434,99 @@ INLINE glm::vec3 bounding_box_t::GetCornerIdentity( corner_t index ) const
     );
 }
 
-INLINE bool	bounding_box_t::InXRange( const glm::vec3& v ) const
+INLINE bool	obb::range_x( const glm::vec3& v ) const
 {
 
-    return v.x <= GetCorner( CORNER_MAX ).x && v.x >= GetCorner( CORNER_MIN ).x;
+    return v.x <= corner( CORNER_MAX ).x && v.x >= corner( CORNER_MIN ).x;
 }
 
-INLINE bool bounding_box_t::InYRange( const glm::vec3& v ) const
+INLINE bool obb::range_y( const glm::vec3& v ) const
 {
 
-    return v.y <= GetCorner( CORNER_MAX ).y && v.y >= GetCorner( CORNER_MIN ).y;
+    return v.y <= corner( CORNER_MAX ).y && v.y >= corner( CORNER_MIN ).y;
 }
 
-INLINE bool bounding_box_t::InZRange( const glm::vec3& v ) const
+INLINE bool obb::range_z( const glm::vec3& v ) const
 {
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
     return v.z >= GetCorner( CORNER_MAX ).z && v.z <= GetCorner( CORNER_MIN ).z;
 #else
-    return v.z <= GetCorner( CORNER_MAX ).z && v.z >= GetCorner( CORNER_MIN ).z;
+    return v.z <= corner( CORNER_MAX ).z && v.z >= corner( CORNER_MIN ).z;
 #endif
 }
 
-INLINE bool bounding_box_t::EnclosesPoint( const glm::vec3& v ) const
+INLINE bool obb::range( const glm::vec3& v ) const
 {
-    return InXRange( v ) && InYRange( v ) && InZRange( v );
+    return range_x( v ) && range_y( v ) && range_z( v );
 }
 
-INLINE void bounding_box_t::GetPoints( std::array< glm::vec3, 8 >& points ) const
+INLINE void obb::points( std::array< glm::vec3, 8 >& points ) const
 {
-    points[ 0 ] = GetCorner( ( corner_t ) 0 );
-    points[ 1 ] = GetCorner( ( corner_t ) 1 );
-    points[ 2 ] = GetCorner( ( corner_t ) 2 );
-    points[ 3 ] = GetCorner( ( corner_t ) 3 );
-    points[ 4 ] = GetCorner( ( corner_t ) 4 );
-    points[ 5 ] = GetCorner( ( corner_t ) 5 );
-    points[ 6 ] = GetCorner( ( corner_t ) 6 );
-    points[ 7 ] = GetCorner( ( corner_t ) 7 );
+    points[ 0 ] = corner( ( corner_type ) 0 );
+    points[ 1 ] = corner( ( corner_type ) 1 );
+    points[ 2 ] = corner( ( corner_type ) 2 );
+    points[ 3 ] = corner( ( corner_type ) 3 );
+    points[ 4 ] = corner( ( corner_type ) 4 );
+    points[ 5 ] = corner( ( corner_type ) 5 );
+    points[ 6 ] = corner( ( corner_type ) 6 );
+    points[ 7 ] = corner( ( corner_type ) 7 );
 }
 
-INLINE const glm::mat4& bounding_box_t::GetTransform( void ) const
+INLINE const glm::mat4& obb::axes( void ) const
 {
-    return transform;
+    return mAxes;
 }
 
-INLINE void bounding_box_t::SetCenter( const glm::vec3& position )
+INLINE void obb::center( const glm::vec3& position )
 {
-    transform[ 3 ] = glm::vec4( position, 1.0f );
+    mAxes[ 3 ] = glm::vec4( position, 1.0f );
 }
 
-INLINE void bounding_box_t::SetOrientation( const glm::mat3& orient )
+INLINE void obb::orientation( const glm::mat3& orient )
 {
-    transform[ 0 ] = glm::vec4( orient[ 0 ], 0.0f );
-    transform[ 1 ] = glm::vec4( orient[ 1 ], 0.0f );
-    transform[ 2 ] = glm::vec4( orient[ 2 ], 0.0f );
+    mAxes[ 0 ] = glm::vec4( orient[ 0 ], 0.0f );
+    mAxes[ 1 ] = glm::vec4( orient[ 1 ], 0.0f );
+    mAxes[ 2 ] = glm::vec4( orient[ 2 ], 0.0f );
 }
 
-INLINE const glm::vec4& bounding_box_t::operator[]( uint32_t i ) const
+INLINE const glm::vec4& obb::operator[]( uint32_t i ) const
 {
     assert( i < 4 );
 
-    return transform[ i ];
+    return mAxes[ i ];
 }
 
 //-------------------------------------------------------------------------------------------------------
 // bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
-INLINE primitive_lookup_t* bounds_primitive_t::ToLookup( void )
+INLINE primitive_lookup* bounds_primitive::to_lookup( void )
 {
     assert( type == BOUNDS_PRIM_LOOKUP );
-    return ( primitive_lookup_t* ) this;
+    return ( primitive_lookup* ) this;
 }
 
-INLINE const primitive_lookup_t* bounds_primitive_t::ToLookup( void ) const
+INLINE const primitive_lookup* bounds_primitive::to_lookup( void ) const
 {
     assert( type == BOUNDS_PRIM_LOOKUP );
-    return ( const primitive_lookup_t* ) this;
+    return ( const primitive_lookup* ) this;
 }
 
 
-INLINE bounding_box_t* bounds_primitive_t::ToBox( void )
+INLINE obb* bounds_primitive::to_box( void )
 {
     assert( type == BOUNDS_PRIM_BOX );
-    return ( bounding_box_t* ) this;
+    return ( obb* ) this;
 }
 
-INLINE const bounding_box_t* bounds_primitive_t::ToBox( void ) const
+INLINE const obb* bounds_primitive::to_box( void ) const
 {
     assert( type == BOUNDS_PRIM_BOX );
-    return ( const bounding_box_t* ) this;
+    return ( const obb* ) this;
 }
 
-INLINE half_space_t* bounds_primitive_t::ToHalfSpace( void )
+INLINE halfspace* bounds_primitive::to_halfspace( void )
 {
     assert( type == BOUNDS_PRIM_BOX );
-    return ( half_space_t* ) this;
+    return ( halfspace* ) this;
 }

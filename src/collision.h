@@ -8,32 +8,32 @@
 #include <array>
 #include <glm/vec3.hpp>
 
-struct bounds_primitive_t;
-struct half_space_t;
-struct bounding_box_t;
+struct bounds_primitive;
+struct halfspace;
+struct obb;
 
 //-------------------------------------------------------------------------------------------------------
 // collision_entity_t
 //-------------------------------------------------------------------------------------------------------
 
-struct collision_provider_t;
+struct collision_provider;
 
-struct collision_entity_t
+struct collision_entity
 {
     const uint32_t colliderUseFlags;
     const uint32_t collideeUseFlags;
 
-    const entity_t* collider;
-    const entity_t* collidee;
+    const entity* collider;
+    const entity* collidee;
 
     bool colliding;
     glm::vec3 normal;
 
-    const collision_provider_t& provider;
+    const collision_provider& provider;
 
-    collision_entity_t( const collision_provider_t& provider,
-                        const entity_t* collider = nullptr,
-                        const entity_t* collidee = nullptr,
+    collision_entity( const collision_provider& provider,
+                        const entity* collider = nullptr,
+                        const entity* collidee = nullptr,
                         const uint32_t colliderBoundsUseFlags = ENTITY_BOUNDS_ALL,
                         const uint32_t collideeBoundsUseFlags = ENTITY_BOUNDS_ALL );
 };
@@ -42,7 +42,7 @@ struct collision_entity_t
 // collision_provider_t
 //-------------------------------------------------------------------------------------------------------
 
-enum collision_face_t
+enum collision_face
 {
     COLLISION_FACE_LEFT = 0,
     COLLISION_FACE_FORWARD,
@@ -53,14 +53,14 @@ enum collision_face_t
 
 using collision_face_table_t = std::array< int32_t, NUM_COLLISION_FACES >; // indices != -1 are valid faces to collide against; each non-negative index points to an entry within some kind of table
 
-struct collision_provider_t
+struct collision_provider
 {
     std::vector< collision_face_table_t >   halfSpaceTable;
-    std::vector< half_space_t >             halfSpaces;
+    std::vector< halfspace >             halfSpaces;
 
-    uint32_t GenHalfSpace( const bounding_box_t& bounds, collision_face_t face ); // returns the index of the half space in halfSpaces
+    uint32_t GenHalfSpace( const obb& bounds, collision_face face ); // returns the index of the half space in halfSpaces
 
-    bool EvalCollision( collision_entity_t& ce ) const;
+    bool EvalCollision( collision_entity& ce ) const;
 };
 
 

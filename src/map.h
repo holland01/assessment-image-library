@@ -13,13 +13,13 @@
 
 struct frustum_t;
 
-struct map_tile_t;
-struct tile_region_t;
+struct map_tile;
+struct map_tile_region;
 
-using map_tile_list_t = std::vector< map_tile_t* >;
+using map_tile_list_t = std::vector< map_tile* >;
 
-using ref_tile_region_t = std::weak_ptr< tile_region_t >;
-using shared_tile_region_t = std::shared_ptr< tile_region_t >;
+using ref_tile_region_t = std::weak_ptr< map_tile_region >;
+using shared_tile_region_t = std::shared_ptr< map_tile_region >;
 
 struct region_merge_predicates_t;
 
@@ -27,43 +27,43 @@ struct region_merge_predicates_t;
 // adjacent_region_t
 //-------------------------------------------------------------------------------------------------------
 
-struct adjacent_region_t
+struct adjacent_region
 {
     static const uint32_t UNKNOWN = UINT32_MAX;
 
     static uint32_t count;
 
-    uint32_t id;
+    uint32_t mID;
 
-    std::vector< const map_tile_t* > tiles;
+    std::vector< const map_tile* > mTiles;
 
-    ref_tile_region_t region;
+    ref_tile_region_t mRegion;
 
-    adjacent_region_t( void );
+    adjacent_region( void );
 
-    adjacent_region_t( const adjacent_region_t& c );
+    adjacent_region( const adjacent_region& c );
 };
 
-bool operator == ( const adjacent_region_t& a, const adjacent_region_t& b );
+bool operator == ( const adjacent_region& a, const adjacent_region& b );
 
-bool operator != ( const adjacent_region_t& a, const adjacent_region_t& b );
+bool operator != ( const adjacent_region& a, const adjacent_region& b );
 
-using adjacent_region_list_t = std::vector< adjacent_region_t >;
+using adjacent_region_list_t = std::vector< adjacent_region >;
 
 //-------------------------------------------------------------------------------------------------------
 // adjacent_wall_t
 //-------------------------------------------------------------------------------------------------------
 
-struct adjacent_wall_t
+struct adjacent_wall
 {
-    const map_tile_t* source;
+    const map_tile* mSource;
 
-    ref_tile_region_t governingRegion;
+    ref_tile_region_t mGoverningRegion;
 
-    std::vector< const map_tile_t* > walls;
+    std::vector< const map_tile* > mWalls;
 
-    adjacent_wall_t( void )
-        : source( nullptr )
+    adjacent_wall( void )
+        : mSource( nullptr )
     {
     }
 };
@@ -72,59 +72,59 @@ struct adjacent_wall_t
 // tile_t
 //-------------------------------------------------------------------------------------------------------
 
-struct map_tile_t: public entity_t
+struct map_tile: public entity
 {    
-    using ptr_t = std::shared_ptr< map_tile_t >;
+    using ptr_t = std::shared_ptr< map_tile >;
 
-    friend struct tile_generator_t;
+    friend struct map_tile_generator;
 
 private:
 
-    mutable ref_tile_region_t owner;
+    mutable ref_tile_region_t mOwner;
 
 public:
-    enum type_t
+    enum map_tile_type
     {
         BILLBOARD = 0,
         WALL,
         EMPTY
     };
 
-    type_t type;
-	int32_t x, z, halfSpaceIndex;
-    float size; // does not bear any relation to index lookup in the table at all.
+    map_tile_type mType;
+    int32_t mX, mZ, mHalfSpaceIndex;
+    float mSize; // does not bear any relation to index lookup in the table at all.
 
-    map_tile_t( void );
+    map_tile( void );
 
-    void Set( const glm::mat4& transform );
+    void set( const glm::mat4& transform );
 
-    void SetOwner( shared_tile_region_t& r ) const;
+    void owner( shared_tile_region_t& r ) const;
 
-    const ref_tile_region_t& GetOwner( void ) const;
+    const ref_tile_region_t& owner( void ) const;
 
-    bool HasOwner( void ) const;
+    bool owned( void ) const;
 };
 
-INLINE void map_tile_t::SetOwner( shared_tile_region_t& r ) const
+INLINE void map_tile::owner( shared_tile_region_t& r ) const
 {
-    owner = r;
+    mOwner = r;
 }
 
-INLINE const ref_tile_region_t& map_tile_t::GetOwner( void ) const
+INLINE const ref_tile_region_t& map_tile::owner( void ) const
 {
-    return owner;
+    return mOwner;
 }
 
-INLINE bool map_tile_t::HasOwner( void ) const
+INLINE bool map_tile::owned( void ) const
 {
-    return !owner.expired();
+    return !mOwner.expired();
 }
 
 //-------------------------------------------------------------------------------------------------------
 // tile_generator_t
 //-------------------------------------------------------------------------------------------------------
 
-struct tile_generator_t
+struct map_tile_generator
 {	
 public:
     static const int32_t GRID_SIZE = 100;
@@ -141,96 +141,113 @@ public:
 
     using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
 
-    std::vector< map_tile_t > tiles;
+    std::vector< map_tile > mTiles;
 
-    std::vector< shared_tile_region_t > regions;
+    std::vector< shared_tile_region_t > mRegions;
 
-    map_tile_list_t billboards;
+    map_tile_list_t mBillboards;
 
-    map_tile_list_t walls;
+    map_tile_list_t mWalls;
 
-    map_tile_list_t freeSpace;
+    map_tile_list_t mFreeSpace;
 
-    collision_provider_t& collision;
+    collision_provider& mCollision;
 
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
-                tile_generator_t( collision_provider_t& collision );
+                map_tile_generator( collision_provider& mCollision );
 
-    shared_tile_region_t    FetchRegionFromPosition( const glm::vec3& p );
+    shared_tile_region_t    fetch_region( const glm::vec3& p );
 
-    bool                    FindRegions( const map_tile_t* tile );
+    bool                    find_regions( const map_tile* tile );
 
-    void                    FindAdjacentRegions( void );
+    void                    find_adjacent_regions( void );
 
-    void                    PurgeDefunctRegions( void );
+    void                    purge_defunct_regions( void );
 
-    void                    MergeRegions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
+    void                    merge_regions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
-    void                    SetTile( map_tile_t& tile, int32_t pass );
+    void                    tile( map_tile& tile, int32_t pass );
 
-    int32_t                 RangeCount( const map_tile_t& t, int32_t startOffset, int32_t offsetEnd );
+    int32_t                 range_count( const map_tile& t, int32_t startOffset, int32_t offsetEnd );
 
-    bool                    CollidesWall( glm::vec3& normal, const map_tile_t& t, const bounding_box_t& bounds, half_space_t& outHalfSpace );
+    bool                    collides_wall( glm::vec3& normal, const map_tile& t, const obb& bounds, halfspace& outHalfSpace );
 
-    void                    GetEntities( map_tile_list_t& billboards,
-                                          map_tile_list_t& walls,
-                                          map_tile_list_t& freeSpace,
+    void                    find_entities( map_tile_list_t& mBillboards,
+                                          map_tile_list_t& mWalls,
+                                          map_tile_list_t& mFreeSpace,
                                           const frustum_t& frustum_t,
                                           const view_params_t& viewParams );
 
-    void                    GenHalfSpacesFromWalls( map_tile_list_t& wallTiles );
-
-    half_space_t            GenHalfSpace( const map_tile_t& t, const glm::vec3& normal );
+    const map_tile_list_t& walls( void ) const { return mWalls; }
 };
 
 //-------------------------------------------------------------------------------------------------------
 // tile_region_t
 //-------------------------------------------------------------------------------------------------------
 
-struct quad_hierarchy_t;
+struct quad_hierarchy;
 
-struct tile_region_t
+struct map_tile_region
 {
 private:
 
-    mutable bool destroy;
+    mutable bool mDestroy;
 
 public:
 
-    const map_tile_t* origin;
+    const map_tile* mOrigin;
 
-    glm::vec4 color;
+    glm::vec4 mColor;
 
-    std::vector< const map_tile_t* > tiles;
+    std::vector< const map_tile* > mTiles;
 
-    std::vector< adjacent_wall_t > wallTiles; // tiles which touch walls
+    std::vector< adjacent_wall > mWalls; // tiles which touch walls
 
-    adjacent_region_list_t adjacent;
+    adjacent_region_list_t mAdjacent;
 
-    quad_hierarchy_t::ptr_t boundsVolume;
+    quad_hierarchy::ptr_t mBoundsVolume;
 
-    tile_region_t( const map_tile_t* origin = nullptr );
+    map_tile_region( const map_tile* mOrigin = nullptr );
 
-    void Draw( const pipeline_t& pl, const view_params_t& vp );
+    void draw( const pipeline_t& pl, const view_params_t& vp );
 
-    void Destroy( void ) const;
+    void destroy( void ) const;
 
-    bool ShouldDestroy( void ) const;
+    bool should_destroy( void ) const;
 
-    adjacent_region_t* FindAdjacentOwner( const map_tile_t* t );
+    adjacent_region* find_adjacent_owner( const map_tile* t );
 
-    quad_hierarchy_t::entity_list_t GetEntityList( void ) const;
+    quad_hierarchy::entity_list_t entity_list( void ) const;
 
-    void Update( void );
+    void update( void );
 };
 
 //-------------------------------------------------------------------------------------------------------
 // global
 //-------------------------------------------------------------------------------------------------------
 
-static INLINE void M_ComputeTileCoords( int32_t& x, int32_t& z, const glm::vec3& v );
+static INLINE void get_tile_coords( int32_t& x, int32_t& z, const glm::vec3& v );
 
-static INLINE glm::mat4 M_TransformFromTile( const map_tile_t& t );
+static INLINE glm::mat4 get_tile_transform( const map_tile& t );
 
 #include "map.inl"
+
+
+static INLINE void get_tile_coords( int32_t& x, int32_t& z, const glm::vec3& v )
+{
+   x = ( int32_t )( v.x * 0.5f );
+   z = ( int32_t )( v.z * 0.5f );
+}
+
+static INLINE glm::mat4 get_tile_transform( const map_tile& tile )
+{
+    glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
+                 glm::vec3( map_tile_generator::TRANSLATE_STRIDE * tile.mX,
+                            0.0f,
+                            map_tile_generator::TRANSLATE_STRIDE * tile.mZ ) ) );
+
+    return std::move( t * tile.scale_transform() );
+}
+
+

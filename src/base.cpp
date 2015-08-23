@@ -10,7 +10,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-void MyPrintf( const char* header, const char* fmt, ... )
+void stdoutf( const char* header, const char* fmt, ... )
 {
     va_list arg;
 
@@ -21,7 +21,7 @@ void MyPrintf( const char* header, const char* fmt, ... )
     va_end( arg );
 }
 
-void MyFprintf( FILE* f, const char* header, const char* fmt, ... )
+void fstdoutf( FILE* f, const char* header, const char* fmt, ... )
 {
     va_list arg;
 
@@ -32,7 +32,7 @@ void MyFprintf( FILE* f, const char* header, const char* fmt, ... )
     va_end( arg );
 }
 
-void MyDateTime( const char* format, char* outBuffer, int32_t length )
+void get_datetime( const char* format, char* outBuffer, int32_t length )
 {
     time_t timer;
     struct tm* info;
@@ -44,7 +44,7 @@ void MyDateTime( const char* format, char* outBuffer, int32_t length )
     strftime( outBuffer, length, format, info );
 }
 
-void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc )
+void exit_on_gl_error( int32_t line, const char* glFunc, const char* callerFunc )
 {
     GLenum error = glGetError();
 
@@ -57,12 +57,12 @@ void ExitOnGLError( int32_t line, const char* glFunc, const char* callerFunc )
         const char* errorString = "Unavailable";
 #endif
 
-        MyPrintf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, errorString );
-        FlagExit();
+        stdoutf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, errorString );
+        flag_exit();
     }
 }
 
-bool File_GetPixels( const std::string& filepath, 
+bool file_get_pixels( const std::string& filepath, 
 	std::vector< uint8_t >& outBuffer, int32_t& outBpp, int32_t& outWidth, int32_t& outHeight )
 {
 	// Load image

@@ -45,17 +45,17 @@ namespace {
      uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
 }
 
-static void Draw_Group( game_t& game,
+static void Draw_Group( application& game,
                  const view_params_t& vp,
                  map_tile_list_t& billboards,
                  map_tile_list_t& walls,
                  map_tile_list_t& freeSpace );
 
-static void Draw_Hud( const game_t& game );
+static void Draw_Hud( const application& game );
 
-static void Draw_Axes( const game_t& game, const view_params_t& vp );
+static void Draw_Axes( const application& game, const view_params_t& vp );
 
-game_t::game_t( uint32_t width_ , uint32_t height_ )
+application::application( uint32_t width_ , uint32_t height_ )
 	: width( width_ ),
 	  height( height_ ),
 	  frameTime( 0.0f ),
@@ -133,58 +133,58 @@ game_t::game_t( uint32_t width_ , uint32_t height_ )
 	groundPlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
 	groundPlane.d = 0.0f;
 
-    gen.reset( new tile_generator_t( collision ) );
+    gen.reset( new map_tile_generator( collision ) );
 
-    std::sort( gen->freeSpace.begin(), gen->freeSpace.end(), []( const map_tile_t* a, const map_tile_t* b ) -> bool
+    std::sort( gen->mFreeSpace.begin(), gen->mFreeSpace.end(), []( const map_tile* a, const map_tile* b ) -> bool
 	{
-		glm::vec2 va( a->x, a->z ), vb( b->x, b->z );
+        glm::vec2 va( a->mX, a->mZ ), vb( b->mX, b->mZ );
 
 		return glm::length( va ) < glm::length( vb );
 	});
 
-    const map_tile_t* tile = gen->freeSpace[ gen->freeSpace.size() / 2 ];
+    const map_tile* tile = gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
 
-    auto LMakeBody = [ this, &tile ]( input_client_t& dest, input_client_t::mode_t mode, const glm::vec3& pos, float mass )
+    auto LMakeBody = [ this, &tile ]( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass )
     {
-        body_t* body = new body_t( body_t::RESET_VELOCITY_BIT | body_t::RESET_FORCE_ACCUM_BIT );
-        body->SetPosition( pos );
-        body->SetMass( mass );
+        rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY_BIT | rigid_body::RESET_FORCE_ACCUM_BIT );
+        body->position( pos );
+        body->mass( mass );
 
         dest.mode = mode;
-        dest.body.reset( body );
-        dest.Sync();
+        dest.mBody.reset( body );
+        dest.sync();
 
-        world.bodies.push_back( dest.body );
+        world.mBodies.push_back( dest.mBody );
     };
 
-    LMakeBody( player, input_client_t::MODE_PLAY, glm::vec3( tile->x, 0.0f, tile->z ), 80.0f );
-    LMakeBody( spec, input_client_t::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
+    LMakeBody( player, input_client::MODE_PLAY, glm::vec3( tile->mX, 0.0f, tile->mZ ), 80.0f );
+    LMakeBody( spec, input_client::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
 
 	camera = &player;
-    drawBounds = spec.QueryBounds( ENTITY_BOUNDS_MOVE_COLLIDE )->ToBox();
+    drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
 
 	running = true;
 }
 
-game_t::~game_t( void )
+application::~application( void )
 {
 	SDL_Quit();
 }
 
-game_t& game_t::GetInstance( void )
+application& application::get_instance( void )
 {
-	static game_t game( 1366, 768 );
+    static application game( 1366, 768 );
 	return game;
 }
 
-void game_t::ResetMap( void )
+void application::reset_map( void )
 {
-    collision = collision_provider_t();
+    collision = collision_provider();
 
-    gen.reset( new tile_generator_t( collision ) );
+    gen.reset( new map_tile_generator( collision ) );
 }
 
-void game_t::ToggleCulling( void )
+void application::toggle_culling( void )
 {
 	drawAll = !drawAll;
 
@@ -198,12 +198,12 @@ void game_t::ToggleCulling( void )
     }
 }
 
-void game_t::Tick( void )
+void application::tick( void )
 {
 	frameTime = startTime - lastTime;
 }
 
-void game_t::Draw( void )
+void application::draw( void )
 {
     const view_params_t& vp = camera->GetViewParams();
 
@@ -211,7 +211,7 @@ void game_t::Draw( void )
 
 	if ( drawAll )
 	{
-		Draw_Group( *this, vp, gen->billboards, gen->walls, gen->freeSpace );
+        Draw_Group( *this, vp, gen->mBillboards, gen->mWalls, gen->mFreeSpace );
 	}
 	else
 	{
@@ -219,32 +219,32 @@ void game_t::Draw( void )
 	}
 }
 
-void game_t::FireGun( void )
+void application::fire_gun( void )
 {
-    if ( camera->body )
+    if ( camera->mBody )
     {
-        bullet.reset( new entity_t( entity_t::BODY_DEPENDENT, new body_t ) );
+        bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
 
-        bullet->body->SetOrientation( glm::mat3( 0.1f ) * camera->body->GetOrientation() );
-        bullet->body->ApplyVelocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
-        bullet->body->SetPosition( camera->GetViewParams().origin );
+        bullet->mBody->orientation( glm::mat3( 0.1f ) * camera->mBody->orientation() );
+        bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
+        bullet->mBody->position( camera->GetViewParams().origin );
 
-        bullet->AddBounds( ENTITY_BOUNDS_ALL, new bounding_box_t() );
+        bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
     }
 }
 
-static void Draw_Bounds( const game_t& game, const bounding_box_t& bounds, const glm::vec3& color, float alpha = 1.0f )
+static void Draw_Bounds( const application& game, const obb& bounds, const glm::vec3& color, float alpha = 1.0f )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const draw_buffer_t& coloredCube = game.pipeline->drawBuffers.at( "colored_cube" );
     const view_params_t& vp = game.camera->GetViewParams();
 
     singleColor.LoadVec4( "color", glm::vec4( color, alpha ) );
-    singleColor.LoadMat4( "modelToView",  vp.transform * bounds.GetTransform() );
+    singleColor.LoadMat4( "modelToView",  vp.transform * bounds.axes() );
     coloredCube.Render( singleColor );
 }
 
-static void Draw_Hud( const game_t& game )
+static void Draw_Hud( const application& game )
 {
     // Clear depth buffer so the reticule renders over anything else it tests
     // against by default
@@ -265,7 +265,7 @@ static void Draw_Hud( const game_t& game )
     ssSingleColor.Release();
 }
 
-static void Draw_Axes( const game_t& game, const view_params_t& vp )
+static void Draw_Axes( const application& game, const view_params_t& vp )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
 
@@ -308,34 +308,34 @@ glm::mat4 quadTransform(
     }()
 );
 
-void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body );
+void Apply_Force( application& game, const glm::vec3& normal, const rigid_body& body );
 
 INLINE bool Tile_TestCollision(
-    game_t& game,
-    const entity_t* entity,
+    application& game,
+    const entity* e,
     const glm::vec3& entityPos,
-    entity_bounds_use_flags_t entFlags,
-    const map_tile_t* tile,
-    entity_bounds_use_flags_t tileFlags )
+    entity_bounds_use_flags entFlags,
+    const map_tile* tile,
+    entity_bounds_use_flags tileFlags )
 {
 
 
     //const bounding_box_t& box = ;
 
-    glm::mat4 t = M_TransformFromTile( *tile );
+    glm::mat4 t = get_tile_transform( *tile );
 
     if ( glm::distance( entityPos, glm::vec3( t[ 3 ] ) ) < 2.0f )
     {
-        collision_entity_t ce( game.collision,
-                               entity,
-                               ( const entity_t* )tile,
+        collision_entity ce( game.collision,
+                               e,
+                               ( const entity* )tile,
                                entFlags,
                                tileFlags );
 
         if ( game.collision.EvalCollision( ce ) )
         {
             Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-            Apply_Force( game, ce.normal, *( tile->body ) );
+            Apply_Force( game, ce.normal, *( tile->mBody ) );
 
             return true;
         }
@@ -344,7 +344,7 @@ INLINE bool Tile_TestCollision(
     return false;
 }
 
-void Draw_Quad( const game_t& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
+void Draw_Quad( const application& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const draw_buffer_t& billboardBuffer = game.pipeline->drawBuffers.at( "billboard" );
@@ -357,66 +357,66 @@ void Draw_Quad( const game_t& game, const glm::mat4& transform, const glm::vec3&
     singleColor.Release();
 }
 
-INLINE void Draw_Tiles( const game_t& game,
-                        const std::vector< const map_tile_t* >& tiles,
+INLINE void Draw_Tiles( const application& game,
+                        const std::vector< const map_tile* >& tiles,
                         const glm::vec3& color, float alpha = 1.0f )
 {
-    for ( const map_tile_t* tile: tiles )
+    for ( const map_tile* tile: tiles )
     {
-        const bounding_box_t& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
+        const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
 
-        Draw_Quad( game, box.transform, color, alpha );
+        Draw_Quad( game, box.mAxes, color, alpha );
     }
 }
 
-INLINE void Draw_Tiles( const game_t& game, const std::vector< const map_tile_t* >& tiles, const glm::vec4& color )
+INLINE void Draw_Tiles( const application& game, const std::vector< const map_tile* >& tiles, const glm::vec4& color )
 {
     Draw_Tiles( game, tiles, glm::vec3( color ), color.a );
 }
 
-INLINE void Draw_AdjacentTiles( const game_t& game, const adjacent_region_list_t& adjRegions )
+INLINE void Draw_AdjacentTiles( const application& game, const adjacent_region_list_t& adjRegions )
 {
-    for ( const adjacent_region_t& br: adjRegions )
+    for ( const adjacent_region& br: adjRegions )
     {
-        auto adj = br.region.lock();
+        auto adj = br.mRegion.lock();
 
         if ( !adj )
         {
             continue;
         }
 
-        Draw_Tiles( game, adj->tiles, glm::vec3( adj->color ), 1.0f );
+        Draw_Tiles( game, adj->mTiles, glm::vec3( adj->mColor ), 1.0f );
     }
 }
 
-INLINE void Draw_BoundsTiles( const game_t& game, const shared_tile_region_t& region )
+INLINE void Draw_BoundsTiles( const application& game, const shared_tile_region_t& region )
 {
     load_blend_t blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
     glm::vec3 color( 1.0f, 0.0f, 0.0f );
 
-    for ( const adjacent_wall_t& br: region->wallTiles )
+    for ( const adjacent_wall& br: region->mWalls )
     {
-        const bounding_box_t& box = *ENTITY_PTR_GET_BOX( br.source, ENTITY_BOUNDS_AREA_EVAL );
+        const obb& box = *ENTITY_PTR_GET_BOX( br.mSource, ENTITY_BOUNDS_AREA_EVAL );
 
-        Draw_Quad( game, box.transform, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
-        Draw_Tiles( game, br.walls, color, 1.0f );
+        Draw_Quad( game, box.mAxes, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
+        Draw_Tiles( game, br.mWalls, color, 1.0f );
     }
 
-    assert( region->origin );
+    assert( region->mOrigin );
 
-    const bounding_box_t& box = *ENTITY_PTR_GET_BOX( region->origin, ENTITY_BOUNDS_AREA_EVAL );
+    const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
 
-    Draw_Quad( game, box.transform, glm::vec3( 1.0f ), 1.0f );
+    Draw_Quad( game, box.mAxes, glm::vec3( 1.0f ), 1.0f );
 
-    region->boundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
+    region->mBoundsVolume->root->Draw( *( game.pipeline ), game.camera->GetViewParams() );
 }
 
 INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
 {
-    for ( const adjacent_region_t& r: adjRegions )
+    for ( const adjacent_region& r: adjRegions )
     {
-        if ( source == r.region )
+        if ( source == r.mRegion )
         {
             return true;
         }
@@ -425,19 +425,19 @@ INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_regio
     return false;
 }
 
-void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false )
+void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = false )
 {
-    for ( uint32_t i = 0; i < game.gen->regions.size(); ++i )
+    for ( uint32_t i = 0; i < game.gen->mRegions.size(); ++i )
     {
-        ref_tile_region_t weakRegion = game.gen->regions[ i ];
+        ref_tile_region_t weakRegion = game.gen->mRegions[ i ];
         auto region = weakRegion.lock();
         if ( !region )
         {
             continue;
         }
 
-        bool canDraw = game.gen->regions[ regionIter ] != region
-                && !InAdjacentRegionList( weakRegion, game.gen->regions[ regionIter ]->adjacent );
+        bool canDraw = game.gen->mRegions[ regionIter ] != region
+                && !InAdjacentRegionList( weakRegion, game.gen->mRegions[ regionIter ]->mAdjacent );
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
@@ -445,7 +445,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
         // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
         {
-            Draw_Tiles( game, region->tiles, region->color );
+            Draw_Tiles( game, region->mTiles, region->mColor );
         }
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
@@ -456,7 +456,7 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
 
             if ( drawAdjacent )
             {
-                Draw_AdjacentTiles( game, region->adjacent );
+                Draw_AdjacentTiles( game, region->mAdjacent );
             }
 
             // Draw these last since the adjacent regions take up the most space
@@ -468,21 +468,21 @@ void Draw_Regions( game_t& game, bool drawBoundsTiles, bool drawAdjacent = false
     }
 }
 
-void Apply_Force( game_t& game, const glm::vec3& normal, const body_t& body )
+void Apply_Force( application& game, const glm::vec3& normal, const rigid_body& body )
 {
-    if ( game.camera->body )
+    if ( game.camera->mBody )
     {
-       game.camera->body->ApplyForce( P_GenericCollideNormal( normal, body, *( game.camera->body ) ) );
+       game.camera->mBody->apply_force( get_collision_normal( normal, body, *( game.camera->mBody ) ) );
     }
 }
 
-INLINE void Billboard_DrawBounds( const game_t& game, const view_params_t& vp, const shader_program_t& singleColor, const bounding_box_t& billboardBounds )
+INLINE void Billboard_DrawBounds( const application& game, const view_params_t& vp, const shader_program_t& singleColor, const obb& billboardBounds )
 {
     singleColor.Bind();
     Draw_Bounds( game, billboardBounds, glm::vec3( 0.5f ), 0.5f );
 
     singleColor.LoadVec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    singleColor.LoadMat4( "modelToView", vp.transform * billboardBounds.transform );
+    singleColor.LoadMat4( "modelToView", vp.transform * billboardBounds.mAxes );
 
     imm_draw_t drawer( singleColor );
 
@@ -492,9 +492,9 @@ INLINE void Billboard_DrawBounds( const game_t& game, const view_params_t& vp, c
     drawer.End();
 }
 
-INLINE void Billboard_LoadParams( map_tile_t& tile, const view_params_t& vp, const shader_program_t& billboard )
+INLINE void Billboard_LoadParams( map_tile& tile, const view_params_t& vp, const shader_program_t& billboard )
 {
-    const bounding_box_t& bounds = *( tile.QueryBounds( ENTITY_BOUNDS_AREA_EVAL )->ToBox() );
+    const obb& bounds = *( tile.query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box() );
 
     glm::vec3 boundsOrigin( bounds[ 3 ] );
 
@@ -505,7 +505,7 @@ INLINE void Billboard_LoadParams( map_tile_t& tile, const view_params_t& vp, con
     dirToCam = glm::normalize( dirToCam );
 
     glm::mat3 orient(
-        G_OrientByDirection(
+        orient_by_direction(
                 dirToCam,
                 glm::vec3( 0.0f, 0.0f, 1.0f ),
                 glm::vec3( -1.0f, 0.0f, 0.0f )
@@ -516,17 +516,17 @@ INLINE void Billboard_LoadParams( map_tile_t& tile, const view_params_t& vp, con
     billboard.LoadMat3( "viewOrient", orient );
 
     // Set orientation so collisions are properly computed regardless of direction
-    tile.body->SetOrientation( orient );
-    tile.Sync();
+    tile.mBody->orientation( orient );
+    tile.sync();
 }
 
-INLINE void Billboard_TestBulletCollision( game_t& game, map_tile_t* tile )
+INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
 {
     if ( game.bullet )
     {
         if( Tile_TestCollision( game,
                             game.bullet.get(),
-                            game.bullet->body->GetPosition(),
+                            game.bullet->mBody->position(),
                             ENTITY_BOUNDS_AIR_COLLIDE,
                             tile,
                             ENTITY_BOUNDS_AIR_COLLIDE ) )
@@ -536,7 +536,7 @@ INLINE void Billboard_TestBulletCollision( game_t& game, map_tile_t* tile )
     }
 }
 
-void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t& billboards )
+void Process_Billboards( application& game, const view_params_t& vp, map_tile_list_t& billboards )
 {
     const shader_program_t& singleColor = game.pipeline->programs.at( "single_color" );
     const shader_program_t& billboard = game.pipeline->programs.at( "billboard" );
@@ -548,22 +548,22 @@ void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t&
     billboard.LoadMat4( "modelToView", vp.transform );
     billboard.LoadMat4( "viewToClip", vp.clipTransform );
 
-    for ( map_tile_t* tile: billboards )
+    for ( map_tile* tile: billboards )
     {
         Billboard_LoadParams( *tile, vp, billboard  );
 
-        bounding_box_t* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
+        obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
 
-        if ( glm::distance( tile->body->GetPosition(), vp.origin ) <= DISTANCE_THRESHOLD )
+        if ( glm::distance( tile->mBody->position(), vp.origin ) <= DISTANCE_THRESHOLD )
         {
             // Check for an intersection...
             glm::vec3 normal;
 
-            bounding_box_t* box = ENTITY_PTR_GET_BOX( game.camera, ENTITY_BOUNDS_MOVE_COLLIDE );
+            obb* box = ENTITY_PTR_GET_BOX( game.camera, ENTITY_BOUNDS_MOVE_COLLIDE );
 
-            if ( box->IntersectsBounds( normal, *tileBounds ) )
+            if ( box->intersects( normal, *tileBounds ) )
             {
-                Apply_Force( game, normal, *( tile->body ) );
+                Apply_Force( game, normal, *( tile->mBody ) );
             }
         }
 
@@ -571,7 +571,7 @@ void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t&
         Billboard_TestBulletCollision( game, tile );
         billboard.Bind();
 
-        billboard.LoadVec4( "color", tile->color );
+        billboard.LoadVec4( "color", tile->mColor );
 
         game.billTexture.Bind( 0, "image", billboard );
         billboardBuffer.Render( billboard );
@@ -591,7 +591,7 @@ void Process_Billboards( game_t& game, const view_params_t& vp, map_tile_list_t&
 
 
 
-static void Draw_Group( game_t& game,
+static void Draw_Group( application& game,
                  const view_params_t& vp,
                  map_tile_list_t& billboards,
                  map_tile_list_t& walls,
@@ -614,12 +614,12 @@ static void Draw_Group( game_t& game,
 
     if ( gDrawFlags & DRAW_WALLS )
     {
-        for ( const map_tile_t* tile: walls )
+        for ( const map_tile* tile: walls )
         {
             Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
 
             Tile_TestCollision( game,
-             ( const entity_t* )game.camera,
+             ( const entity* )game.camera,
                                 vp.origin,
                                 ENTITY_BOUNDS_MOVE_COLLIDE,
                                 tile,
@@ -643,15 +643,15 @@ static void Draw_Group( game_t& game,
 
     if ( gDrawFlags & DRAW_HALFSPACES )
     {
-        for ( const map_tile_t* wall: walls )
+        for ( const map_tile* wall: walls )
         {
-            if ( wall->halfSpaceIndex < 0 )
+            if ( wall->mHalfSpaceIndex < 0 )
             {
                 continue;
             }
 
             const collision_face_table_t& table =
-                    game.collision.halfSpaceTable[ wall->halfSpaceIndex ];
+                    game.collision.halfSpaceTable[ wall->mHalfSpaceIndex ];
 
             for ( int32_t i: table )
             {
@@ -660,7 +660,7 @@ static void Draw_Group( game_t& game,
                     continue;
                 }
 
-                game.collision.halfSpaces[ i ].Draw( drawer );
+                game.collision.halfSpaces[ i ].draw( drawer );
             }
         }
     }
@@ -680,13 +680,13 @@ static void Draw_Group( game_t& game,
 
     frameCount += 1.0f;
 
-    if ( frameCount >= ( 5.0f / game.world.time ))
+    if ( frameCount >= ( 5.0f / game.world.mTime ))
     {
         regionIter++;
         frameCount = 0.0f;
     }
 
-    if ( regionIter == game.gen->regions.size() )
+    if ( regionIter == game.gen->mRegions.size() )
     {
         regionIter = 0;
     }
@@ -696,9 +696,9 @@ static void Draw_Group( game_t& game,
 
 void Game_Frame( void )
 {
-	game_t& game = game_t::GetInstance();
+    application& game = application::get_instance();
 
-	game.startTime = GetTime();
+	game.startTime = get_time();
 
 #ifdef EMSCRIPTEN
 	if ( !game.running )
@@ -714,19 +714,19 @@ void Game_Frame( void )
 
 	if ( !game.drawAll )
 	{
-		game.gen->GetEntities( game.billboards, game.walls, game.freeSpace, game.frustum, vp );
+        game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, vp );
 	}
 
-	game.world.Update( game );
-	game.Draw();
+    game.world.update( game );
+    game.draw();
 
     // clear bodies which are added in world.Update call,
     // since we only want to integrate bodies which are in view
-    game.world.bodies.clear();
+    game.world.mBodies.clear();
 
-	game.world.time = GetTime() - game.startTime;
+    game.world.mTime = get_time() - game.startTime;
 
-    printf( "FPS: %f\r", 1.0f / game.world.time );
+    printf( "FPS: %f\r", 1.0f / game.world.mTime );
 }
 
 // temporary hack to get around the fact that querying for an game
@@ -735,7 +735,7 @@ static bool* runningPtr = nullptr;
 
 uint32_t Game_Exec( void )
 {   	
-	game_t& game = game_t::GetInstance();
+    application& game = application::get_instance();
 	runningPtr = &game.running;
 
 #ifdef EMSCRIPTEN
@@ -771,10 +771,10 @@ uint32_t Game_Exec( void )
                             }
                             break;
 						case SDLK_r:
-							game.ResetMap();
+                            game.reset_map();
 							break;
 						case SDLK_v:
-							game.ToggleCulling();
+                            game.toggle_culling();
 							break;
 						case SDLK_c:
 							if ( game.camera == &game.player )
@@ -797,14 +797,14 @@ uint32_t Game_Exec( void )
                             break;
 
                         default:
-							game.camera->EvalKeyPress( ( input_key_t ) e.key.keysym.sym );
+                            game.camera->EvalKeyPress( ( input_key ) e.key.keysym.sym );
                             break;
 
 
                     }
                     break;
                 case SDL_KEYUP:
-					game.camera->EvalKeyRelease( ( input_key_t ) e.key.keysym.sym );
+                    game.camera->EvalKeyRelease( ( input_key ) e.key.keysym.sym );
                     break;
                 case SDL_MOUSEMOTION:
 					if ( !game.mouseShown )
@@ -815,7 +815,7 @@ uint32_t Game_Exec( void )
                 case SDL_MOUSEBUTTONDOWN:
                     if ( e.button.button == SDL_BUTTON_LEFT )
                     {
-                        game.FireGun();
+                        game.fire_gun();
                     }
                     break;
             }
@@ -826,12 +826,12 @@ uint32_t Game_Exec( void )
     return 0;
 }
 
-void FlagExit( void )
+void flag_exit( void )
 {
 	*runningPtr = false;
 }
 
-float GetTime( void )
+float get_time( void )
 {
 	return ( float )SDL_GetTicks() * 0.001f;
 }

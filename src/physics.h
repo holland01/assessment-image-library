@@ -6,8 +6,8 @@
 #include <memory>
 #include <vector>
 
-struct game_t;
-struct body_t;
+struct application;
+struct rigid_body;
 
 const float INFINITE_MASS = 0.0f;
 
@@ -15,26 +15,26 @@ const float INFINITE_MASS = 0.0f;
 // util
 //-------------------------------------------------------------------------------------------------------
 
-static INLINE glm::vec3 P_GenericCollideNormal( const glm::vec3& normal, const body_t& a, const body_t& b );
+static INLINE glm::vec3 get_collision_normal( const glm::vec3& normal, const rigid_body& a, const rigid_body& b );
 
 
 //-------------------------------------------------------------------------------------------------------
 // body_t
 //-------------------------------------------------------------------------------------------------------
 
-struct body_t
+struct rigid_body
 {
 private:
-	float invMass;
-    glm::vec3 position,
-              initialVelocity,
-              forceAccum,
-              initialForce,
-              totalVelocity;
+    float mInvMass;
+    glm::vec3 mPosition,
+              mInitialVelocity,
+              mForceAccum,
+              mInitialForce,
+              mTotalVelocity;
 
-	glm::mat3 orientation;
+    glm::mat3 mOrientation;
 
-    uint32_t resetBits;
+    uint32_t mResetBits;
 
 public:
     enum
@@ -45,109 +45,117 @@ public:
         RESET_ORIENTATION_BIT = 0x8
     };
 
-    body_t( uint32_t resetBits = RESET_FORCE_ACCUM_BIT );
+    rigid_body( uint32_t mResetBits = RESET_FORCE_ACCUM_BIT );
 
-    void ApplyForce( const glm::vec3& force );
-    void ApplyVelocity( const glm::vec3& initialVelocity );
+    void apply_force( const glm::vec3& force );
+    void apply_velocity( const glm::vec3& mInitialVelocity );
 
-    void Integrate( float t );
+    void integrate( float t );
 
-	void Reset( void );
+    void reset( void );
 
-    std::string GetInfoString( void ) const;
+    std::string info( void ) const;
 
-    float GetMass( void ) const;
-    float GetInvMass( void ) const;
-    const glm::vec3& GetPosition( void ) const;
-    const glm::mat3& GetOrientation( void ) const;
-    const glm::vec3& GetTotalVelocity( void ) const;
-    const glm::vec3& GetInitialVelocity( void ) const;
+    float mass( void ) const;
+    float inv_mass( void ) const;
+    const glm::vec3& position( void ) const;
+    const glm::mat3& orientation( void ) const;
+    const glm::vec3& total_velocity( void ) const;
+    const glm::vec3& initial_velocity( void ) const;
 
-    void SetMass( float m );
-    void SetPosition( const glm::vec3& p );
-    void SetPositionAxis( uint32_t axis, float v );
-    void SetOrientation( const glm::mat4& orientation );
-    void SetOrientation( const glm::mat3& orientation );
-    void SetFromTransform( const glm::mat4& t );
+    void mass( float m );
+    void position( const glm::vec3& p );
+    void position( uint32_t axis, float v );
+    void orientation( const glm::mat4& mOrientation );
+    void orientation( const glm::mat3& mOrientation );
+    void set( const glm::mat4& t );
 };
 
-INLINE const glm::vec3& body_t::GetPosition( void) const
+INLINE const glm::vec3& rigid_body::position( void) const
 {
-    return position;
+    return mPosition;
 }
 
-INLINE const glm::mat3& body_t::GetOrientation( void ) const
+INLINE const glm::mat3& rigid_body::orientation( void ) const
 {
-    return orientation;
+    return mOrientation;
 }
 
-INLINE const glm::vec3& body_t::GetTotalVelocity( void ) const
+INLINE const glm::vec3& rigid_body::total_velocity( void ) const
 {
-    return totalVelocity;
+    return mTotalVelocity;
 }
 
-INLINE const glm::vec3& body_t::GetInitialVelocity( void ) const
+INLINE const glm::vec3& rigid_body::initial_velocity( void ) const
 {
-    return initialVelocity;
+    return mInitialVelocity;
 }
 
-INLINE void body_t::ApplyForce( const glm::vec3& force )
+INLINE void rigid_body::apply_force( const glm::vec3& force )
 {
-    forceAccum += force;
+    mForceAccum += force;
 }
 
-INLINE void body_t::ApplyVelocity( const glm::vec3& v )
+INLINE void rigid_body::apply_velocity( const glm::vec3& v )
 {
-    initialVelocity += v;
+    mInitialVelocity += v;
 }
 
-INLINE void body_t::SetPosition( const glm::vec3& p )
+INLINE void rigid_body::position( const glm::vec3& p )
 {
-    position = p;
+    mPosition = p;
 }
 
-INLINE void body_t::SetPositionAxis( uint32_t axis, float v )
+INLINE void rigid_body::position( uint32_t axis, float v )
 {
     assert( axis < 3 );
 
-    position[ axis ] = v;
+    mPosition[ axis ] = v;
 }
 
-INLINE void body_t::SetOrientation( const glm::mat4& orientation )
+INLINE void rigid_body::orientation( const glm::mat4& orientation )
 {
-    this->orientation = std::move( glm::mat3( orientation ) );
+    this->mOrientation = std::move( glm::mat3( orientation ) );
 }
 
-INLINE void body_t::SetOrientation( const glm::mat3& orientation )
+INLINE void rigid_body::orientation( const glm::mat3& orientation )
 {
-    this->orientation = orientation;
+    this->mOrientation = orientation;
 }
 
-INLINE void body_t::SetFromTransform( const glm::mat4& t )
+INLINE void rigid_body::set( const glm::mat4& t )
 {
-    position = glm::vec3( t[ 3 ] );
-    orientation = glm::mat3( t );
+    mPosition = glm::vec3( t[ 3 ] );
+    mOrientation = glm::mat3( t );
 }
 
 //-------------------------------------------------------------------------------------------------------
 // body_t
 //-------------------------------------------------------------------------------------------------------
 
-struct world_t
+struct physics_world
 {
-    std::vector< std::weak_ptr< body_t > > bodies;
+    std::vector< std::weak_ptr< rigid_body > > mBodies;
 
-	float time;
-    const float dt;
-    float t;
-    uint32_t lastMeasureCount;
+    float mTime;
+    const float mDT;
+    float mT;
+    uint32_t mLastMeasureCount;
 
 
-	world_t( float time, float dt );
+    physics_world( float mTime, float mDT );
 
-	void Update( game_t& game );
+    void update( application& game );
 
-    void ClearAllAccum( void );
+    void clear_accum( void );
 };
 
 #include "physics.inl"
+//-------------------------------------------------------------------------------------------------------
+// util
+//-------------------------------------------------------------------------------------------------------
+
+static INLINE glm::vec3 get_collision_normal( const glm::vec3& normal, const rigid_body& a, const rigid_body& b )
+{
+    return std::move( normal * a.mass() * b.mass() );
+}

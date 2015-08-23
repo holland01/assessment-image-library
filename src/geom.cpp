@@ -162,7 +162,7 @@ namespace geom {
 
 const float DISTANCE_THRESH = 0.03125f;
 
-glm::vec3 G_PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
+glm::vec3 plane_project( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
 {
 	glm::vec3 originToP( p - origin );
 
@@ -170,7 +170,7 @@ glm::vec3 G_PlaneProject( const glm::vec3& p, const glm::vec3& origin, const glm
 	return std::move( glm::vec3( p - normal * dist ) );
 }
 
-bool G_RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
+bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 )
 {
 	glm::vec3 crossDir( glm::cross( r0.d, r1.d ) );
 
@@ -208,27 +208,27 @@ bool G_RayRayTest( const ray_t& r0, const ray_t& r1, float& t0, float& t1 )
 // half_space_t
 //-------------------------------------------------------------------------------------------------------
 
-half_space_t::half_space_t( void )
-    : half_space_t( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
+halfspace::halfspace( void )
+    : halfspace( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
 }
 
-half_space_t::half_space_t( const glm::mat3& extents_, const glm::vec3& origin_, float distance_ )
-    : bounds_primitive_t( BOUNDS_PRIM_HALFSPACE ),
+halfspace::halfspace( const glm::mat3& extents_, const glm::vec3& origin_, float distance_ )
+    : bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
       extents( extents_ ),
 	  origin( origin_ ),
 	  distance( distance_ )
 {
 }
 
-half_space_t::half_space_t( const bounding_box_t& bounds, const glm::vec3& normal )
-    : half_space_t( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
+halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
+    : halfspace( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
-    using corner_t = bounding_box_t::corner_t;
+    using corner_t = obb::corner_type;
 
     glm::vec3 upAxis( bounds[ 1 ] );
     glm::vec3 boundsOrigin( bounds[ 3 ] );
-    glm::vec3 boundsSize( bounds.GetSize() );
+    glm::vec3 boundsSize( bounds.size() );
 
     // normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
     extents[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
@@ -243,25 +243,25 @@ half_space_t::half_space_t( const bounding_box_t& bounds, const glm::vec3& norma
     // TODO: take into account ALL points
     std::array< corner_t, 4 > lowerPoints =
     {{
-        bounding_box_t::CORNER_MIN,
-        bounding_box_t::CORNER_NEAR_DOWN_RIGHT,
-        bounding_box_t::CORNER_FAR_DOWN_RIGHT,
-        bounding_box_t::CORNER_FAR_DOWN_LEFT
+        obb::CORNER_MIN,
+        obb::CORNER_NEAR_DOWN_RIGHT,
+        obb::CORNER_FAR_DOWN_RIGHT,
+        obb::CORNER_FAR_DOWN_LEFT
     }};
 
     for ( corner_t face: lowerPoints )
     {
-        glm::vec3 point( bounds.GetCorner( ( corner_t ) face ) );
+        glm::vec3 point( bounds.corner( ( corner_t ) face ) );
         glm::vec3 pointToCenter( faceCenter - point );
 
         // Not in same plane; move on
-        if ( G_TripleProduct( pointToCenter, extents[ 0 ], extents[ 1 ] ) != 0.0f )
+        if ( triple_product( pointToCenter, extents[ 0 ], extents[ 1 ] ) != 0.0f )
         {
             continue;
         }
 
         // Half space axes will be outside of the bounds; move on
-        if ( !bounds.EnclosesPoint( point + extents[ 0 ] ) || !bounds.EnclosesPoint( point + extents[ 1 ] ) )
+        if ( !bounds.range( point + extents[ 0 ] ) || !bounds.range( point + extents[ 1 ] ) )
         {
             continue;
         }
@@ -273,12 +273,12 @@ half_space_t::half_space_t( const bounding_box_t& bounds, const glm::vec3& norma
     distance = glm::dot( extents[ 2 ], origin );
 }
 
-half_space_t::half_space_t( const half_space_t& c )
-    : half_space_t( c.extents, c.origin, c.distance )
+halfspace::halfspace( const halfspace& c )
+    : halfspace( c.extents, c.origin, c.distance )
 {
 }
 
-half_space_t& half_space_t::operator=( half_space_t c )
+halfspace& halfspace::operator=( halfspace c )
 {
     if ( this != &c )
     {
@@ -290,7 +290,7 @@ half_space_t& half_space_t::operator=( half_space_t c )
     return *this;
 }
 
-bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
+bool halfspace::test_bounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
 #if GLM_ARCH == GLM_ARCH_PURE
     geom::intersect_comp_t test( origin, extents, srcOrigin, srcExtents );
@@ -319,7 +319,7 @@ bool half_space_t::TestBounds( glm::vec3& normal, const glm::mat3& srcExtents, c
 	return false;
 }
 
-void half_space_t::Draw( imm_draw_t& drawer ) const
+void halfspace::draw( imm_draw_t& drawer ) const
 {
 	drawer.Begin( GL_LINES );
 
@@ -339,38 +339,38 @@ void half_space_t::Draw( imm_draw_t& drawer ) const
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-bounding_box_t::bounding_box_t( const glm::mat4& transform_ )
-    : bounds_primitive_t( BOUNDS_PRIM_BOX ),
-      transform( transform_),
-      color( glm::vec4( 1.0f ) )
+obb::obb( const glm::mat4& transform_ )
+    : bounds_primitive( BOUNDS_PRIM_BOX ),
+      mAxes( transform_),
+      mColor( glm::vec4( 1.0f ) )
 {
 }
 
-bounding_box_t::bounding_box_t( bounding_box_t&& m )
-    : bounds_primitive_t( BOUNDS_PRIM_BOX ),
-      transform( std::move( m.transform ) ),
-	  color( std::move( m.color ) )
+obb::obb( obb&& m )
+    : bounds_primitive( BOUNDS_PRIM_BOX ),
+      mAxes( std::move( m.mAxes ) ),
+      mColor( std::move( m.mColor ) )
 {
 }
 
-glm::vec3 bounding_box_t::GetCenter( void ) const
+glm::vec3 obb::center( void ) const
 {
-   return glm::vec3( transform[ 3 ] );
+   return glm::vec3( mAxes[ 3 ] );
 }
 
-glm::vec3 bounding_box_t::GetSize( void ) const
+glm::vec3 obb::size( void ) const
 {
-	return GetCorner( CORNER_MAX ) - GetCorner( CORNER_MIN );
+    return corner( CORNER_MAX ) - corner( CORNER_MIN );
 }
 
-glm::vec3 bounding_box_t::GetRadius( void ) const
+glm::vec3 obb::radius( void ) const
 {
-	return GetCorner( CORNER_MAX ) - glm::vec3( transform[ 3 ] );
+    return corner( CORNER_MAX ) - glm::vec3( mAxes[ 3 ] );
 }
 
-glm::vec3 bounding_box_t::GetCorner( corner_t index ) const
+glm::vec3 obb::corner( corner_type index ) const
 {
-	return glm::vec3( transform * glm::vec4( GetCornerIdentity( index ), 1.0f ) );
+    return glm::vec3( mAxes * glm::vec4( corner_identity( index ), 1.0f ) );
 }
 
 // Iterate through the identity
@@ -382,22 +382,22 @@ glm::vec3 bounding_box_t::GetCorner( corner_t index ) const
 // transformation and map
 // it to the respective right, up, and forward
 // axes of the returned matrix.
-void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) const
+void obb::edges_from_corner( corner_type index, glm::mat3& edges ) const
 {
-	glm::vec3 origin( GetCorner( index ) );
+    glm::vec3 origin( corner( index ) );
 
-	glm::mat3 transform3( transform );
+    glm::mat3 transform3( mAxes );
 
 	int32_t edgeCount = 0;
 
 	for ( int32_t i = 0; i < 7; ++i )
 	{
-		if ( ( corner_t )i == index )
+        if ( ( corner_type )i == index )
 		{
 			continue;
 		}
 
-		glm::vec3 edge( GetCorner( ( corner_t ) i ) - origin );
+        glm::vec3 edge( corner( ( corner_type ) i ) - origin );
 
 		float edgeLen = glm::length( edge );
 
@@ -440,7 +440,7 @@ void bounding_box_t::GetEdgesFromCorner( corner_t index, glm::mat3& edges ) cons
 	}
 }
 
-bool bounding_box_t::Encloses( const bounding_box_t& box ) const
+bool obb::encloses( const obb& box ) const
 {
 #if GLM_ARCH == GLM_ARCH_PURE
 
@@ -456,8 +456,8 @@ bool bounding_box_t::Encloses( const bounding_box_t& box ) const
     geom::intersect_comp_t test( va, ma, vb, mb );
 
 #else
-    geom::simd_intersect_convert_t c( {{  glm::vec3( transform[ 3 ] ), glm::vec3( box.transform[ 3 ] ) }},
-    {{  glm::mat3( transform ), glm::mat3( box.transform ) }} );
+    geom::simd_intersect_convert_t c( {{  glm::vec3( mAxes[ 3 ] ), glm::vec3( box.mAxes[ 3 ] ) }},
+    {{  glm::mat3( mAxes ), glm::mat3( box.mAxes ) }} );
 
     geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 #endif
@@ -480,19 +480,19 @@ bool bounding_box_t::Encloses( const bounding_box_t& box ) const
     return true;
 }
 
-bool bounding_box_t::IntersectsBounds( glm::vec3& normal, const bounding_box_t& bounds ) const
+bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
-    half_space_t hs( glm::mat3( bounds.transform ), glm::vec3( bounds.transform[ 3 ] ), 0.0f );
+    halfspace hs( glm::mat3( bounds.mAxes ), glm::vec3( bounds.mAxes[ 3 ] ), 0.0f );
 
-	return hs.TestBounds( normal, glm::mat3( transform ), glm::vec3( transform[ 3 ] ) );
+    return hs.test_bounds( normal, glm::mat3( mAxes ), glm::vec3( mAxes[ 3 ] ) );
 }
 
-bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t& halfSpace ) const
+bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 {
-	glm::mat3 t( transform );
-	glm::vec3 origin( transform[ 3 ] );
+    glm::mat3 t( mAxes );
+    glm::vec3 origin( mAxes[ 3 ] );
 
-	if ( halfSpace.TestBounds( normal, t, origin ) )
+    if ( halfSpace.test_bounds( normal, t, origin ) )
 	{
 		return true;
 	}
@@ -503,10 +503,10 @@ bool bounding_box_t::IntersectsHalfSpace( glm::vec3& normal, const half_space_t&
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
-bool bounding_box_t::CalcIntersection( float& t0, const glm::vec3& ray, const glm::vec3& origin ) const
+bool obb::ray_intersection( float& t0, const glm::vec3& ray, const glm::vec3& origin ) const
 {
     // Quick early out; 0 implies no scaling necessary
-	if ( EnclosesPoint( origin ) )
+    if ( range( origin ) )
     {
 		t0 = 0.0f;
 		return true;
@@ -523,9 +523,9 @@ bool bounding_box_t::CalcIntersection( float& t0, const glm::vec3& ray, const gl
             break;
         }
 
-        plane_t p;
+        plane p;
 
-        GetFacePlane( ( face_t )i, p );
+        face_plane( ( face_type )i, p );
 
         float fx = p.normal.x * ray.x;
         float fy = p.normal.y * ray.y;
@@ -561,20 +561,20 @@ bool bounding_box_t::CalcIntersection( float& t0, const glm::vec3& ray, const gl
         // front or back face
         if ( fz != 0.0f && !isinf( fz ) )
         {
-            if ( !InXRange( r ) ) continue;
-            if ( !InYRange( r ) ) continue;
+            if ( !range_x( r ) ) continue;
+            if ( !range_y( r ) ) continue;
         }
         // top or bottom face
         else if ( fy != 0.0f && !isinf( fy ) )
         {
-            if ( !InZRange( r ) ) continue;
-            if ( !InXRange( r ) ) continue;
+            if ( !range_z( r ) ) continue;
+            if ( !range_x( r ) ) continue;
         }
         // left or right face
         else if ( fx != 0.0f && !isinf( fx ) )
         {
-            if ( !InZRange( r ) ) continue;
-            if ( !InYRange( r ) ) continue;
+            if ( !range_z( r ) ) continue;
+            if ( !range_y( r ) ) continue;
         }
         else
         {
@@ -598,45 +598,45 @@ bool bounding_box_t::CalcIntersection( float& t0, const glm::vec3& ray, const gl
 	return t0 < FLT_MAX;
 }
 
-void bounding_box_t::GetFacePlane( face_t face, plane_t& plane ) const
+void obb::face_plane( face_type face_, plane& plane_ ) const
 {
     glm::vec3 p;
 
-    switch ( face )
+    switch ( face_ )
     {
-        case bounding_box_t::FACE_TOP:
-			p = GetCorner( CORNER_MAX );
-            plane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
+        case obb::FACE_TOP:
+            p = corner( CORNER_MAX );
+            plane_.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
-        case bounding_box_t::FACE_RIGHT:
-			p = GetCorner( CORNER_MAX );
-            plane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
+        case obb::FACE_RIGHT:
+            p = corner( CORNER_MAX );
+            plane_.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
-        case bounding_box_t::FACE_FRONT:
-			p = GetCorner( CORNER_NEAR_UP_RIGHT );
-            plane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
+        case obb::FACE_FRONT:
+            p = corner( CORNER_NEAR_UP_RIGHT );
+            plane_.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
-        case bounding_box_t::FACE_LEFT:
-			p = GetCorner( CORNER_NEAR_UP_LEFT );
-            plane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
+        case obb::FACE_LEFT:
+            p = corner( CORNER_NEAR_UP_LEFT );
+            plane_.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
-        case bounding_box_t::FACE_BACK:
-			p = GetCorner( CORNER_FAR_UP_LEFT );
-            plane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
+        case obb::FACE_BACK:
+            p = corner( CORNER_FAR_UP_LEFT );
+            plane_.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
-        case bounding_box_t::FACE_BOTTOM:
-			p = GetCorner( CORNER_NEAR_DOWN_RIGHT );
-            plane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
+        case obb::FACE_BOTTOM:
+            p = corner( CORNER_NEAR_DOWN_RIGHT );
+            plane_.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
     }
 
-	plane.normal = glm::normalize( glm::mat3( transform ) * plane.normal );
+    plane_.normal = glm::normalize( glm::mat3( mAxes ) * plane_.normal );
 
-    plane.d = glm::dot( p, plane.normal );
+    plane_.d = glm::dot( p, plane_.normal );
 }
 
-void bounding_box_t::SetDrawable( const glm::vec4& color_ )
+void obb::color( const glm::vec4& color_ )
 {
-    color = color_;
+    mColor = color_;
 }
 

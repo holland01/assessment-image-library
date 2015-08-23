@@ -249,7 +249,7 @@ void texture_t::LoadSettings( void )
 
 bool texture_t::LoadFromFile( const char* texPath )
 {
-	File_GetPixels( texPath, pixels, bpp, width, height );
+    file_get_pixels( texPath, pixels, bpp, width, height );
 
 	if ( !DetermineFormats() )
 	{
@@ -705,8 +705,8 @@ pipeline_t::pipeline_t( void )
 	{
 		std::vector< char > vertexBuf, fragmentBuf;
 
-		File_GetBuf( vertexBuf, shaderRootDir + def.vertexName );
-		File_GetBuf( fragmentBuf, shaderRootDir + def.fragmentName );
+        file_get_buf( vertexBuf, shaderRootDir + def.vertexName );
+        file_get_buf( fragmentBuf, shaderRootDir + def.fragmentName );
 
 		std::string prepend( OP_GLSL_SHADER_PREPEND );
 
