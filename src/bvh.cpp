@@ -12,7 +12,8 @@ namespace {
     const glm::vec3 PLANE_VEC( 1.0f, 0.0f, 1.0f );
     const glm::vec3 CONST_AXIS_VEC( 0.0f, 1.0f, 0.0f );
     const uint8_t CONST_AXIS = 1;
-    const glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
+
+    glm::vec3 quadSize( 0.5f, 1.0f, 0.5f );
 }
 
 quad_hierarchy::quad_hierarchy( obb bounds, const uint32_t maxDepth, quad_hierarchy::entity_list_t entities )
@@ -26,27 +27,47 @@ void quad_hierarchy::update( entity_list_t entities )
     mRoot->update( std::move( entities ), glm::mat4( 1.0f ) );
 }
 
-quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb bounds_ )
-    : mBounds( std::move( bounds_ ) )
+quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb bounds_, const glm::mat4& parentAxes )
+    : mLocalBounds( std::move( bounds_ ) ),
+      mWorldBounds( parentAxes * mLocalBounds.axes() ),
+      mShouldDestroy( false )
 {
-    if ( curDepth == maxDepth )
+    float d = glm::determinant( glm::mat3( mWorldBounds.axes() ) );
+
+    mShouldDestroy = d < 1.0f;
+
+    if ( curDepth == maxDepth || mShouldDestroy )
     {
         return;
     }
 
-    auto LMakeChild = [ & ]( uint8_t index, const glm::vec3& offset )
+    make_child( curDepth, maxDepth, 0, quadSize * PLANE_VEC );
+    make_child( curDepth, maxDepth, 1, quadSize * glm::vec3( -1.0f, 0.0f, 1.0f ) );
+    make_child( curDepth, maxDepth, 2, quadSize * glm::vec3( -1.0f , 0.0f, -1.0f ) );
+    make_child( curDepth, maxDepth, 3, quadSize * glm::vec3( 1.0f, 0.0f, -1.0f ) );
+
+    for ( ptr_t& n: mChildren )
     {
-        glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
-        glm::mat4 t( glm::translate( glm::mat4( 1.0f ), offset ) );
-        glm::mat4 m( t * s );
+        if ( n->destroy() )
+        {
+            n.release();
+        }
+    }
+}
 
-        mChildren[ index ].reset( new node( curDepth + 1, maxDepth, std::move( obb( m ) ) ) );
-    };
+void quad_hierarchy::node::make_child( const uint32_t curDepth,
+                                       const uint32_t maxDepth,
+                                       uint8_t index,
+                                       const glm::vec3& offset )
+{
+    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
+    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), offset ) );
+    glm::mat4 m( t * s );
 
-    LMakeChild( 0, quadSize * PLANE_VEC );
-    LMakeChild( 1, quadSize * glm::vec3( -1.0f, 0.0f, 1.0f ) );
-    LMakeChild( 2, quadSize * glm::vec3( -1.0f , 0.0f, -1.0f ) );
-    LMakeChild( 3, quadSize * glm::vec3( 1.0f, 0.0f, -1.0f ) );
+    mChildren[ index ].reset( new node( curDepth + 1,
+                                        maxDepth,
+                                        std::move( obb( m ) ),
+                                        mWorldBounds.axes() ) );
 }
 
 bool quad_hierarchy::node::leaf( void ) const
@@ -56,18 +77,33 @@ bool quad_hierarchy::node::leaf( void ) const
 
 void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp, const glm::mat4& rootTransform ) const
 {
-    glm::mat4 t( rootTransform * mBounds.axes() );
+    glm::mat4 t( rootTransform * mLocalBounds.axes() );
 
+    if ( leaf() )
     {
-        set_blend_mode b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+       // set_blend_mode b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
         const shader_program& singleColor = pl.mPrograms.at( "single_color" );
-        const draw_buffer& coloredCube = pl.mDrawBuffers.at( "lined_cube" );
+        const draw_buffer& linedCube = pl.mDrawBuffers.at( "lined_cube" );
+
+        glm::vec4 color( rand_color( 0.5f, 1.0f, 0.5f ) );
 
         singleColor.bind();
-        singleColor.load_vec4( "color", glm::vec4( 0.3f, 0.3f, 0.3f, 1.0f ) );
+        singleColor.load_vec4( "color", color );
         singleColor.load_mat4( "modelToView", vp.mTransform * t );
-        coloredCube.render( singleColor );
+        linedCube.render( singleColor );
+
+        const draw_buffer& coloredCube = pl.mDrawBuffers.at( "colored_cube" );
+
+        for ( const entity* e: mEntities )
+        {
+            const obb& bounds = *ENTITY_PTR_GET_BOX( e, ENTITY_BOUNDS_AREA_EVAL );
+
+            singleColor.load_vec4( "color", color );
+            singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.axes() );
+            coloredCube.render( singleColor );
+        }
+
         singleColor.release();
     }
 
@@ -90,12 +126,14 @@ void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const
         return;
     }
 
-    glm::mat4 t( rootTransform * mBounds.axes() );
+    glm::mat4 t( rootTransform * mLocalBounds.axes() );
 
     std::array< quad_hierarchy::entity_list_t, 4 > subregions;
 
     for( uint32_t i = 0; i < 4; ++i )
     {
+        const obb childBounds( std::move( mChildren[ i ]->bounds( t ) ) );
+
         for ( auto e = entities.begin(); e != entities.end(); )
         {
             const entity* p = *e;
@@ -104,7 +142,7 @@ void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const
             {
                 const obb* pbox = ENTITY_PTR_GET_BOX( p, ENTITY_BOUNDS_AREA_EVAL );
 
-                if ( mChildren[ i ]->mBounds.encloses( *pbox ) )
+                if ( childBounds.encloses( *pbox ) )
                 {
                     subregions[ i ].push_back( p );
                     e = entities.erase( e );

@@ -29,7 +29,8 @@ namespace {
         DRAW_REGIONS_ADJACENT = 1 << 3,
         DRAW_REGIONS_BOUNDS = 1 << 4,
         DRAW_WALLS = 1 << 5,
-        DRAW_QUAD_REGIONS = 1 << 6
+        DRAW_QUAD_REGIONS = 1 << 6,
+        DRAW_CANCEL_REGIONS = 1 << 7
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
@@ -39,7 +40,7 @@ namespace {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
         { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
-        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS }
+        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
      uint32_t gDrawFlags = gDrawTestConfig[ "bounds_tiles_test" ];
@@ -391,6 +392,7 @@ INLINE void Draw_AdjacentTiles( const application& game, const adjacent_region_l
 
 INLINE void Draw_BoundsTiles( const application& game, const shared_tile_region_t& region )
 {
+    /*
     set_blend_mode blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
     glm::vec3 color( 1.0f, 0.0f, 0.0f );
@@ -404,7 +406,7 @@ INLINE void Draw_BoundsTiles( const application& game, const shared_tile_region_
     }
 
     assert( region->mOrigin );
-
+*/
     const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
 
     Draw_Quad( game, box.mAxes, glm::vec3( 1.0f ), 1.0f );
@@ -425,6 +427,11 @@ INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_regio
     return false;
 }
 
+bool HasCancelRegions( void )
+{
+    return !!( gDrawFlags & DRAW_CANCEL_REGIONS );
+}
+
 void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = false )
 {
     for ( uint32_t i = 0; i < game.gen->mRegions.size(); ++i )
@@ -437,13 +444,14 @@ void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = 
         }
 
         bool canDraw = game.gen->mRegions[ regionIter ] != region
-                && !InAdjacentRegionList( weakRegion, game.gen->mRegions[ regionIter ]->mAdjacent );
+                && !InAdjacentRegionList( weakRegion, game.gen->mRegions[ regionIter ]->mAdjacent )
+                && !HasCancelRegions();
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
         // despite being rendered previously, this pass will overwrite
         // following draw pass in the color buffer, which produces inaccurate results.
-        if ( canDraw || ( drawBoundsTiles && !drawAdjacent ) )
+        if ( canDraw || ( drawBoundsTiles && !drawAdjacent && !HasCancelRegions() ) )
         {
             Draw_Tiles( game, region->mTiles, region->mColor );
         }
@@ -794,6 +802,10 @@ uint32_t Game_Exec( void )
 
                         case SDLK_h:
                             gDrawFlags ^= DRAW_HALFSPACES;
+                            break;
+
+                        case SDLK_UP:
+                            gDrawFlags ^= DRAW_CANCEL_REGIONS;
                             break;
 
                         default:

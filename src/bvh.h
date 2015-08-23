@@ -23,18 +23,28 @@ struct quad_hierarchy
     {
         using ptr_t = std::unique_ptr< node >;
 
-        obb mBounds;
+        obb mLocalBounds;
+
+        obb mWorldBounds;
+
+        bool mShouldDestroy;
 
         // Only leaf nodes will have entities
         entity_list_t mEntities;
 
         std::array< ptr_t, NODE_COUNT > mChildren;
 
-        node( uint32_t curDepth, const uint32_t maxDepth, obb mBounds );
+        node( uint32_t curDepth, const uint32_t maxDepth, obb mLocalBounds, const glm::mat4& parentAxes = glm::mat4( 1.0f ) );
+
+        void make_child( const uint32_t curDepth, const uint32_t maxDepth, uint8_t index, const glm::vec3& offset );
 
         void draw( const render_pipeline& pl, const view_data& vp, const glm::mat4& rootTransform = glm::mat4( 1.0f ) ) const;
 
         void update( entity_list_t mEntities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
+
+        obb bounds( const glm::mat4& root ) const;
+
+        bool destroy( void ) const;
 
         bool leaf( void ) const;
     };
@@ -45,3 +55,13 @@ struct quad_hierarchy
 
     void update( entity_list_t entities );
 };
+
+INLINE obb quad_hierarchy::node::bounds( const glm::mat4& root ) const
+{
+    return std::move( obb( root * mLocalBounds.axes() ) );
+}
+
+INLINE bool quad_hierarchy::node::destroy( void ) const
+{
+    return mShouldDestroy;
+}

@@ -82,3 +82,22 @@ bool file_get_pixels( const std::string& filepath,
 
 	return true;
 }
+
+namespace {
+    std::random_device gRandDevice;
+
+    std::mt19937 gRandEngine( gRandDevice() );
+}
+
+glm::vec4 rand_color( float min, float max, float alpha )
+{
+    std::uniform_real_distribution< float > color( min, max );
+
+    glm::vec4 c( color( gRandEngine ),
+                 color( gRandEngine ),
+                 color( gRandEngine ),
+                 alpha );
+
+    return std::move( c );
+}
+

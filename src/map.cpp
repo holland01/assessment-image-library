@@ -20,8 +20,8 @@ struct region_merge_predicates_t
 };
 
 namespace {
-	std::random_device randDevice;
-	std::mt19937 randEngine( randDevice() );
+    std::random_device gRandDevice;
+    std::mt19937 randEngine( gRandDevice() );
 	std::uniform_int_distribution< uint32_t > wallDet( 0, 100 );
     std::uniform_int_distribution< uint16_t > randByte( 0, 255 );
 
@@ -281,14 +281,16 @@ namespace {
 
         glm::vec2 s( max - min );
 
-        glm::vec3 size( s.x, 1.0f, s.y );
+        float dim = glm::max( s.x, s.y );
+
+        glm::vec3 size( dim, 1.0f, dim );
 
         glm::vec3 pos( r->mOrigin->mX * map_tile_generator::TRANSLATE_STRIDE,
                        0.0f,
                        r->mOrigin->mZ * map_tile_generator::TRANSLATE_STRIDE );
 
-        pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
-        pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
+//        pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
+//       pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
 
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ), pos ) * glm::scale( glm::mat4( 1.0f ), size ) );
 
@@ -669,7 +671,9 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
 
             obb b = ComputeBoundsFromRegion( r.get() );
 
-            r->mBoundsVolume.reset( new quad_hierarchy( std::move( b ), 5, r->entity_list() ) );
+            uint32_t depth = ( uint32_t )glm::floor( log4< float >( b.axes()[ 0 ][ 0 ] ) );
+
+            r->mBoundsVolume.reset( new quad_hierarchy( std::move( b ), depth + 1, r->entity_list() ) );
         }
     }
 
@@ -1206,6 +1210,7 @@ quad_hierarchy::entity_list_t map_tile_region::entity_list( void ) const
     for ( const adjacent_wall& w: mWalls )
     {
         entities.resize( entities.size() + w.mWalls.size() );
+
         for ( const map_tile* wall: w.mWalls )
         {
             entities[ i++ ] = wall;

@@ -21,6 +21,8 @@ void fstdoutf( FILE* f, const char* header, const char* fmt, ... );
 void get_datetime( const char* format, char* outBuffer, int32_t length );
 void exit_on_gl_error( int32_t line, const char* glFunc, const char* callerFunc );
 
+glm::vec4 rand_color( float min = 0.5f, float max = 1.0f, float alpha = 1.0f );
+
 template < typename type_t >
 static INLINE void vector_remove_ptr( std::vector< type_t >& v, const type_t& t );
 
@@ -257,5 +259,5 @@ template< typename type_t >
 static INLINE type_t log4( const type_t& t )
 {
     static_assert( std::numeric_limits< type_t >::is_iec559, "Math_Log4 is called with integral type; type required is floating point" );
-    return glm::log( t ) * type_t( 0.602059991 );
+    return glm::log( t ) * type_t( 1.602059991 );
 }
