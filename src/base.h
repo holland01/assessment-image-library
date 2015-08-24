@@ -259,5 +259,5 @@ template< typename type_t >
 static INLINE type_t log4( const type_t& t )
 {
     static_assert( std::numeric_limits< type_t >::is_iec559, "Math_Log4 is called with integral type; type required is floating point" );
-    return glm::log( t ) * type_t( 1.602059991 );
+    return std::log10( t ) * type_t( 1.602059991 );
 }

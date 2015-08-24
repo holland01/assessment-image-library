@@ -281,7 +281,9 @@ namespace {
 
         glm::vec2 s( max - min );
 
-        float dim = glm::max( s.x, s.y );
+        float exp = log4( glm::max( s.x, s.y ) );
+
+        float dim = glm::pow( 4, glm::ceil( exp ) );
 
         glm::vec3 size( dim, 1.0f, dim );
 
@@ -289,8 +291,8 @@ namespace {
                        0.0f,
                        r->mOrigin->mZ * map_tile_generator::TRANSLATE_STRIDE );
 
-//        pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
-//       pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
+        pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
+        pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
 
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ), pos ) * glm::scale( glm::mat4( 1.0f ), size ) );
 
@@ -671,9 +673,9 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
 
             obb b = ComputeBoundsFromRegion( r.get() );
 
-            uint32_t depth = ( uint32_t )glm::floor( log4< float >( b.axes()[ 0 ][ 0 ] ) );
+            uint32_t depth = ( uint32_t )glm::floor( log4( b.axes()[ 0 ][ 0 ] ) );
 
-            r->mBoundsVolume.reset( new quad_hierarchy( std::move( b ), depth + 1, r->entity_list() ) );
+            r->mBoundsVolume.reset( new quad_hierarchy( std::move( b ), depth, r->entity_list() ) );
         }
     }
 

@@ -34,9 +34,9 @@ quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb boun
 {
     float d = glm::determinant( glm::mat3( mWorldBounds.axes() ) );
 
-    mShouldDestroy = d < 1.0f;
+    mShouldDestroy = d < 16.0f;
 
-    if ( curDepth == maxDepth || mShouldDestroy )
+    if ( mShouldDestroy )
     {
         return;
     }
@@ -48,7 +48,7 @@ quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb boun
 
     for ( ptr_t& n: mChildren )
     {
-        if ( n->destroy() )
+        if ( n && n->destroy() )
         {
             n.release();
         }
@@ -57,7 +57,7 @@ quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb boun
 
 void quad_hierarchy::node::make_child( const uint32_t curDepth,
                                        const uint32_t maxDepth,
-                                       uint8_t index,
+                                       const uint8_t index,
                                        const glm::vec3& offset )
 {
     glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
@@ -81,7 +81,7 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
 
     if ( leaf() )
     {
-       // set_blend_mode b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+        set_blend_mode b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
         const shader_program& singleColor = pl.mPrograms.at( "single_color" );
         const draw_buffer& linedCube = pl.mDrawBuffers.at( "lined_cube" );
