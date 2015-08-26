@@ -1,5 +1,6 @@
 #include "map.h"
 #include "view.h"
+#include "input.h"
 
 #include <iostream>
 #include <random>
@@ -1090,25 +1091,146 @@ bool map_tile_generator::collides_wall( glm::vec3& normal, const map_tile& t,
 	return false;
 }
 
+namespace {
+
+    void insert_appro_tile( map_tile& t,
+                            map_tile_list_t& billboards,
+                            map_tile_list_t& walls,
+                            map_tile_list_t& freespace,
+                            const view_frustum& frustum )
+    {
+        UNUSEDPARAM( frustum );
+        /*
+        if ( !frustum.intersects( *ENTITY_GET_BOX( t, ENTITY_BOUNDS_AREA_EVAL ) ) )
+        {
+            return;
+        }
+        */
+
+        switch ( t.mType )
+        {
+            case map_tile::WALL: walls.push_back( &t ); break;
+            case map_tile::BILLBOARD: billboards.push_back( &t ); break;
+            case map_tile::EMPTY: freespace.push_back( &t ); break;
+        }
+    }
+}
+
 void map_tile_generator::find_entities(
                                map_tile_list_t& outBillboards,
                                map_tile_list_t& outWalls,
                                map_tile_list_t& outFreeSpace,
                                const view_frustum& frustum,
-                               const view_data& viewParams )
+                               const input_client& camera )
 {
 	outBillboards.clear();
 	outWalls.clear();
 	outFreeSpace.clear();
 
-    int32_t centerX, centerZ;
-    get_tile_coords( centerX, centerZ, viewParams.mOrigin );
+    const view_data& viewParams = camera.view_params();
 
-	if ( centerX < 0 || centerZ < 0 )
+    float fCenterX, fCenterZ;
+    get_tile_coords( fCenterX, fCenterZ, viewParams.mOrigin );
+
+    if ( fCenterX <= 0 || fCenterZ <= 0 )
 	{
 		return;
 	}
 
+    UNUSEDPARAM( frustum );
+
+    glm::vec2 pos( fCenterX, fCenterZ );
+
+    glm::vec3 u( camera.world_dir( G_DIR_FORWARD ) );
+    glm::vec2 look( u.x, u.z );
+
+    glm::vec3 v( glm::normalize( glm::cross( u, G_DIR_UP ) ) );
+
+    glm::vec2 fov( v.x, v.z );
+
+    fov *= glm::radians( 40.0f );
+
+    float startZ = fov.y < 0.0f? fov.y: -fov.y;
+    float endZ = fov.y < 0.0f? -fov.y: fov.y;
+
+    float startX = fov.x < 0.0f? fov.x: -fov.x;
+    float endX = fov.x < 0.0f? -fov.x: fov.x;
+
+
+
+    const float R = 0.174532925;
+
+    for ( float z0 = startZ; z0 <= endZ; z0 += R )
+    {
+        for ( float x0 = startX; x0 <= endX; x0 += R )
+        {
+            glm::vec2 dir( glm::normalize( look + glm::vec2( x0, z0 ) ) );
+
+            glm::vec2 iT( 1.0f / ( dir ) );
+
+            glm::vec2 st;
+
+            glm::vec2 step;
+
+            glm::vec2 mapPos( glm::floor( pos ) );
+
+            if ( dir.x < 0.0f )
+            {
+                st.x = ( pos.x - mapPos.x ) * iT.x;
+                step.x = -1.0f;
+            }
+            else
+            {
+                st.x = ( mapPos.x + 1.0f - pos.x ) * iT.x;
+                step.x = 1.0f;
+            }
+
+            if ( dir.y < 0.0f )
+            {
+                st.y = ( pos.y - mapPos.y ) * iT.y;
+                step.y = -1.0f;
+            }
+            else
+            {
+                st.y = ( mapPos.y + 1.0f - pos.y ) * iT.y;
+                step.y = 1.0f;
+            }
+
+            bool hit = false;
+
+            float t = 1.0f;
+            while ( !hit && t < 50.0f )
+            {
+                if ( st.x < st.y )
+                {
+                    st.x += iT.x;
+                    mapPos.x += step.x;
+                }
+                else
+                {
+                    st.y += iT.y;
+                    mapPos.y += step.y;
+                }
+
+                int32_t index = TileModIndex( mapPos.x, mapPos.y );
+
+                if ( mTiles[ index ].mType == map_tile::WALL )
+                {
+                    hit = true;
+                }
+
+                insert_appro_tile( mTiles[ index ],
+                                   outBillboards,
+                                   outWalls,
+                                   outFreeSpace,
+                                   frustum );
+
+                t += 1.0f;
+            }
+        }
+    }
+
+    /*
 	const int32_t RADIUS = 10;
 	const int32_t startX = centerX - RADIUS;
 	const int32_t startZ = centerZ - RADIUS;
@@ -1152,7 +1274,9 @@ void map_tile_generator::find_entities(
 					break;
 			}
 		}
-	}
+    }*/
+
+
 
     // TODO: do view-space depth sort on each vector
 }

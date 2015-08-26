@@ -12,6 +12,7 @@
 #include <unordered_set>
 
 struct view_frustum;
+struct input_client;
 
 struct map_tile;
 struct map_tile_region;
@@ -173,11 +174,11 @@ public:
 
     bool                    collides_wall( glm::vec3& normal, const map_tile& t, const obb& bounds, halfspace& outHalfSpace );
 
-    void                    find_entities( map_tile_list_t& mBillboards,
+    void                    find_entities(map_tile_list_t& mBillboards,
                                           map_tile_list_t& mWalls,
                                           map_tile_list_t& mFreeSpace,
                                           const view_frustum& view_frustum,
-                                          const view_data& viewParams );
+                                          const input_client& camera );
 
     const map_tile_list_t& walls( void ) const { return mWalls; }
 };
@@ -227,17 +228,19 @@ public:
 // global
 //-------------------------------------------------------------------------------------------------------
 
-static INLINE void get_tile_coords( int32_t& x, int32_t& z, const glm::vec3& v );
+template< typename type_t >
+static INLINE void get_tile_coords( type_t& x, type_t& z, const glm::vec3& v );
 
 static INLINE glm::mat4 get_tile_transform( const map_tile& t );
 
 #include "map.inl"
 
 
-static INLINE void get_tile_coords( int32_t& x, int32_t& z, const glm::vec3& v )
+template< typename type_t >
+static INLINE void get_tile_coords( type_t& x, type_t& z, const glm::vec3& v )
 {
-   x = ( int32_t )( v.x * 0.5f );
-   z = ( int32_t )( v.z * 0.5f );
+   x = ( type_t )( v.x * 0.5f );
+   z = ( type_t )( v.z * 0.5f );
 }
 
 static INLINE glm::mat4 get_tile_transform( const map_tile& tile )

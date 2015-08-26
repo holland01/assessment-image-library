@@ -43,7 +43,7 @@ namespace {
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
-     uint32_t gDrawFlags = gDrawTestConfig[ "bounds_tiles_test" ];
+     uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
 }
 
 static void Draw_Group( application& game,
@@ -718,14 +718,14 @@ void Game_Frame( void )
 
     const view_data& vp = game.camera->view_params();
 
+    game.world.update( game );
     game.frustum.update( vp );
 
 	if ( !game.drawAll )
 	{
-        game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, vp );
+        game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, *( game.camera ) );
 	}
 
-    game.world.update( game );
     game.draw();
 
     // clear bodies which are added in world.Update call,

@@ -74,6 +74,8 @@ struct input_client : public entity
     glm::vec3   up( void ) const;
     glm::vec3   right( void ) const;
 
+    glm::vec3   world_dir( const glm::vec3& ) const;
+
     const view_data& view_params( void ) const;
 
     void print_origin( void ) const;
@@ -86,11 +88,10 @@ INLINE glm::vec3 input_client::forward( void ) const
     // this avoids a double transformation which screws things up.
     if ( mBody )
     {
-        return glm::vec3( 0.0f, 0.0f, -1.0f );
+        return G_DIR_FORWARD;
     }
 
-    glm::vec4 forward = mViewParams.mInverseOrient * glm::vec4( 0.0f, 0.0f, -1.0f, 1.0f );
-	return glm::normalize( glm::vec3( forward ) );
+    return std::move( world_dir( G_DIR_FORWARD ) );
 }
 
 INLINE glm::vec3 input_client::right( void ) const
@@ -100,11 +101,10 @@ INLINE glm::vec3 input_client::right( void ) const
     // this avoids a double transformation which screws things up.
     if ( mBody )
     {
-        return glm::vec3( 1.0f, 0.0f, 0.0f );
+        return G_DIR_RIGHT;
     }
 
-    glm::vec4 right = mViewParams.mInverseOrient * glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
-	return glm::normalize( glm::vec3( right ) );
+    return std::move( world_dir( G_DIR_RIGHT ) );
 }
 
 INLINE glm::vec3 input_client::up( void ) const
@@ -114,11 +114,10 @@ INLINE glm::vec3 input_client::up( void ) const
     // this avoids a double transformation which screws things up.
     if ( mBody )
     {
-        return glm::vec3( 0.0f, 1.0f, 0.0f );
+        return G_DIR_UP;
     }
 
-    glm::vec4 up = mViewParams.mInverseOrient * glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
-	return glm::normalize( glm::vec3( up ) );
+    return std::move( world_dir( G_DIR_UP ) );
 }
 
 INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
@@ -133,6 +132,11 @@ INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 	}
 }
 
+INLINE glm::vec3 input_client::world_dir( const glm::vec3& v ) const
+{
+    glm::vec4 u = mViewParams.mInverseOrient * glm::vec4( v, 1.0f );
+    return std::move( glm::normalize( glm::vec3( u ) ) );
+}
 
 INLINE void input_client::perspective( float fovy, float width, float height, float zNear, float zFar )
 {
