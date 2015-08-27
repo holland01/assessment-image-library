@@ -1107,11 +1107,18 @@ namespace {
         }
         */
 
+        map_tile_list_t* pv = nullptr;
+
         switch ( t.mType )
         {
-            case map_tile::WALL: walls.push_back( &t ); break;
-            case map_tile::BILLBOARD: billboards.push_back( &t ); break;
-            case map_tile::EMPTY: freespace.push_back( &t ); break;
+            case map_tile::WALL: pv = &walls; break;
+            case map_tile::BILLBOARD: pv = &billboards; break;
+            case map_tile::EMPTY: pv = &freespace; break;
+        }
+
+        if ( !vector_contains< map_tile* >( *pv, &t ) )
+        {
+            pv->push_back( &t );
         }
     }
 }
@@ -1142,93 +1149,106 @@ void map_tile_generator::find_entities(
     glm::vec2 pos( fCenterX, fCenterZ );
 
     glm::vec3 u( camera.world_dir( G_DIR_FORWARD ) );
-    glm::vec2 look( u.x, u.z );
+    glm::vec2 look( glm::normalize( glm::vec2( u.x, u.z ) ) );
 
-    glm::vec3 v( glm::normalize( glm::cross( u, G_DIR_UP ) ) );
+    glm::vec3 v( glm::cross( u, G_DIR_UP ) );
 
-    glm::vec2 fov( v.x, v.z );
+    glm::vec2 plane( v.x, v.z );
+    plane = glm::normalize( plane );
 
-    fov *= glm::radians( 40.0f );
+    //fov *= glm::radians( 40.0f );
 
+    /*
     float startZ = fov.y < 0.0f? fov.y: -fov.y;
     float endZ = fov.y < 0.0f? -fov.y: fov.y;
 
     float startX = fov.x < 0.0f? fov.x: -fov.x;
     float endX = fov.x < 0.0f? -fov.x: fov.x;
+*/
 
 
+    //const float R = 0.174532925;
 
-    const float R = 0.174532925;
+    //for ( float z0 = startZ; z0 <= endZ; z0 += R )
+    //{
+        //for ( float x0 = startX; x0 <= endX; x0 += R )
 
-    for ( float z0 = startZ; z0 <= endZ; z0 += R )
+
+    int32_t half = GRID_SIZE / 2;
+    float invHalf = 1.0f / ( float )half;
+
+    for ( int32_t x0 = -half; x0 <= half; ++x0 )
     {
-        for ( float x0 = startX; x0 <= endX; x0 += R )
+        float camX = ( float ) x0 * invHalf;
+
+        glm::vec2 dir( glm::normalize( look + plane * camX ) );
+
+        glm::vec2 iT( glm::sqrt( 1 + ( dir.y * dir.y ) / ( dir.x * dir.x ) ),
+                      glm::sqrt( 1 + ( dir.x * dir.x ) / ( dir.y * dir.y ) ) );
+
+        glm::vec2 st;
+
+        glm::vec2 step;
+
+        glm::vec2 mapPos( glm::floor( pos ) );
+
+        if ( dir.x < 0.0f )
         {
-            glm::vec2 dir( glm::normalize( look + glm::vec2( x0, z0 ) ) );
-
-            glm::vec2 iT( 1.0f / ( dir ) );
-
-            glm::vec2 st;
-
-            glm::vec2 step;
-
-            glm::vec2 mapPos( glm::floor( pos ) );
-
-            if ( dir.x < 0.0f )
-            {
-                st.x = ( pos.x - mapPos.x ) * iT.x;
-                step.x = -1.0f;
-            }
-            else
-            {
-                st.x = ( mapPos.x + 1.0f - pos.x ) * iT.x;
-                step.x = 1.0f;
-            }
-
-            if ( dir.y < 0.0f )
-            {
-                st.y = ( pos.y - mapPos.y ) * iT.y;
-                step.y = -1.0f;
-            }
-            else
-            {
-                st.y = ( mapPos.y + 1.0f - pos.y ) * iT.y;
-                step.y = 1.0f;
-            }
-
-            bool hit = false;
-
-            float t = 1.0f;
-            while ( !hit && t < 50.0f )
-            {
-                if ( st.x < st.y )
-                {
-                    st.x += iT.x;
-                    mapPos.x += step.x;
-                }
-                else
-                {
-                    st.y += iT.y;
-                    mapPos.y += step.y;
-                }
-
-                int32_t index = TileModIndex( mapPos.x, mapPos.y );
-
-                if ( mTiles[ index ].mType == map_tile::WALL )
-                {
-                    hit = true;
-                }
-
-                insert_appro_tile( mTiles[ index ],
-                                   outBillboards,
-                                   outWalls,
-                                   outFreeSpace,
-                                   frustum );
-
-                t += 1.0f;
-            }
+            st.x = ( pos.x - mapPos.x ) * iT.x;
+            step.x = -1.0f;
         }
+        else
+        {
+            st.x = ( mapPos.x + 1.0f - pos.x ) * iT.x;
+            step.x = 1.0f;
+        }
+
+        if ( dir.y < 0.0f )
+        {
+            st.y = ( pos.y - mapPos.y ) * iT.y;
+            step.y = -1.0f;
+        }
+        else
+        {
+            st.y = ( mapPos.y + 1.0f - pos.y ) * iT.y;
+            step.y = 1.0f;
+        }
+
+        bool hit = false;
+
+        float t = 1.0f;
+        while ( !hit && t < 100.0f )
+        {
+            if ( glm::abs( st.x ) < glm::abs( st.y ) )
+            {
+                st.x += iT.x;
+                mapPos.x += step.x;
+            }
+            else
+            {
+                st.y += iT.y;
+                mapPos.y += step.y;
+            }
+
+            int32_t index = TileModIndex( mapPos.x, mapPos.y );
+
+            if ( mTiles[ index ].mType == map_tile::WALL )
+            {
+                hit = true;
+            }
+
+            insert_appro_tile( mTiles[ index ],
+                               outBillboards,
+                               outWalls,
+                               outFreeSpace,
+                               frustum );
+
+            t += 1.0f;
+        }
+
+        __nop();
     }
+
 
     /*
 	const int32_t RADIUS = 10;
