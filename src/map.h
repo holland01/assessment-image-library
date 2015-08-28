@@ -196,6 +196,8 @@ public:
     const map_tile_list_t& walls( void ) const { return mWalls; }
 
     const map_tile_list_t& billboards( void ) const { return mBillboards; }
+
+    const map_tile_list_t& freespace( void ) const { return mFreeSpace; }
 };
 
 //-------------------------------------------------------------------------------------------------------

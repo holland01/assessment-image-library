@@ -57,5 +57,11 @@ struct application
 
     void update( void );
 
+    map_tile_list_t billboard_list( void ) const { return drawAll? gen->billboards(): billboards; }
+
+    map_tile_list_t wall_list( void ) const { return drawAll? gen->walls(): walls; }
+
+    map_tile_list_t freespace_list( void ) const { return drawAll? gen->freespace(): freeSpace; }
+
     static application& get_instance( void );
 };

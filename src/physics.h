@@ -83,6 +83,8 @@ public:
 
     const glm::vec3& initial_velocity( void ) const;
 
+    glm::vec3 total_velocity_transformed( void ) const;
+
     void mass( float m );
 
     void position( const glm::vec3& p );
@@ -109,6 +111,11 @@ INLINE const glm::mat3 rigid_body::orientation( void ) const
 INLINE const glm::vec3& rigid_body::total_velocity( void ) const
 {
     return mTotalVelocity;
+}
+
+INLINE glm::vec3 rigid_body::total_velocity_transformed( void ) const
+{
+    return mOrientation * mTotalVelocity;
 }
 
 INLINE const glm::vec3& rigid_body::initial_velocity( void ) const
@@ -164,9 +171,11 @@ INLINE void rigid_body::set( const glm::mat4& t )
 // physics_world
 //-------------------------------------------------------------------------------------------------------
 
+struct entity;
+
 struct physics_world
 {
-    std::vector< std::weak_ptr< rigid_body > > mBodies;
+    std::vector< entity* > mBodies;
 
     float mTime;
 

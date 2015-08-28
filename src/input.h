@@ -54,8 +54,8 @@ struct input_client : public entity
     input_client( const view_data& mViewParams );
     input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
-    void    eval_key_press( input_key key );
-    void    eval_key_release( input_key key );
+    bool    eval_key_press( input_key key ); // returns true if a camera key was pressed
+    bool    eval_key_release( input_key key ); // same
     void    eval_mouse_move( float x, float y, bool calcRelative );
 
     void	apply_movement( void );

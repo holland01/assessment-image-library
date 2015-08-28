@@ -29,7 +29,7 @@ void rigid_body::integrate( float t )
 
     if ( mAngularRot != 0.0f )
     {
-        float rot = glm::radians( mAngularRot ) * t;
+        float rot = mAngularRot * 0.01f * t;
 
         mOrientation = glm::rotate( mOrientation, rot, mAngularAxis );
     }
@@ -85,7 +85,11 @@ void rigid_body::reset( void )
     if ( mResetBits & RESET_VELOCITY_BIT ) mInitialVelocity = glm::zero< glm::vec3 >();
     if ( mResetBits & RESET_ORIENTATION_BIT ) mOrientation = glm::quat();
     if ( mResetBits & RESET_POSITION_BIT ) mPosition = glm::zero< glm::vec3 >();
-    if ( mResetBits & RESET_ANGULAR_VELOCITY_BIT ) mAngularAxis = glm::zero< glm::vec3 >();
+    if ( mResetBits & RESET_ANGULAR_VELOCITY_BIT )
+    {
+        mAngularAxis = glm::zero< glm::vec3 >();
+        mAngularRot = 0.0f;
+    }
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -100,11 +104,11 @@ physics_world::physics_world( float time_, float dt_ )
 }
 
 namespace {
-    void push_bodies( physics_world& w, const map_tile_list_t& tiles )
+    void push_bodies( physics_world& w, map_tile_list_t tiles )
     {
-        for ( const map_tile* t: tiles )
+        for ( map_tile* t: tiles )
         {
-            w.mBodies.push_back( t->mBody );
+            w.mBodies.push_back( t );
         }
     }
 }
@@ -112,15 +116,16 @@ namespace {
 void physics_world::update( application& game )
 {
     mBodies.clear();
-    mBodies.push_back( game.camera->mBody );
+    mBodies.push_back( game.camera );
 
     if ( game.bullet )
     {
-        mBodies.push_back( game.bullet->mBody );
+        mBodies.push_back( game.bullet.get() );
     }
 
-    push_bodies( *this, ( game.drawAll )? game.gen->walls(): game.walls );
-    push_bodies( *this, ( game.drawAll )? game.gen->billboards(): game.billboards );
+    push_bodies( *this, std::move( game.wall_list() ) );
+
+    push_bodies( *this, std::move( game.billboard_list() ) );
 
     game.camera->apply_movement();
 
@@ -132,13 +137,12 @@ void physics_world::update( application& game )
 	{
         float delta = glm::max( glm::min( mTime, measure ), 0.1f );
 
-        for ( std::weak_ptr< rigid_body >& body: mBodies )
+        for ( entity* e: mBodies )
 		{
-            auto p = body.lock();
-
-            if ( p )
+            if ( e )
             {
-                p->integrate( delta );
+                e->mBody->integrate( delta );
+                e->sync();
             }
 		}
 
@@ -159,13 +163,11 @@ void physics_world::update( application& game )
 
 void physics_world::clear_accum( void )
 {
-    for ( std::weak_ptr< rigid_body >& body: mBodies )
+    for ( entity* e: mBodies )
     {
-        auto p = body.lock();
-
-        if ( p )
+        if ( e )
         {
-            p->reset();
+            e->mBody->reset();
         }
     }
 }

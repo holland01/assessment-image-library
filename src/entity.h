@@ -79,6 +79,8 @@ public:
     bounds_primitive* query_bounds( uint32_t flags );
 
     const bounds_primitive* query_bounds( uint32_t flags ) const;
+
+    void orient_to( const glm::vec3& v );
 };
 
 INLINE glm::mat4 entity::scale_transform( void ) const

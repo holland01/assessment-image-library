@@ -74,6 +74,19 @@ namespace {
             gBillboardOrient[ i ] = true;
         }
     }
+
+    void update_billboards( application& g )
+    {
+        map_tile_list_t billboards = std::move( g.billboard_list() );
+
+        for ( map_tile* t: billboards )
+        {
+            if ( index_billboard_orient( *t ) )
+            {
+                t->orient_to( g.camera->view_params().mOrigin );
+            }
+        }
+    }
 }
 
 static void Draw_Group( application& game,
@@ -185,7 +198,7 @@ application::application( uint32_t width_ , uint32_t height_ )
         dest.mBody.reset( body );
         dest.sync();
 
-        world.mBodies.push_back( dest.mBody );
+        //world.mBodies.push_back( &dest );
     };
 
     LMakeBody( player, input_client::MODE_PLAY, glm::vec3( tile->mX, 0.0f, tile->mZ ), 80.0f );
@@ -355,10 +368,6 @@ INLINE bool Tile_TestCollision(
     const map_tile* tile,
     entity_bounds_use_flags tileFlags )
 {
-
-
-    //const bounding_box_t& box = ;
-
     glm::mat4 t = get_tile_transform( *tile );
 
     if ( glm::distance( entityPos, glm::vec3( t[ 3 ] ) ) < 2.0f )
@@ -372,8 +381,11 @@ INLINE bool Tile_TestCollision(
         if ( game.collision.EvalCollision( ce ) )
         {
             Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-            Apply_Force( game, ce.normal, *( tile->mBody ) );
 
+            if ( tile->mType != map_tile::BILLBOARD )
+            {
+                Apply_Force( game, ce.normal, *( tile->mBody ) );
+            }
             return true;
         }
     }
@@ -536,7 +548,7 @@ INLINE void Billboard_DrawBounds( const application& game, const view_data& vp, 
     drawer.end();
 }
 
-INLINE void Billboard_LoadParams( map_tile& tile, const view_data& vp, const shader_program& billboard )
+INLINE void Billboard_LoadParams( map_tile& tile, const shader_program& billboard )
 {
     const obb& bounds = *( tile.query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box() );
 
@@ -544,33 +556,7 @@ INLINE void Billboard_LoadParams( map_tile& tile, const view_data& vp, const sha
 
     billboard.load_vec3( "origin", boundsOrigin );
 
-    if ( index_billboard_orient( tile ) )
-    {
-        glm::vec3 dirToCam( vp.mOrigin - boundsOrigin );
-        dirToCam.y = 0.0f;
-        dirToCam = glm::normalize( dirToCam );
-
-        glm::mat3 orient(
-            orient_by_direction(
-                    dirToCam,
-                    glm::vec3( 0.0f, 0.0f, 1.0f ),
-                    glm::vec3( -1.0f, 0.0f, 0.0f )
-            )
-        );
-
-        // This load ensures that the billboard is always facing the viewer
-        billboard.load_mat3( "viewOrient", orient );
-
-        // Set orientation so collisions are properly computed regardless of direction
-        tile.mBody->orientation( orient );
-
-    }
-    else
-    {
-        billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
-    }
-
-    tile.sync();
+    billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
 }
 
 INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
@@ -588,9 +574,7 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
 
             glm::vec3 r( game.bullet->mBody->position() - tile->mBody->position() );
 
-            //glm::vec3 vparl( glm::normalize( glm::proj( game.bullet->mBody->total_velocity, r ) ) );
-
-            glm::vec3 w( glm::cross( r, game.bullet->mBody->initial_velocity() ) );
+            glm::vec3 w( glm::cross( r, game.bullet->mBody->total_velocity_transformed() ) );
             w /= glm::pow( glm::length( r ), 2 );
 
             tile->mBody->angular_velocity( w, glm::length( w ) );
@@ -616,7 +600,7 @@ void Process_Billboards( application& game, const view_data& vp, map_tile_list_t
 
     for ( map_tile* tile: billboards )
     {
-        Billboard_LoadParams( *tile, vp, billboard  );
+        Billboard_LoadParams( *tile, billboard  );
 
         obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
 
@@ -783,6 +767,8 @@ void Game_Frame( void )
         game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, *( game.camera ) );
 	}
 
+    update_billboards( game );
+
     game.world.update( game );
 
     game.draw();
@@ -868,8 +854,6 @@ uint32_t Game_Exec( void )
                         default:
                             game.camera->eval_key_press( ( input_key ) e.key.keysym.sym );
                             break;
-
-
                     }
                     break;
                 case SDL_KEYUP:

@@ -164,3 +164,40 @@ void entity::sync( void )
 
     }
 }
+
+void entity::orient_to( const glm::vec3& v )
+{
+    obb* bounds = query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box();
+
+    if ( !bounds )
+    {
+        return;
+    }
+
+    glm::vec3 boundsOrigin( bounds->axes()[ 3 ] );
+
+    glm::vec3 dir( v - boundsOrigin );
+    dir.y = 0.0f;
+    dir = glm::normalize( dir );
+
+    glm::mat3 orient(
+        orient_by_direction(
+                dir,
+                glm::vec3( 0.0f, 0.0f, 1.0f ),
+                glm::vec3( -1.0f, 0.0f, 0.0f )
+        )
+    );
+
+    switch ( mDepType )
+    {
+        case entity::BODY_DEPENDENT:
+            assert( mBody );
+            mBody->orientation( orient );
+            break;
+        case entity::BOUNDS_DEPENDENT:
+            bounds->orientation( orient );
+            break;
+    }
+
+    sync();
+}

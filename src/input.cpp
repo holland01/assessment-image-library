@@ -90,8 +90,10 @@ void input_client::eval_mouse_move( float x, float y, bool calcRelative )
     mViewParams.mLastMouse.y = y;
 }
 
-void input_client::eval_key_press( input_key key )
+bool input_client::eval_key_press( input_key key )
 {
+    bool pressed = true;
+
 	switch( key )
 	{
 		case input_key::W:
@@ -124,12 +126,17 @@ void input_client::eval_key_press( input_key key )
 			mKeysPressed[ KEY_OUT ] = KEY_PRESSED;
 			break;
 		default:
+            pressed = false;
 			break;
 	}
+
+    return pressed;
 }
 
-void input_client::eval_key_release( input_key key )
+bool input_client::eval_key_release( input_key key )
 {
+    bool pressed = true;
+
 	switch( key )
 	{
 		case input_key::W:
@@ -157,9 +164,11 @@ void input_client::eval_key_release( input_key key )
 			mKeysPressed[ KEY_OUT ] = KEY_NOT_PRESSED;
 			break;
 		default:
+            pressed = false;
 			break;
-
 	}
+
+    return pressed;
 }
 
 void input_client::apply_movement( void )
