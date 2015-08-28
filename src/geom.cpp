@@ -1,4 +1,5 @@
 #include "geom.h"
+#include "bvh.h"
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
@@ -639,4 +640,3 @@ void obb::color( const glm::vec4& color_ )
 {
     mColor = color_;
 }
-

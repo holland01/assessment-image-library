@@ -43,7 +43,36 @@ namespace {
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
-     uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
+    uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
+
+    std::unordered_map< uintptr_t, bool > gBillboardOrient; // relevant to billboards only, but must be the same size as the tile buffer so we have a one-one mapping.
+
+    INLINE uintptr_t address_billboard_orient( const map_tile* t )
+    {
+        return ( uintptr_t ) reinterpret_cast< const void* >( t );
+    }
+
+    INLINE uintptr_t address_billboard_orient( const map_tile& t )
+    {
+        return address_billboard_orient( &t );
+    }
+
+    INLINE bool index_billboard_orient( const map_tile& t )
+    {
+        uintptr_t i = address_billboard_orient( t );
+        return gBillboardOrient[ i ];
+    }
+
+    void fill_orient_map( const application& g )
+    {
+        gBillboardOrient.clear();
+
+        for ( const map_tile* b: g.gen->mBillboards )
+        {
+            uintptr_t i = address_billboard_orient( b );
+            gBillboardOrient[ i ] = true;
+        }
+    }
 }
 
 static void Draw_Group( application& game,
@@ -164,6 +193,8 @@ application::application( uint32_t width_ , uint32_t height_ )
 	camera = &player;
     drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
 
+    fill_orient_map( *this );
+
 	running = true;
 }
 
@@ -183,6 +214,7 @@ void application::reset_map( void )
     collision = collision_provider();
 
     gen.reset( new map_tile_generator( collision ) );
+    fill_orient_map( *this );
 }
 
 void application::toggle_culling( void )
@@ -218,6 +250,9 @@ void application::draw( void )
 	{
 		Draw_Group( *this, vp, billboards, walls, freeSpace );
 	}
+
+    Draw_Axes( *this, vp );
+    Draw_Hud( *this );
 }
 
 void application::fire_gun( void )
@@ -226,7 +261,7 @@ void application::fire_gun( void )
     {
         bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
 
-        bullet->mBody->orientation( glm::mat3( 0.1f ) * camera->mBody->orientation() );
+        bullet->mBody->orientation( camera->mBody->orientation() );
         bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
         bullet->mBody->position( camera->view_params().mOrigin );
 
@@ -508,23 +543,32 @@ INLINE void Billboard_LoadParams( map_tile& tile, const view_data& vp, const sha
 
     billboard.load_vec3( "origin", boundsOrigin );
 
-    glm::vec3 dirToCam( vp.mOrigin - boundsOrigin );
-    dirToCam.y = 0.0f;
-    dirToCam = glm::normalize( dirToCam );
+    if ( index_billboard_orient( tile ) )
+    {
+        glm::vec3 dirToCam( vp.mOrigin - boundsOrigin );
+        dirToCam.y = 0.0f;
+        dirToCam = glm::normalize( dirToCam );
 
-    glm::mat3 orient(
-        orient_by_direction(
-                dirToCam,
-                glm::vec3( 0.0f, 0.0f, 1.0f ),
-                glm::vec3( -1.0f, 0.0f, 0.0f )
-        )
-    );
+        glm::mat3 orient(
+            orient_by_direction(
+                    dirToCam,
+                    glm::vec3( 0.0f, 0.0f, 1.0f ),
+                    glm::vec3( -1.0f, 0.0f, 0.0f )
+            )
+        );
 
-    // This load ensures that the billboard is always facing the viewer
-    billboard.load_mat3( "viewOrient", orient );
+        // This load ensures that the billboard is always facing the viewer
+        billboard.load_mat3( "viewOrient", orient );
 
-    // Set orientation so collisions are properly computed regardless of direction
-    tile.mBody->orientation( orient );
+        // Set orientation so collisions are properly computed regardless of direction
+        tile.mBody->orientation( orient );
+
+    }
+    else
+    {
+        billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
+    }
+
     tile.sync();
 }
 
@@ -539,6 +583,10 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
                             tile,
                             ENTITY_BOUNDS_AIR_COLLIDE ) )
         {
+            tile->mColor = glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
+
+            gBillboardOrient[ address_billboard_orient( tile ) ] = false;
+
             game.bullet.release();
         }
     }
@@ -637,7 +685,7 @@ static void Draw_Group( application& game,
 
     if ( game.bullet )
     {
-        Draw_Bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+        Draw_Bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
 
     if ( gDrawFlags & DRAW_BILLBOARDS )
@@ -718,7 +766,6 @@ void Game_Frame( void )
 
     const view_data& vp = game.camera->view_params();
 
-    game.world.update( game );
     game.frustum.update( vp );
 
 	if ( !game.drawAll )
@@ -726,12 +773,12 @@ void Game_Frame( void )
         game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, *( game.camera ) );
 	}
 
+    game.world.update( game );
+
     game.draw();
 
     // clear bodies which are added in world.Update call,
     // since we only want to integrate bodies which are in view
-    game.world.mBodies.clear();
-
     game.world.mTime = get_time() - game.startTime;
 
     printf( "FPS: %f\r", 1.0f / game.world.mTime );

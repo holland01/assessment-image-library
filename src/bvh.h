@@ -53,7 +53,7 @@ struct quad_hierarchy
 
     node::ptr_t mRoot;
 
-    quad_hierarchy( obb bounds, const uint32_t maxDepth, entity_list_t entities );
+    quad_hierarchy( obb bounds, const uint32_t maxDepth, entity_list_t entities = entity_list_t() );
 
     void update( entity_list_t entities );
 };

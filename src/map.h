@@ -127,6 +127,19 @@ INLINE bool map_tile::owned( void ) const
 
 struct map_tile_generator
 {	
+private:
+    void find_entities_raycast( map_tile_list_t& billboards,
+                                map_tile_list_t& walls,
+                                map_tile_list_t& freespace,
+                                const view_frustum& frustum,
+                                const input_client& camera );
+
+    void find_entities_radius( map_tile_list_t& billboards,
+                                map_tile_list_t& walls,
+                                map_tile_list_t& freespace,
+                                const view_frustum& frustum,
+                                const input_client& camera );
+
 public:
     static const int32_t GRID_SIZE = 100;
 

@@ -1093,19 +1093,16 @@ bool map_tile_generator::collides_wall( glm::vec3& normal, const map_tile& t,
 
 namespace {
 
-    void insert_appro_tile( map_tile& t,
+    INLINE void insert_appro_tile( map_tile& t,
                             map_tile_list_t& billboards,
                             map_tile_list_t& walls,
                             map_tile_list_t& freespace,
                             const view_frustum& frustum )
     {
-        UNUSEDPARAM( frustum );
-        /*
         if ( !frustum.intersects( *ENTITY_GET_BOX( t, ENTITY_BOUNDS_AREA_EVAL ) ) )
         {
             return;
         }
-        */
 
         map_tile_list_t* pv = nullptr;
 
@@ -1121,30 +1118,37 @@ namespace {
             pv->push_back( &t );
         }
     }
+
+    template < typename type_t >
+    INLINE bool valid_position( type_t& x, type_t& y, const input_client& camera )
+    {
+        const view_data& viewParams = camera.view_params();
+
+        get_tile_coords( x, y, viewParams.mOrigin );
+
+        if ( x < type_t( map_tile_generator::GRID_START ) || y < type_t( map_tile_generator::GRID_START ) )
+        {
+            return false;
+        }
+
+        return true;
+    }
 }
 
-void map_tile_generator::find_entities(
-                               map_tile_list_t& outBillboards,
-                               map_tile_list_t& outWalls,
-                               map_tile_list_t& outFreeSpace,
-                               const view_frustum& frustum,
-                               const input_client& camera )
+void map_tile_generator::find_entities_raycast(
+                                map_tile_list_t& billboards,
+                                map_tile_list_t& walls,
+                                map_tile_list_t& freespace,
+                                const view_frustum& frustum,
+                                const input_client& camera )
 {
-	outBillboards.clear();
-	outWalls.clear();
-	outFreeSpace.clear();
+    float fCenterX, fCenterZ;
+    if ( !valid_position( fCenterX, fCenterZ, camera ) )
+    {
+        return;
+    }
 
     const view_data& viewParams = camera.view_params();
-
-    float fCenterX, fCenterZ;
-    get_tile_coords( fCenterX, fCenterZ, viewParams.mOrigin );
-
-    if ( fCenterX <= 0 || fCenterZ <= 0 )
-	{
-		return;
-	}
-
-    UNUSEDPARAM( frustum );
 
     glm::vec2 pos( fCenterX, fCenterZ );
 
@@ -1156,25 +1160,7 @@ void map_tile_generator::find_entities(
     glm::vec2 plane( v.x, v.z );
     plane = glm::normalize( plane );
 
-    //fov *= glm::radians( 40.0f );
-
-    /*
-    float startZ = fov.y < 0.0f? fov.y: -fov.y;
-    float endZ = fov.y < 0.0f? -fov.y: fov.y;
-
-    float startX = fov.x < 0.0f? fov.x: -fov.x;
-    float endX = fov.x < 0.0f? -fov.x: fov.x;
-*/
-
-
-    //const float R = 0.174532925;
-
-    //for ( float z0 = startZ; z0 <= endZ; z0 += R )
-    //{
-        //for ( float x0 = startX; x0 <= endX; x0 += R )
-
-
-    int32_t half = GRID_SIZE / 2;
+    int32_t half = int32_t( viewParams.mWidth * 0.25f );
     float invHalf = 1.0f / ( float )half;
 
     for ( int32_t x0 = -half; x0 <= half; ++x0 )
@@ -1216,10 +1202,10 @@ void map_tile_generator::find_entities(
 
         bool hit = false;
 
-        float t = 1.0f;
-        while ( !hit && t < 100.0f )
+        int8_t t = 0;
+        while ( !hit && t < 100 )
         {
-            if ( glm::abs( st.x ) < glm::abs( st.y ) )
+            if ( st.x < st.y )
             {
                 st.x += iT.x;
                 mapPos.x += step.x;
@@ -1238,67 +1224,98 @@ void map_tile_generator::find_entities(
             }
 
             insert_appro_tile( mTiles[ index ],
-                               outBillboards,
-                               outWalls,
-                               outFreeSpace,
+                               billboards,
+                               walls,
+                               freespace,
                                frustum );
 
-            t += 1.0f;
+            t++;
         }
+    }
+}
 
-        __nop();
+void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
+                                               map_tile_list_t &walls,
+                                               map_tile_list_t &freespace,
+                                               const view_frustum &frustum,
+                                               const input_client &camera )
+{
+    int32_t centerX, centerZ;
+    if ( !valid_position( centerX, centerZ, camera ) )
+    {
+        return;
     }
 
+    const int32_t RADIUS = 10;
+    const int32_t startX = centerX - RADIUS;
+    const int32_t startZ = centerZ - RADIUS;
+    const int32_t endX = centerX + RADIUS;
+    const int32_t endZ = centerZ + RADIUS;
 
-    /*
-	const int32_t RADIUS = 10;
-	const int32_t startX = centerX - RADIUS;
-	const int32_t startZ = centerZ - RADIUS;
-	const int32_t endX = centerX + RADIUS;
-	const int32_t endZ = centerZ + RADIUS;
+    for ( int32_t z = startZ; z < endZ; ++z )
+    {
+        if ( z >= ( int32_t ) GRID_SIZE )
+        {
+            break;
+        }
 
-	for ( int32_t z = startZ; z < endZ; ++z )
-	{
-		if ( z >= ( int32_t ) GRID_SIZE )
-		{
-			break;
-		}
+        for ( int32_t x = startX; x < endX; ++x )
+        {
+            if ( x >= ( int32_t ) GRID_SIZE )
+            {
+                break;
+            }
 
-		for ( int32_t x = startX; x < endX; ++x )
-		{
-			if ( x >= ( int32_t ) GRID_SIZE )
-			{
-				break;
-			}
-
-			int32_t index = TileModIndex( x, z );
+            int32_t index = TileModIndex( x, z );
 
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 
             // cull frustum, insert into appropriate type, etc.
             if ( !frustum.intersects( areaBox ) )
-			{
-				continue;
-			}
+            {
+                continue;
+            }
 
             switch ( mTiles[ index ].mType )
-			{
+            {
                 case map_tile::BILLBOARD:
-                    outBillboards.push_back( &mTiles[ index ] );
-					break;
+                    billboards.push_back( &mTiles[ index ] );
+                    break;
                 case map_tile::WALL:
-                    outWalls.push_back( &mTiles[ index ] );
-					break;
+                    walls.push_back( &mTiles[ index ] );
+                    break;
                 case map_tile::EMPTY:
-                    outFreeSpace.push_back( &mTiles[ index ] );
-					break;
-			}
-		}
-    }*/
+                    freespace.push_back( &mTiles[ index ] );
+                    break;
+            }
+        }
+    }
+}
 
+void map_tile_generator::find_entities(
+                               map_tile_list_t& billboards,
+                               map_tile_list_t& walls,
+                               map_tile_list_t& freespace,
+                               const view_frustum& frustum,
+                               const input_client& camera )
+{
+    billboards.clear();
+    walls.clear();
+    freespace.clear();
 
-
-    // TODO: do view-space depth sort on each vector
+#ifdef MAP_USE_RAYCAST
+    find_entities_raycast( billboards,
+                           walls,
+                           freespace,
+                           frustum,
+                           camera );
+#else
+    find_entities_radius( billboards,
+                          walls,
+                          freespace,
+                          frustum,
+                          camera );
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------------
