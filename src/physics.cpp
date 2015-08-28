@@ -12,9 +12,10 @@
 
 rigid_body::rigid_body( uint32_t resetBits_ )
     : mInvMass( 0.0f ),
+      mAngularRot( 0.0f ),
       mPosition( 0.0f ),
       mInitialVelocity( 0.0f ),
-      mAngularVelocity( 0.0f ),
+      mAngularAxis( 0.0f ),
       mForceAccum( 0.0f ),
       mInitialForce( 0.0f ),
       mTotalVelocity( 0.0f ),
@@ -26,11 +27,11 @@ void rigid_body::integrate( float t )
 {
     glm::vec3 accel( mForceAccum * mInvMass );
 
-    float speed = glm::length( mAngularVelocity );
-
-    if ( speed != 0.0f )
+    if ( mAngularRot != 0.0f )
     {
-        mOrientation = glm::rotate( mOrientation, speed, mAngularVelocity );
+        float rot = glm::radians( mAngularRot ) * t;
+
+        mOrientation = glm::rotate( mOrientation, rot, mAngularAxis );
     }
 
     glm::mat3 orient( glm::mat3_cast( mOrientation ) );
@@ -84,7 +85,7 @@ void rigid_body::reset( void )
     if ( mResetBits & RESET_VELOCITY_BIT ) mInitialVelocity = glm::zero< glm::vec3 >();
     if ( mResetBits & RESET_ORIENTATION_BIT ) mOrientation = glm::quat();
     if ( mResetBits & RESET_POSITION_BIT ) mPosition = glm::zero< glm::vec3 >();
-    if ( mResetBits & RESET_ANGULAR_VELOCITY_BIT ) mAngularVelocity = glm::zero< glm::vec3 >();
+    if ( mResetBits & RESET_ANGULAR_VELOCITY_BIT ) mAngularAxis = glm::zero< glm::vec3 >();
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -98,6 +99,16 @@ physics_world::physics_world( float time_, float dt_ )
 {
 }
 
+namespace {
+    void push_bodies( physics_world& w, const map_tile_list_t& tiles )
+    {
+        for ( const map_tile* t: tiles )
+        {
+            w.mBodies.push_back( t->mBody );
+        }
+    }
+}
+
 void physics_world::update( application& game )
 {
     mBodies.clear();
@@ -108,11 +119,8 @@ void physics_world::update( application& game )
         mBodies.push_back( game.bullet->mBody );
     }
 
-    const map_tile_list_t& walls = ( game.drawAll )? game.gen->walls(): game.walls;
-    for ( const map_tile* t: walls )
-    {
-        mBodies.push_back( t->mBody );
-    }
+    push_bodies( *this, ( game.drawAll )? game.gen->walls(): game.walls );
+    push_bodies( *this, ( game.drawAll )? game.gen->billboards(): game.billboards );
 
     game.camera->apply_movement();
 

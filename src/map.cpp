@@ -1268,6 +1268,9 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
 
             int32_t index = TileModIndex( x, z );
 
+            map_tile* t = &mTiles[ index ];
+            UNUSEDPARAM( t );
+
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 
             // cull frustum, insert into appropriate type, etc.

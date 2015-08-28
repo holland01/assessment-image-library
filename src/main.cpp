@@ -15,6 +15,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtx/projection.hpp>
 
 void Game_Frame( void );
 
@@ -262,7 +263,7 @@ void application::fire_gun( void )
         bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
 
         bullet->mBody->orientation( camera->mBody->orientation() );
-        bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -10.0f ) ); // Compensate for the applied scale of the bounds
+        bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -1.0f ) ); // Compensate for the applied scale of the bounds
         bullet->mBody->position( camera->view_params().mOrigin );
 
         bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
@@ -584,6 +585,15 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
                             ENTITY_BOUNDS_AIR_COLLIDE ) )
         {
             tile->mColor = glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
+
+            glm::vec3 r( game.bullet->mBody->position() - tile->mBody->position() );
+
+            //glm::vec3 vparl( glm::normalize( glm::proj( game.bullet->mBody->total_velocity, r ) ) );
+
+            glm::vec3 w( glm::cross( r, game.bullet->mBody->initial_velocity() ) );
+            w /= glm::pow( glm::length( r ), 2 );
+
+            tile->mBody->angular_velocity( w, glm::length( w ) );
 
             gBillboardOrient[ address_billboard_orient( tile ) ] = false;
 

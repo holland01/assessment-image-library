@@ -28,12 +28,14 @@ struct rigid_body
 private:
     float mInvMass;
 
+    float mAngularRot;
+
     glm::vec3
             mPosition,
 
             mInitialVelocity,
 
-            mAngularVelocity,
+            mAngularAxis,
 
             mForceAccum,
 
@@ -57,7 +59,7 @@ public:
 
     rigid_body( uint32_t mResetBits = RESET_FORCE_ACCUM_BIT );
 
-    void angular_velocity( const glm::vec3& av );
+    void angular_velocity( const glm::vec3& axis, float speed );
 
     void apply_force( const glm::vec3& force );
 
@@ -124,9 +126,10 @@ INLINE void rigid_body::apply_velocity( const glm::vec3& v )
     mInitialVelocity += v;
 }
 
-INLINE void rigid_body::angular_velocity( const glm::vec3& v )
+INLINE void rigid_body::angular_velocity( const glm::vec3& u, float s )
 {
-    mAngularVelocity = v;
+    mAngularAxis = u;
+    mAngularRot = s;
 }
 
 INLINE void rigid_body::position( const glm::vec3& p )

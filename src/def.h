@@ -26,6 +26,12 @@
 #   define __DEBUG_RENDERER__
 #endif // EMSCRIPTEN && DEBUG
 
+#ifdef DEBUG
+#   define OP_DEBUG_DTOR( name ) ( ~name( void ) )
+#else
+#   define OP_DEBUG_DTOR( name )
+#endif
+
 // Windows.h defines these for us already
 #if !defined( _WIN32 )
 #	define TRUE 1 

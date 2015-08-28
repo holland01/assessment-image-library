@@ -194,6 +194,8 @@ public:
                                           const input_client& camera );
 
     const map_tile_list_t& walls( void ) const { return mWalls; }
+
+    const map_tile_list_t& billboards( void ) const { return mBillboards; }
 };
 
 //-------------------------------------------------------------------------------------------------------
