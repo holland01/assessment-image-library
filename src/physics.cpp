@@ -31,7 +31,7 @@ void rigid_body::integrate( float t )
     {
         float rot = mAngularRot * 0.01f * t;
 
-        mOrientation = glm::rotate( mOrientation, rot, mAngularAxis );
+        mOrientation = glm::rotate( mOrientation, rot, glm::inverse( mOrientation ) * mAngularAxis );
     }
 
     glm::mat3 orient( glm::mat3_cast( mOrientation ) );
@@ -104,17 +104,58 @@ physics_world::physics_world( float time_, float dt_ )
 }
 
 namespace {
-    void push_bodies( physics_world& w, map_tile_list_t tiles )
+    INLINE void push_bodies( std::vector< entity* >& entities, map_tile_list_t tiles )
     {
         for ( map_tile* t: tiles )
         {
-            w.mBodies.push_back( t );
+            entities.push_back( t );
         }
+    }
+
+    INLINE void update_billboards( application& g )
+    {
+        map_tile_list_t billboards = std::move( g.billboard_list() );
+
+        for ( map_tile* t: billboards )
+        {
+            if ( g.billboard_oriented( *t ) )
+            {
+                t->orient_to( g.camera->view_params().mOrigin );
+            }
+        }
+    }
+
+}
+
+void physics_world::sync_bodies( void )
+{
+    float measure = mDT;
+
+    mLastMeasureCount = 0;
+
+    while ( measure > 0.0f )
+    {
+        float delta = glm::max( glm::min( mTime, measure ), 0.1f );
+
+        for ( entity* e: mBodies )
+        {
+            if ( e )
+            {
+                e->mBody->integrate( delta );
+                e->sync();
+            }
+        }
+
+        measure -= delta;
+        mT += delta;
+        mLastMeasureCount++;
     }
 }
 
 void physics_world::update( application& game )
 {
+    update_billboards( game );
+
     mBodies.clear();
     mBodies.push_back( game.camera );
 
@@ -123,40 +164,12 @@ void physics_world::update( application& game )
         mBodies.push_back( game.bullet.get() );
     }
 
-    push_bodies( *this, std::move( game.wall_list() ) );
-
-    push_bodies( *this, std::move( game.billboard_list() ) );
+    push_bodies( mBodies, std::move( game.wall_list() ) );
+    push_bodies( mBodies, std::move( game.billboard_list() ) );
 
     game.camera->apply_movement();
 
-    float measure = mDT;
-
-    mLastMeasureCount = 0;
-
-	while ( measure > 0.0f )
-	{
-        float delta = glm::max( glm::min( mTime, measure ), 0.1f );
-
-        for ( entity* e: mBodies )
-		{
-            if ( e )
-            {
-                e->mBody->integrate( delta );
-                e->sync();
-            }
-		}
-
-        measure -= delta;
-        mT += delta;
-        mLastMeasureCount++;
-    }
-
-    if ( game.bullet )
-    {
-        game.bullet->sync();
-    }
-
-    game.camera->sync();
+    sync_bodies();
 
     clear_accum();
 }

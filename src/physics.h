@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 
 struct application;
 struct rigid_body;
@@ -175,8 +176,10 @@ struct entity;
 
 struct physics_world
 {
+private:
     std::vector< entity* > mBodies;
 
+public:
     float mTime;
 
     const float mDT;
@@ -188,6 +191,8 @@ struct physics_world
     physics_world( float mTime, float mDT );
 
     void update( application& game );
+
+    void sync_bodies( void );
 
     void clear_accum( void );
 };

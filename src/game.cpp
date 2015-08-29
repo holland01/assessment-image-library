@@ -46,47 +46,6 @@ namespace {
 
     uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
 
-    std::unordered_map< uintptr_t, bool > gBillboardOrient; // relevant to billboards only, but must be the same size as the tile buffer so we have a one-one mapping.
-
-    INLINE uintptr_t address_billboard_orient( const map_tile* t )
-    {
-        return ( uintptr_t ) reinterpret_cast< const void* >( t );
-    }
-
-    INLINE uintptr_t address_billboard_orient( const map_tile& t )
-    {
-        return address_billboard_orient( &t );
-    }
-
-    INLINE bool index_billboard_orient( const map_tile& t )
-    {
-        uintptr_t i = address_billboard_orient( t );
-        return gBillboardOrient[ i ];
-    }
-
-    void fill_orient_map( const application& g )
-    {
-        gBillboardOrient.clear();
-
-        for ( const map_tile* b: g.gen->mBillboards )
-        {
-            uintptr_t i = address_billboard_orient( b );
-            gBillboardOrient[ i ] = true;
-        }
-    }
-
-    void update_billboards( application& g )
-    {
-        map_tile_list_t billboards = std::move( g.billboard_list() );
-
-        for ( map_tile* t: billboards )
-        {
-            if ( index_billboard_orient( *t ) )
-            {
-                t->orient_to( g.camera->view_params().mOrigin );
-            }
-        }
-    }
 }
 
 static void Draw_Group( application& game,
@@ -207,7 +166,7 @@ application::application( uint32_t width_ , uint32_t height_ )
 	camera = &player;
     drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
 
-    fill_orient_map( *this );
+    fill_orient_map();
 
 	running = true;
 }
@@ -223,12 +182,22 @@ application& application::get_instance( void )
 	return game;
 }
 
+void application::fill_orient_map( void )
+{
+    mBillboardsOriented.clear();
+
+    for ( const map_tile* b: gen->mBillboards )
+    {
+        billboard_oriented( *b, true );
+    }
+}
+
 void application::reset_map( void )
 {
     collision = collision_provider();
 
     gen.reset( new map_tile_generator( collision ) );
-    fill_orient_map( *this );
+    fill_orient_map();
 }
 
 void application::toggle_culling( void )
@@ -275,8 +244,10 @@ void application::fire_gun( void )
     {
         bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
 
-        bullet->mBody->orientation( camera->mBody->orientation() );
-        bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -1.0f ) ); // Compensate for the applied scale of the bounds
+        //bullet->mBody->orientation( camera->mBody->orientation() );
+        //bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -1.0f ) ); // Compensate for the applied scale of the bounds
+
+        bullet->mBody->apply_velocity( camera->mBody->orientation() * camera->view_params().mForward );
         bullet->mBody->position( camera->view_params().mOrigin );
 
         bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
@@ -574,12 +545,12 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
 
             glm::vec3 r( game.bullet->mBody->position() - tile->mBody->position() );
 
-            glm::vec3 w( glm::cross( r, game.bullet->mBody->total_velocity_transformed() ) );
+            glm::vec3 w( glm::cross( r, game.bullet->mBody->total_velocity() ) );
             w /= glm::pow( glm::length( r ), 2 );
 
             tile->mBody->angular_velocity( w, glm::length( w ) );
 
-            gBillboardOrient[ address_billboard_orient( tile ) ] = false;
+            game.billboard_oriented( *tile, false );
 
             game.bullet.release();
         }
@@ -765,9 +736,7 @@ void Game_Frame( void )
 	if ( !game.drawAll )
 	{
         game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, *( game.camera ) );
-	}
-
-    update_billboards( game );
+    };
 
     game.world.update( game );
 

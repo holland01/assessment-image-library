@@ -10,6 +10,16 @@
 
 struct application
 {
+private:
+    // Is indexed via the addresses of billboards. If an entry is true, then the billboard corresponding to that entry
+    // will always be oriented towards the location of the viewer. Otherwise, it will orient towards its last
+    std::unordered_map< uintptr_t, bool > mBillboardsOriented;
+
+    uintptr_t billboard_index( const map_tile& billboard ) const { return ( uintptr_t ) reinterpret_cast< const void* >( &billboard ); }
+
+    void fill_orient_map( void );
+
+public:
 	bool running = false, mouseShown = true, drawAll = false;
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
@@ -64,4 +74,14 @@ struct application
     map_tile_list_t freespace_list( void ) const { return drawAll? gen->freespace(): freeSpace; }
 
     static application& get_instance( void );
+
+    bool billboard_oriented( const map_tile& billboard ) const
+    {
+        return mBillboardsOriented.at( billboard_index( billboard ) );
+    }
+
+    void billboard_oriented( const map_tile& bb, bool orient )
+    {
+        mBillboardsOriented[ billboard_index( bb ) ] = orient;
+    }
 };
