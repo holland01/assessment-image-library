@@ -31,7 +31,7 @@ void rigid_body::integrate( float t )
     {
         float rot = mAngularRot * 0.01f * t;
 
-        mOrientation = glm::rotate( mOrientation, rot, glm::inverse( mOrientation ) * mAngularAxis );
+        mOrientation = glm::rotate( glm::quat(), rot, mAngularAxis ) * mOrientation;
     }
 
     glm::mat3 orient( glm::mat3_cast( mOrientation ) );

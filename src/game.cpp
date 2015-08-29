@@ -546,6 +546,7 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
             glm::vec3 r( game.bullet->mBody->position() - tile->mBody->position() );
 
             glm::vec3 w( glm::cross( r, game.bullet->mBody->total_velocity() ) );
+
             w /= glm::pow( glm::length( r ), 2 );
 
             tile->mBody->angular_velocity( w, glm::length( w ) );
