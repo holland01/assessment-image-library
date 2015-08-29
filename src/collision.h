@@ -26,8 +26,10 @@ struct collision_entity
     const entity* collider;
     const entity* collidee;
 
-    bool colliding;
-    glm::vec3 normal;
+    bool colliding = false;
+    glm::vec3 normal = glm::vec3( 0.0f );
+
+    float interpenDepth = 0.0f;
 
     const collision_provider& provider;
 

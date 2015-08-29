@@ -504,10 +504,10 @@ bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
-bool obb::ray_intersection( float& t0, const glm::vec3& ray, const glm::vec3& origin ) const
+bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 {
     // Quick early out; 0 implies no scaling necessary
-    if ( range( origin ) )
+    if ( earlyOut && range( r.p ) )
     {
 		t0 = 0.0f;
 		return true;
@@ -528,9 +528,9 @@ bool obb::ray_intersection( float& t0, const glm::vec3& ray, const glm::vec3& or
 
         face_plane( ( face_type )i, p );
 
-        float fx = p.normal.x * ray.x;
-        float fy = p.normal.y * ray.y;
-        float fz = p.normal.z * ray.z;
+        float fx = p.normal.x * r.d.x;
+        float fy = p.normal.y * r.d.y;
+        float fz = p.normal.z * r.d.z;
 
         float thedot = fx + fy + fz;
 
@@ -540,14 +540,14 @@ bool obb::ray_intersection( float& t0, const glm::vec3& ray, const glm::vec3& or
             continue;
         }
 
-        float t = -( glm::dot( origin, p.normal ) - p.d ) / thedot;
+        float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
 
         if ( isinf( t ) )
         {
             continue;
         }
 
-        glm::vec3 r( origin + ray * t );
+        glm::vec3 rr( r.p + r.d * t );
 
         // only one component can be nonzero, so we test
         // against our current face to ensure that we're not outside of the bounds
@@ -562,20 +562,20 @@ bool obb::ray_intersection( float& t0, const glm::vec3& ray, const glm::vec3& or
         // front or back face
         if ( fz != 0.0f && !isinf( fz ) )
         {
-            if ( !range_x( r ) ) continue;
-            if ( !range_y( r ) ) continue;
+            if ( !range_x( rr ) ) continue;
+            if ( !range_y( rr ) ) continue;
         }
         // top or bottom face
         else if ( fy != 0.0f && !isinf( fy ) )
         {
-            if ( !range_z( r ) ) continue;
-            if ( !range_x( r ) ) continue;
+            if ( !range_z( rr ) ) continue;
+            if ( !range_x( rr ) ) continue;
         }
         // left or right face
         else if ( fx != 0.0f && !isinf( fx ) )
         {
-            if ( !range_z( r ) ) continue;
-            if ( !range_y( r ) ) continue;
+            if ( !range_z( rr ) ) continue;
+            if ( !range_y( rr ) ) continue;
         }
         else
         {

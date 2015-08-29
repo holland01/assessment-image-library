@@ -244,9 +244,6 @@ void application::fire_gun( void )
     {
         bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
 
-        //bullet->mBody->orientation( camera->mBody->orientation() );
-        //bullet->mBody->apply_velocity( glm::vec3( 0.0f, 0.0f, -1.0f ) ); // Compensate for the applied scale of the bounds
-
         bullet->mBody->apply_velocity( camera->mBody->orientation() * camera->view_params().mForward );
         bullet->mBody->position( camera->view_params().mOrigin );
 
@@ -355,8 +352,9 @@ INLINE bool Tile_TestCollision(
 
             if ( tile->mType != map_tile::BILLBOARD )
             {
-                Apply_Force( game, ce.normal, *( tile->mBody ) );
+                Apply_Force( game, ce.normal * ce.interpenDepth, *( tile->mBody ) );
             }
+
             return true;
         }
     }

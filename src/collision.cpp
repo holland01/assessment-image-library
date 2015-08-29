@@ -14,6 +14,22 @@
 
 namespace {
 
+    void calc_interpen_depth( collision_entity& e, const obb& a, const obb& b )
+    {
+        glm::vec3 normal( b.center() - a.center() );
+
+        ray r( a.center(), normal );
+
+        float t = 0.0f;
+        b.ray_intersection( t, r, false );
+
+        assert( t != FLT_MAX );
+
+        glm::vec3 depth( r.d * t );
+
+        e.interpenDepth = glm::length( normal - depth );
+    }
+
     using collision_entity_fn_t = std::function< void( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee ) >;
     using collision_fn_table_t = std::array< collision_entity_fn_t, NUM_BOUNDS_PRIMTYPE >;
 
@@ -47,9 +63,17 @@ namespace {
                         }
 
                         e.colliding = true;
-                        return;
+                        break;
                     }
                 }
+            }
+
+            if ( e.colliding )
+            {
+                const obb& bounds = *ENTITY_PTR_GET_BOX( e.collidee, ENTITY_BOUNDS_AREA_EVAL );
+
+                calc_interpen_depth( e, a, bounds );
+
             }
         },
         DUMMY_LAMBDA,
@@ -89,6 +113,11 @@ namespace {
                 const obb& b = *( collidee->to_box() );
 
                 e.colliding = a.intersects( e.normal, b );
+
+                if ( e.colliding )
+                {
+                    calc_interpen_depth( e, a, b );
+                }
             },
             gDoLookupFn,
         }},

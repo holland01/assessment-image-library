@@ -59,6 +59,11 @@ struct ray
 {
 	glm::vec3 p;
 	glm::vec3 d;
+
+    ray( const glm::vec3& position = glm::vec3( 0.0f ), const glm::vec3& dir = glm::vec3( 0.0f ) )
+        : p( position ),
+          d( dir )
+    {}
 };
 
 //-------------------------------------------------------------------------------------------------------
@@ -270,10 +275,10 @@ public:
 
     bool			intersects( glm::vec3& normal, const halfspace& halfSpace ) const;
 
-    bool			ray_intersection( float& t0, const glm::vec3& ray_t, const glm::vec3& origin ) const;
+    bool            ray_intersection( float& t0, const ray& r, bool earlyOut = true ) const;
 
+   // bool            ray_face_intersection( float& t0, const ray& r ) const;
 };
-
 
 #include "geom.inl"
 
