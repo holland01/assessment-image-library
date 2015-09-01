@@ -19,7 +19,6 @@ const float INFINITE_MASS = 0.0f;
 
 static INLINE glm::vec3 get_collision_normal( const glm::vec3& normal, const rigid_body& a, const rigid_body& b );
 
-
 //-------------------------------------------------------------------------------------------------------
 // rigid_body
 //-------------------------------------------------------------------------------------------------------
@@ -29,22 +28,18 @@ struct rigid_body
 private:
     float mInvMass;
 
-    float mAngularRot;
-
     glm::vec3
             mPosition,
 
             mInitialVelocity,
 
-            mAngularAxis,
+			mTorqueAccum,
 
-            mForceAccum,
-
-            mInitialForce,
-
-            mTotalVelocity;
+			mForceAccum;
 
     glm::quat mOrientation;
+
+	glm::mat3 mIitLocal, mIitWorld;
 
     uint32_t mResetBits;
 
@@ -55,16 +50,18 @@ public:
         RESET_VELOCITY_BIT = 0x2,
         RESET_FORCE_ACCUM_BIT = 0x4,
         RESET_ORIENTATION_BIT = 0x8,
-        RESET_ANGULAR_VELOCITY_BIT = 0x10
+		RESET_TORQUE_ACCUM_BIT = 0x10
     };
 
     rigid_body( uint32_t mResetBits = RESET_FORCE_ACCUM_BIT );
 
-    void angular_velocity( const glm::vec3& axis, float speed );
-
     void apply_force( const glm::vec3& force );
 
-    void apply_velocity( const glm::vec3& mInitialVelocity );
+	void apply_force_at_local_point( const glm::vec3& f, const glm::vec3& point );
+
+	void apply_force_at_point( const glm::vec3& f, const glm::vec3& point );
+
+	void apply_velocity( const glm::vec3& initial );
 
     void integrate( float t );
 
@@ -80,11 +77,13 @@ public:
 
     const glm::mat3 orientation( void ) const;
 
-    const glm::vec3& total_velocity( void ) const;
+	const glm::mat3& iit_world( void ) const { return mIitWorld; }
 
     const glm::vec3& initial_velocity( void ) const;
 
-    glm::vec3 total_velocity_transformed( void ) const;
+	const glm::vec3& force_accum( void ) const;
+
+	glm::vec3 acceleration( void ) const { return force_accum() * inv_mass(); }
 
     void mass( float m );
 
@@ -97,6 +96,12 @@ public:
     void orientation( const glm::mat3& mOrientation );
 
     void set( const glm::mat4& t );
+
+	void add_reset_bit( uint32_t flag ) { mResetBits |= flag; }
+
+	void remove_reset_bit( uint32_t flag ) { mResetBits &= ~flag; }
+
+	rigid_body from_velocity( const glm::vec3& v ) const;
 };
 
 INLINE const glm::vec3& rigid_body::position( void) const
@@ -109,19 +114,15 @@ INLINE const glm::mat3 rigid_body::orientation( void ) const
     return glm::mat3_cast( mOrientation );
 }
 
-INLINE const glm::vec3& rigid_body::total_velocity( void ) const
-{
-    return mTotalVelocity;
-}
-
-INLINE glm::vec3 rigid_body::total_velocity_transformed( void ) const
-{
-    return mOrientation * mTotalVelocity;
-}
 
 INLINE const glm::vec3& rigid_body::initial_velocity( void ) const
 {
-    return mInitialVelocity;
+	return mInitialVelocity;
+}
+
+INLINE const glm::vec3& rigid_body::force_accum( void ) const
+{
+	return mForceAccum;
 }
 
 INLINE void rigid_body::apply_force( const glm::vec3& force )
@@ -129,15 +130,22 @@ INLINE void rigid_body::apply_force( const glm::vec3& force )
     mForceAccum += force;
 }
 
+INLINE void rigid_body::apply_force_at_local_point( const glm::vec3& f, const glm::vec3& point )
+{
+	glm::vec3 worldP( mOrientation * point );
+
+	apply_force_at_point( f, worldP );
+}
+
+INLINE void rigid_body::apply_force_at_point( const glm::vec3& f, const glm::vec3& point )
+{
+	mForceAccum += f;
+	mTorqueAccum += glm::cross( point, f );
+}
+
 INLINE void rigid_body::apply_velocity( const glm::vec3& v )
 {
     mInitialVelocity += v;
-}
-
-INLINE void rigid_body::angular_velocity( const glm::vec3& u, float s )
-{
-    mAngularAxis = u;
-    mAngularRot = s;
 }
 
 INLINE void rigid_body::position( const glm::vec3& p )

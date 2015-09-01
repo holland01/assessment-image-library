@@ -16,10 +16,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/projection.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 void Game_Frame( void );
 
 #include "eminput.h"
+
+unsigned int gDebugFlag = 0;
 
 namespace {
     enum
@@ -242,9 +245,13 @@ void application::fire_gun( void )
 {
     if ( camera->mBody )
     {
-        bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body ) );
+		bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body() ) );
 
-        bullet->mBody->apply_velocity( camera->mBody->orientation() * camera->view_params().mForward );
+		bullet->mSize = 0.1f;
+		bullet->sync_options( ENTITY_SYNC_APPLY_SCALE );
+
+		bullet->mBody->orientation( camera->mBody->orientation() );
+		bullet->mBody->apply_velocity( camera->view_params().mForward );
         bullet->mBody->position( camera->view_params().mOrigin );
 
         bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
@@ -326,11 +333,11 @@ glm::mat4 quadTransform(
     }()
 );
 
-void Apply_Force( application& game, const glm::vec3& normal, const rigid_body& body );
+void Apply_Force( application& game, const collision_entity& ce );
 
 INLINE bool Tile_TestCollision(
     application& game,
-    const entity* e,
+	collision_entity::ptr_t e,
     const glm::vec3& entityPos,
     entity_bounds_use_flags entFlags,
     const map_tile* tile,
@@ -342,7 +349,7 @@ INLINE bool Tile_TestCollision(
     {
         collision_entity ce( game.collision,
                                e,
-                               ( const entity* )tile,
+							   ( collision_entity::ptr_t )tile,
                                entFlags,
                                tileFlags );
 
@@ -352,7 +359,7 @@ INLINE bool Tile_TestCollision(
 
             if ( tile->mType != map_tile::BILLBOARD )
             {
-                Apply_Force( game, ce.normal * ce.interpenDepth, *( tile->mBody ) );
+				Apply_Force( game, ce );
             }
 
             return true;
@@ -493,11 +500,14 @@ void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = 
     }
 }
 
-void Apply_Force( application& game, const glm::vec3& normal, const rigid_body& body )
+void Apply_Force( application& game, const collision_entity& ce )
 {
-    if ( game.camera->mBody )
+	if ( ce.collider->mBody )
     {
-       game.camera->mBody->apply_force( get_collision_normal( normal, body, *( game.camera->mBody ) ) );
+		glm::vec3 offset( ce.normal * ce.interpenDepth );
+
+		game.camera->mBody->apply_force(
+					get_collision_normal( offset, *( ce.collidee->mBody ), *( ce.collider->mBody ) ) );
     }
 }
 
@@ -541,17 +551,16 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
         {
             tile->mColor = glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
 
-            glm::vec3 r( game.bullet->mBody->position() - tile->mBody->position() );
-
-            glm::vec3 w( glm::cross( r, game.bullet->mBody->total_velocity() ) );
-
-            w /= glm::pow( glm::length( r ), 2 );
-
-            tile->mBody->angular_velocity( w, glm::length( w ) );
-
             game.billboard_oriented( *tile, false );
 
-            game.bullet.release();
+			if ( gDebugFlag )
+			{
+				game.bullet->mBody->add_reset_bit( rigid_body::RESET_FORCE_ACCUM_BIT | rigid_body::RESET_VELOCITY_BIT );
+			}
+			else
+			{
+				game.bullet.release();
+			}
         }
     }
 }
@@ -583,7 +592,7 @@ void Process_Billboards( application& game, const view_data& vp, map_tile_list_t
 
             if ( box->intersects( normal, *tileBounds ) )
             {
-                Apply_Force( game, normal, *( tile->mBody ) );
+			 //   Apply_Force( game, ) );
             }
         }
 
@@ -639,7 +648,7 @@ static void Draw_Group( application& game,
             Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
 
             Tile_TestCollision( game,
-             ( const entity* )game.camera,
+			 ( collision_entity::ptr_t )game.camera,
                                 vp.mOrigin,
                                 ENTITY_BOUNDS_MOVE_COLLIDE,
                                 tile,

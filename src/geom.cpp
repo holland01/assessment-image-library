@@ -501,20 +501,37 @@ bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 	return false;
 }
 
+struct dd
+{
+	bool faceIntersectInf = false;
+	bool facingAwayFromRay = false;
+	glm::bvec3 rangeFail = glm::bvec3( false );
+	glm::bvec3 notZero = glm::bvec3( false );
+	glm::vec3 rr = glm::vec3( 0.0f );
+	glm::vec3 dotcmp = glm::vec3( 0.0f );
+	plane p;
+	float t = 0.0f;
+};
+
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
 bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 {
     // Quick early out; 0 implies no scaling necessary
-    if ( earlyOut && range( r.p ) )
+
+	bool inside = range( r.p );
+
+	if ( earlyOut && inside )
     {
 		t0 = 0.0f;
 		return true;
     }
 
-    //std::array< plane_t, 3 > faces;
     std::array< float, 3 > intersections;
+	intersections.fill( FLT_MAX );
+
+	std::array< dd, 6 > debug;
 
     int32_t fcount = 0;
     for ( int32_t i = 0; i < 6; ++i )
@@ -534,20 +551,26 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 
         float thedot = fx + fy + fz;
 
+		debug[ i ].dotcmp = glm::vec3( fx, fy, fz );
+
         // if true then face faces away from ray, so move on
-        if ( thedot >= 0.0f )
+		if ( thedot >= 0.0f && !inside )
         {
+			debug[ i ].facingAwayFromRay = true;
             continue;
         }
 
         float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
+		debug[ i ].t = t;
 
         if ( isinf( t ) )
         {
+			debug[ i ].faceIntersectInf = true;
             continue;
         }
 
         glm::vec3 rr( r.p + r.d * t );
+		debug[ i ].rr = rr;
 
         // only one component can be nonzero, so we test
         // against our current face to ensure that we're not outside of the bounds
@@ -562,20 +585,38 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
         // front or back face
         if ( fz != 0.0f && !isinf( fz ) )
         {
-            if ( !range_x( rr ) ) continue;
-            if ( !range_y( rr ) ) continue;
+			if ( inside )
+			{
+				__nop();
+			}
+
+			debug[ i ].notZero.z = true;
+			if ( !range_x( rr ) ) { debug[ i ].rangeFail.x = true; continue; }
+			if ( !range_y( rr ) ) { debug[ i ].rangeFail.y = true; continue; }
         }
         // top or bottom face
         else if ( fy != 0.0f && !isinf( fy ) )
         {
-            if ( !range_z( rr ) ) continue;
-            if ( !range_x( rr ) ) continue;
+			if ( inside )
+			{
+				__nop();
+			}
+
+			debug[ i ].notZero.y = true;
+			if ( !range_z( rr ) ) { debug[ i ].rangeFail.z = true; continue; }
+			if ( !range_x( rr ) ) { debug[ i ].rangeFail.x = true; continue; }
         }
         // left or right face
         else if ( fx != 0.0f && !isinf( fx ) )
         {
-            if ( !range_z( rr ) ) continue;
-            if ( !range_y( rr ) ) continue;
+			if ( inside )
+			{
+				__nop();
+			}
+
+			debug[ i ].notZero.x = true;
+			if ( !range_z( rr ) ) { debug[ i ].rangeFail.z = true; continue; }
+			if ( !range_y( rr ) ) { debug[ i ].rangeFail.y = true; continue; }
         }
         else
         {
@@ -584,6 +625,11 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 
         intersections[ fcount++ ] = t;
     }
+
+	if ( fcount == 0 )
+	{
+		__nop();
+	}
 
     // find closest intersection
 	t0 = FLT_MAX;

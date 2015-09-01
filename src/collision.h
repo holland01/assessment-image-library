@@ -20,11 +20,13 @@ struct collision_provider;
 
 struct collision_entity
 {
+	using ptr_t = entity*;
+
     const uint32_t colliderUseFlags;
     const uint32_t collideeUseFlags;
 
-    const entity* collider;
-    const entity* collidee;
+	ptr_t collider;
+	ptr_t collidee;
 
     bool colliding = false;
     glm::vec3 normal = glm::vec3( 0.0f );
@@ -34,8 +36,8 @@ struct collision_entity
     const collision_provider& provider;
 
     collision_entity( const collision_provider& provider,
-                        const entity* collider = nullptr,
-                        const entity* collidee = nullptr,
+						ptr_t collider = nullptr,
+						ptr_t collidee = nullptr,
                         const uint32_t colliderBoundsUseFlags = ENTITY_BOUNDS_ALL,
                         const uint32_t collideeBoundsUseFlags = ENTITY_BOUNDS_ALL );
 };

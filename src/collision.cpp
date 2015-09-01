@@ -18,12 +18,16 @@ namespace {
     {
         glm::vec3 normal( b.center() - a.center() );
 
-        ray r( a.center(), normal );
+		ray r( a.center(), glm::normalize( normal ) );
 
         float t = 0.0f;
         b.ray_intersection( t, r, false );
 
-        assert( t != FLT_MAX );
+		if ( t == FLT_MAX )
+		{
+			gDebugFlag = 1;
+			return;
+		}
 
         glm::vec3 depth( r.d * t );
 
@@ -136,10 +140,10 @@ namespace {
 //-------------------------------------------------------------------------------------------------------
 
 collision_entity::collision_entity( const collision_provider& provider_,
-                                        const entity* a_,
-                                        const entity* b_,
-                                        const uint32_t colliderBoundsUseFlags,
-                                        const uint32_t collideeBoundsUseFlags )
+										ptr_t a_,
+										ptr_t b_,
+										const uint32_t colliderBoundsUseFlags,
+										const uint32_t collideeBoundsUseFlags )
     :
       colliderUseFlags( colliderBoundsUseFlags ),
       collideeUseFlags( collideeBoundsUseFlags ),
