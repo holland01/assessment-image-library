@@ -527,7 +527,7 @@ static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position, co
 
 static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position )
 {
-    return rend_make_draw_vertex( position, glm::vec2( 0.0f ), glm::u8vec4( 255 ) );
+	return rend_make_draw_vertex( position, glm::u8vec4( 255 ) );
 }
 
 static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position, const glm::u8vec4& color )

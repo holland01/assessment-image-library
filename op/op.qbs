@@ -67,6 +67,8 @@ Product {
         "../src/bvh.h",
         "../src/collision.cpp",
         "../src/collision.h",
+        "../src/debug.cpp",
+        "../src/debug.h",
         "../src/def.h",
         "../src/eminput.h",
         "../src/entity.cpp",

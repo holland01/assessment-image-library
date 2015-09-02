@@ -398,7 +398,7 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
-    mBody.reset( new rigid_body( rigid_body::RESET_FORCE_ACCUM_BIT ) );
+	mBody.reset( new rigid_body( rigid_body::RESET_FORCE_ACCUM ) );
 
     switch ( mType )
     {

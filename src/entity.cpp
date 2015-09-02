@@ -107,13 +107,10 @@ void entity::add_bounds( uint32_t usageFlags, bounds_primitive* newBounds )
 {
     std::unique_ptr< entity_bounds_primitive >* b = &mBounds;
 
-    while ( *b )
+	while ( *b && ( *b )->usageFlags != usageFlags )
     {
-        if ( usageFlags & ( *b )->usageFlags )
-        {
-            ( *b )->usageFlags ^= usageFlags;
-        }
-
+		// Remove any potential duplicates for the use case we're now inserting
+		( *b )->usageFlags &= ~usageFlags;
         b = &( *b )->next;
     }
 

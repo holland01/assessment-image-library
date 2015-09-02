@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "renderer.h"
+#include "debug.h"
 
 #ifdef OP_UNIX
 	#include <unistd.h>
@@ -34,20 +35,22 @@ namespace {
         DRAW_REGIONS_BOUNDS = 1 << 4,
         DRAW_WALLS = 1 << 5,
         DRAW_QUAD_REGIONS = 1 << 6,
-        DRAW_CANCEL_REGIONS = 1 << 7
+		DRAW_CANCEL_REGIONS = 1 << 7,
+		COLLIDE_BILLBOARDS = 1 << 8,
+		COLLIDE_WALLS = 1 << 9
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
 
-    std::unordered_map< std::string, uint32_t > gDrawTestConfig =
+	std::unordered_map< std::string, uint32_t > gTestConfig =
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
-        { "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES },
+		{ "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES | COLLIDE_BILLBOARDS | COLLIDE_WALLS },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
-    uint32_t gDrawFlags = gDrawTestConfig[ "default" ];
+	uint32_t gTestFlags = gTestConfig[ "default" ];
 
 }
 
@@ -152,7 +155,7 @@ application::application( uint32_t width_ , uint32_t height_ )
 
     auto LMakeBody = [ this, &tile ]( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass )
     {
-        rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY_BIT | rigid_body::RESET_FORCE_ACCUM_BIT );
+		rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM );
         body->position( pos );
         body->mass( mass );
 
@@ -245,6 +248,7 @@ void application::fire_gun( void )
 {
     if ( camera->mBody )
     {
+		debug_set_flag( false );
 		bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body() ) );
 
 		bullet->mSize = 0.1f;
@@ -453,7 +457,7 @@ INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_regio
 
 bool HasCancelRegions( void )
 {
-    return !!( gDrawFlags & DRAW_CANCEL_REGIONS );
+	return !!( gTestFlags & DRAW_CANCEL_REGIONS );
 }
 
 void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = false )
@@ -538,7 +542,7 @@ INLINE void Billboard_LoadParams( map_tile& tile, const shader_program& billboar
     billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
 }
 
-INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
+INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, const shader_program& singleColor )
 {
     if ( game.bullet )
     {
@@ -553,14 +557,37 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile )
 
             game.billboard_oriented( *tile, false );
 
-			if ( gDebugFlag )
+			if ( debug_flag_set() )
 			{
-				game.bullet->mBody->add_reset_bit( rigid_body::RESET_FORCE_ACCUM_BIT | rigid_body::RESET_VELOCITY_BIT );
+				//const obb& tileBox = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AIR_COLLIDE );
+				//const obb& bulletBox = *ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_AIR_COLLIDE );
+
+				singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
+
+				imm_draw d( singleColor );
+
+				for ( auto i = debug_raylist_begin(); i != debug_raylist_end(); ++i )
+				{
+					const ray& debugRay = *i;
+
+					glm::mat4 t( game.camera->view_params().mTransform
+								 * glm::translate( glm::mat4( 1.0f ), debugRay.p ) );
+
+					singleColor.load_mat4( "modelToView", t );
+
+					d.begin( GL_LINES );
+					d.vertex( glm::vec3( 0.0f ) );
+					d.vertex( debugRay.calc_position() );
+					d.end();
+				}
+
+				game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
 			}
 			else
 			{
 				game.bullet.release();
 			}
+
         }
     }
 }
@@ -577,13 +604,16 @@ void Process_Billboards( application& game, const view_data& vp, map_tile_list_t
     billboard.load_mat4( "modelToView", vp.mTransform );
     billboard.load_mat4( "viewToClip", vp.mClipTransform );
 
+	imm_draw d( singleColor );
+
     for ( map_tile* tile: billboards )
     {
         Billboard_LoadParams( *tile, billboard  );
 
         obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
 
-        if ( glm::distance( tile->mBody->position(), vp.mOrigin ) <= DISTANCE_THRESHOLD )
+		if ( ( gTestFlags & COLLIDE_BILLBOARDS )
+			 && glm::distance( tile->mBody->position(), vp.mOrigin ) <= DISTANCE_THRESHOLD )
         {
             // Check for an intersection...
             glm::vec3 normal;
@@ -592,23 +622,29 @@ void Process_Billboards( application& game, const view_data& vp, map_tile_list_t
 
             if ( box->intersects( normal, *tileBounds ) )
             {
-			 //   Apply_Force( game, ) );
+				//Apply_Force( game,  );
             }
         }
 
         singleColor.bind();
-        Billboard_TestBulletCollision( game, tile );
+		Billboard_TestBulletCollision( game, tile, singleColor );
         billboard.bind();
 
         billboard.load_vec4( "color", tile->mColor );
 
         game.billTexture.bind( 0, "image", billboard );
         billboardBuffer.render( billboard );
-        game.billTexture.release( 0 );
+		game.billTexture.release( 0 );
 
-        if ( gDrawFlags & DRAW_BILLBOARD_BOUNDS )
+		if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
         {
             Billboard_DrawBounds( game, vp, singleColor, *tileBounds );
+
+			singleColor.load_mat4( "modelToView", vp.mTransform );
+
+			halfspace hs( glm::mat3( tileBounds->axes() ), tileBounds->center(), 0.0f );
+			singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+			hs.draw( d );
         }
 
         billboard.bind();
@@ -641,18 +677,21 @@ static void Draw_Group( application& game,
     singleColor.bind();
     //singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 
-    if ( gDrawFlags & DRAW_WALLS )
+	if ( gTestFlags & DRAW_WALLS )
     {
         for ( const map_tile* tile: walls )
         {
             Draw_Bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
 
-            Tile_TestCollision( game,
-			 ( collision_entity::ptr_t )game.camera,
-                                vp.mOrigin,
-                                ENTITY_BOUNDS_MOVE_COLLIDE,
-                                tile,
-                                ENTITY_BOUNDS_MOVE_COLLIDE  );
+			if ( gTestFlags & COLLIDE_WALLS )
+			{
+				Tile_TestCollision( game,
+				 ( collision_entity::ptr_t )game.camera,
+									vp.mOrigin,
+									ENTITY_BOUNDS_MOVE_COLLIDE,
+									tile,
+									ENTITY_BOUNDS_MOVE_COLLIDE  );
+			}
         }
     }
 
@@ -661,7 +700,7 @@ static void Draw_Group( application& game,
         Draw_Bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
 
-    if ( gDrawFlags & DRAW_BILLBOARDS )
+	if ( gTestFlags & DRAW_BILLBOARDS )
     {
         Process_Billboards( game, vp, billboards );
     }
@@ -670,7 +709,7 @@ static void Draw_Group( application& game,
     singleColor.load_mat4( "modelToView", vp.mTransform );
     singleColor.load_vec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
 
-    if ( gDrawFlags & DRAW_HALFSPACES )
+	if ( gTestFlags & DRAW_HALFSPACES )
     {
         for ( const map_tile* wall: walls )
         {
@@ -699,8 +738,8 @@ static void Draw_Group( application& game,
 
     singleColor.bind();
 
-    bool drawAdj = !!( gDrawFlags & DRAW_REGIONS_ADJACENT );
-    bool drawBounds = !!( gDrawFlags & DRAW_REGIONS_BOUNDS );
+	bool drawAdj = !!( gTestFlags & DRAW_REGIONS_ADJACENT );
+	bool drawBounds = !!( gTestFlags & DRAW_REGIONS_BOUNDS );
 
     if  ( drawAdj || drawBounds )
     {
@@ -817,15 +856,15 @@ uint32_t Game_Exec( void )
 							}
 							break;
                         case SDLK_b:
-                            gDrawFlags ^= DRAW_BILLBOARDS;
+							gTestFlags ^= DRAW_BILLBOARDS;
                             break;
 
                         case SDLK_h:
-                            gDrawFlags ^= DRAW_HALFSPACES;
+							gTestFlags ^= DRAW_HALFSPACES;
                             break;
 
                         case SDLK_UP:
-                            gDrawFlags ^= DRAW_CANCEL_REGIONS;
+							gTestFlags ^= DRAW_CANCEL_REGIONS;
                             break;
 
                         default:

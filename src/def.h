@@ -26,12 +26,6 @@
 #   define __DEBUG_RENDERER__
 #endif // EMSCRIPTEN && DEBUG
 
-#ifdef DEBUG
-
-extern unsigned int gDebugFlag;
-
-#endif
-
 // Windows.h defines these for us already
 #if !defined( _WIN32 )
 #	define TRUE 1 

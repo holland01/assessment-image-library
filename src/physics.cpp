@@ -196,7 +196,7 @@ INLINE void inertia_tensor_to_world( glm::mat3& iitWorld,
 // body_t
 //-------------------------------------------------------------------------------------------------------
 
-rigid_body::rigid_body( uint32_t resetBits_ )
+rigid_body::rigid_body( uint32_t options )
     : mInvMass( 0.0f ),
       mPosition( 0.0f ),
       mInitialVelocity( 0.0f ),
@@ -204,12 +204,17 @@ rigid_body::rigid_body( uint32_t resetBits_ )
       mForceAccum( 0.0f ),
 	  mIitLocal( 1.0f ),
 	  mIitWorld( 1.0f ),
-	  mResetBits( resetBits_ )
+	  mOptions( options )
 {
 }
 
 void rigid_body::integrate( float t )
 {
+	if ( mOptions & LOCK_INTEGRATION )
+	{
+		return;
+	}
+
 	inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
 
 	glm::vec3 accel( acceleration() );
@@ -261,11 +266,11 @@ std::string rigid_body::info( void ) const
 
 void rigid_body::reset( void )
 {
-    if ( mResetBits & RESET_FORCE_ACCUM_BIT ) mForceAccum = glm::zero< glm::vec3 >();
-    if ( mResetBits & RESET_VELOCITY_BIT ) mInitialVelocity = glm::zero< glm::vec3 >();
-    if ( mResetBits & RESET_ORIENTATION_BIT ) mOrientation = glm::quat();
-    if ( mResetBits & RESET_POSITION_BIT ) mPosition = glm::zero< glm::vec3 >();
-	if ( mResetBits & RESET_TORQUE_ACCUM_BIT ) mTorqueAccum = glm::zero< glm::vec3 >();
+	if ( mOptions & RESET_FORCE_ACCUM ) mForceAccum = glm::zero< glm::vec3 >();
+	if ( mOptions & RESET_VELOCITY ) mInitialVelocity = glm::zero< glm::vec3 >();
+	if ( mOptions & RESET_ORIENTATION ) mOrientation = glm::quat();
+	if ( mOptions & RESET_POSITION ) mPosition = glm::zero< glm::vec3 >();
+	if ( mOptions & RESET_TORQUE_ACCUM ) mTorqueAccum = glm::zero< glm::vec3 >();
 }
 
 //-------------------------------------------------------------------------------------------------------

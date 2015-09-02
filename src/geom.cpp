@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "geom.h"
 #include "bvh.h"
 #include <array>
@@ -153,9 +154,9 @@ namespace geom {
 
         float dlen = glm::length( d0 );
 
-        if ( glm::abs( glm::length( dx ) ) > dlen ) return false;
-        if ( glm::abs( glm::length( dy ) ) > dlen ) return false;
-        if ( glm::abs( glm::length( dz ) ) > dlen ) return false;
+		if ( glm::length( dx ) > dlen ) return false;
+		if ( glm::length( dy ) > dlen ) return false;
+		if ( glm::length( dz ) > dlen ) return false;
 
         return true;
     }
@@ -309,7 +310,7 @@ bool halfspace::test_bounds( glm::vec3& normal, const glm::mat3& srcExtents, con
         return false;
     }
 
-    if ( test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, test.srcExtents ) ) return true;
+	if ( test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, test.srcExtents ) ) return true;
     if ( test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, test.srcExtents ) ) return true;
     if ( test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, test.srcExtents ) ) return true;
 
@@ -483,9 +484,15 @@ bool obb::encloses( const obb& box ) const
 
 bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
-    halfspace hs( glm::mat3( bounds.mAxes ), glm::vec3( bounds.mAxes[ 3 ] ), 0.0f );
+	glm::mat3 a( bounds.mAxes );
+	a[ 2 ] = -a[ 2 ];
 
-    return hs.test_bounds( normal, glm::mat3( mAxes ), glm::vec3( mAxes[ 3 ] ) );
+	glm::mat3 b( mAxes );
+	b[ 2 ] = -b[ 2 ];
+
+	halfspace hs( a, bounds.center(), 0.0f );
+
+	return hs.test_bounds( normal, b, center() );
 }
 
 bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
@@ -501,23 +508,13 @@ bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 	return false;
 }
 
-struct dd
-{
-	bool faceIntersectInf = false;
-	bool facingAwayFromRay = false;
-	glm::bvec3 rangeFail = glm::bvec3( false );
-	glm::bvec3 notZero = glm::bvec3( false );
-	glm::vec3 rr = glm::vec3( 0.0f );
-	glm::vec3 dotcmp = glm::vec3( 0.0f );
-	plane p;
-	float t = 0.0f;
-};
-
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
 bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 {
+	debug_raylist_clear();
+
     // Quick early out; 0 implies no scaling necessary
 
 	bool inside = range( r.p );
@@ -529,9 +526,8 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
     }
 
     std::array< float, 3 > intersections;
-	intersections.fill( FLT_MAX );
 
-	std::array< dd, 6 > debug;
+	//glm::mat3 iT( glm::inverse( glm::mat3( axes() ) ) );
 
     int32_t fcount = 0;
     for ( int32_t i = 0; i < 6; ++i )
@@ -551,26 +547,29 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 
         float thedot = fx + fy + fz;
 
-		debug[ i ].dotcmp = glm::vec3( fx, fy, fz );
-
         // if true then face faces away from ray, so move on
 		if ( thedot >= 0.0f && !inside )
         {
-			debug[ i ].facingAwayFromRay = true;
-            continue;
+			continue;
         }
 
-        float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
-		debug[ i ].t = t;
+		float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
 
         if ( isinf( t ) )
         {
-			debug[ i ].faceIntersectInf = true;
             continue;
         }
 
         glm::vec3 rr( r.p + r.d * t );
-		debug[ i ].rr = rr;
+
+		ray dbgr( r.p, r.d, t );
+
+		debug_raylist_push( dbgr );
+
+		if ( !range( rr ) )
+		{
+			continue;
+		}
 
         // only one component can be nonzero, so we test
         // against our current face to ensure that we're not outside of the bounds
@@ -582,55 +581,37 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
         // all normals which are within 90 degrees or less of the ray,
         // the only way this face can be hit is if we negate the ray, which we don't want.
 
+		/*
+		bool rangePass = false;
+
         // front or back face
         if ( fz != 0.0f && !isinf( fz ) )
         {
-			if ( inside )
-			{
-				__nop();
-			}
+			rangePass = range_x( rr ) && range_y( rr );
+        }
 
-			debug[ i ].notZero.z = true;
-			if ( !range_x( rr ) ) { debug[ i ].rangeFail.x = true; continue; }
-			if ( !range_y( rr ) ) { debug[ i ].rangeFail.y = true; continue; }
-        }
-        // top or bottom face
-        else if ( fy != 0.0f && !isinf( fy ) )
+		// top or bottom face
+		if ( !rangePass && fy != 0.0f && !isinf( fy ) )
         {
-			if ( inside )
-			{
-				__nop();
-			}
+			rangePass = range_x( rr ) && range_z( rr );
+        }
 
-			debug[ i ].notZero.y = true;
-			if ( !range_z( rr ) ) { debug[ i ].rangeFail.z = true; continue; }
-			if ( !range_x( rr ) ) { debug[ i ].rangeFail.x = true; continue; }
-        }
-        // left or right face
-        else if ( fx != 0.0f && !isinf( fx ) )
+		// left or right face
+		if ( !rangePass && fx != 0.0f && !isinf( fx ) )
         {
-			if ( inside )
-			{
-				__nop();
-			}
+			rangePass = range_z( rr ) && range_y( rr );
+        }
 
-			debug[ i ].notZero.x = true;
-			if ( !range_z( rr ) ) { debug[ i ].rangeFail.z = true; continue; }
-			if ( !range_y( rr ) ) { debug[ i ].rangeFail.y = true; continue; }
-        }
-        else
-        {
-            continue;
-        }
+		assert( !( isinf( fx ) && isinf( fy ) && isinf( fz ) ) );
+
+		if ( !rangePass )
+		{
+			continue;
+		}
+		*/
 
         intersections[ fcount++ ] = t;
     }
-
-	if ( fcount == 0 )
-	{
-		__nop();
-	}
-
     // find closest intersection
 	t0 = FLT_MAX;
 
@@ -661,7 +642,7 @@ void obb::face_plane( face_type face_, plane& plane_ ) const
             break;
         case obb::FACE_FRONT:
             p = corner( CORNER_NEAR_UP_RIGHT );
-            plane_.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
+			plane_.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
         case obb::FACE_LEFT:
             p = corner( CORNER_NEAR_UP_LEFT );
@@ -669,7 +650,7 @@ void obb::face_plane( face_type face_, plane& plane_ ) const
             break;
         case obb::FACE_BACK:
             p = corner( CORNER_FAR_UP_LEFT );
-            plane_.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
+			plane_.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
         case obb::FACE_BOTTOM:
             p = corner( CORNER_NEAR_DOWN_RIGHT );

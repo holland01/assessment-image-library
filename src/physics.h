@@ -41,19 +41,21 @@ private:
 
 	glm::mat3 mIitLocal, mIitWorld;
 
-    uint32_t mResetBits;
+	uint32_t mOptions;
 
 public:
     enum
     {
-        RESET_POSITION_BIT = 0x1,
-        RESET_VELOCITY_BIT = 0x2,
-        RESET_FORCE_ACCUM_BIT = 0x4,
-        RESET_ORIENTATION_BIT = 0x8,
-		RESET_TORQUE_ACCUM_BIT = 0x10
+		RESET_POSITION = 0x1,
+		RESET_VELOCITY = 0x2,
+		RESET_FORCE_ACCUM = 0x4,
+		RESET_ORIENTATION = 0x8,
+		RESET_TORQUE_ACCUM = 0x10,
+
+		LOCK_INTEGRATION = 0x20 // prevents integration from happening
     };
 
-    rigid_body( uint32_t mResetBits = RESET_FORCE_ACCUM_BIT );
+	rigid_body( uint32_t options = RESET_FORCE_ACCUM );
 
     void apply_force( const glm::vec3& force );
 
@@ -97,9 +99,9 @@ public:
 
     void set( const glm::mat4& t );
 
-	void add_reset_bit( uint32_t flag ) { mResetBits |= flag; }
+	void add_options( uint32_t flag ) { mOptions |= flag; }
 
-	void remove_reset_bit( uint32_t flag ) { mResetBits &= ~flag; }
+	void remove_reset_bit( uint32_t flag ) { mOptions &= ~flag; }
 
 	rigid_body from_velocity( const glm::vec3& v ) const;
 };

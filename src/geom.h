@@ -59,11 +59,20 @@ struct ray
 {
 	glm::vec3 p;
 	glm::vec3 d;
+	float t;
 
-    ray( const glm::vec3& position = glm::vec3( 0.0f ), const glm::vec3& dir = glm::vec3( 0.0f ) )
+	ray( const glm::vec3& position = glm::vec3( 0.0f ),
+		 const glm::vec3& dir = glm::vec3( 0.0f ),
+		 float t_ = 1.0f )
         : p( position ),
-          d( dir )
+		  d( dir ),
+		  t( t_ )
     {}
+
+	glm::vec3 calc_position( void ) const
+	{
+		return p + d * t;
+	}
 };
 
 //-------------------------------------------------------------------------------------------------------
@@ -535,3 +544,4 @@ INLINE halfspace* bounds_primitive::to_halfspace( void )
     assert( type == BOUNDS_PRIM_BOX );
     return ( halfspace* ) this;
 }
+

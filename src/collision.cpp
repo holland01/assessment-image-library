@@ -1,6 +1,7 @@
 #include "collision.h"
 #include "geom.h"
 #include "entity.h"
+#include "debug.h"
 #include <glm/glm.hpp>
 
 #define DUMMY_LAMBDA \
@@ -25,7 +26,8 @@ namespace {
 
 		if ( t == FLT_MAX )
 		{
-			gDebugFlag = 1;
+			debug_set_flag( true );
+			debug_set_ray( r );
 			return;
 		}
 
