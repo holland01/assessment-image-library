@@ -527,8 +527,6 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
 
     std::array< float, 3 > intersections;
 
-	//glm::mat3 iT( glm::inverse( glm::mat3( axes() ) ) );
-
     int32_t fcount = 0;
     for ( int32_t i = 0; i < 6; ++i )
     {
@@ -548,9 +546,9 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
         float thedot = fx + fy + fz;
 
         // if true then face faces away from ray, so move on
-		if ( thedot >= 0.0f && !inside )
+		//if ( thedot >= 0.0f && !inside )
         {
-			continue;
+		//	continue;
         }
 
 		float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
@@ -560,13 +558,12 @@ bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
             continue;
         }
 
-        glm::vec3 rr( r.p + r.d * t );
-
+		//glm::vec3 rr( r.p + r.d * t );
 		ray dbgr( r.p, r.d, t );
 
 		debug_raylist_push( dbgr );
 
-		if ( !range( rr ) )
+		if ( !range( dbgr.calc_position() ) )
 		{
 			continue;
 		}

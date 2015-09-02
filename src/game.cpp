@@ -566,20 +566,38 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, co
 
 				imm_draw d( singleColor );
 
+				GL_CHECK( glPointSize( 50.0f ) );
+
 				for ( auto i = debug_raylist_begin(); i != debug_raylist_end(); ++i )
 				{
 					const ray& debugRay = *i;
 
-					glm::mat4 t( game.camera->view_params().mTransform
-								 * glm::translate( glm::mat4( 1.0f ), debugRay.p ) );
+					//glm::mat4 t(
+						//		 * glm::translate( glm::mat4( 1.0f ), debugRay.p ) );
 
-					singleColor.load_mat4( "modelToView", t );
+					singleColor.load_mat4( "modelToView", game.camera->view_params().mTransform );
+
+					singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
 
 					d.begin( GL_LINES );
-					d.vertex( glm::vec3( 0.0f ) );
+					d.vertex( debugRay.p );
+					d.vertex( debugRay.calc_position() );
+					d.end();
+
+					singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+
+					d.begin( GL_POINTS );
+					d.vertex( debugRay.p );
+					d.end();
+
+					singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+
+					d.begin( GL_POINTS );
 					d.vertex( debugRay.calc_position() );
 					d.end();
 				}
+
+				GL_CHECK( glPointSize( 10.0f ) );
 
 				game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
 			}

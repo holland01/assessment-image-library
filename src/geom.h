@@ -69,6 +69,28 @@ struct ray
 		  t( t_ )
     {}
 
+	ray( ray&& ) = delete;
+	ray& operator=( ray&& ) = delete;
+
+	ray( const ray& r )
+		: p( r.p ),
+		  d( r.d ),
+		  t( r.t )
+	{
+	}
+
+	ray& operator=( const ray& r )
+	{
+		if ( this != &r )
+		{
+			p = r.p;
+			d = r.d;
+			t = r.t;
+		}
+
+		return *this;
+	}
+
 	glm::vec3 calc_position( void ) const
 	{
 		return p + d * t;
@@ -450,14 +472,18 @@ INLINE glm::vec3 obb::corner_identity( corner_type index ) const
 
 INLINE bool	obb::range_x( const glm::vec3& v ) const
 {
+	glm::vec3 max( corner( CORNER_MAX ) );
+	glm::vec3 min( corner( CORNER_MIN ) );
 
-    return v.x <= corner( CORNER_MAX ).x && v.x >= corner( CORNER_MIN ).x;
+	return v.x <= max.x && v.x >= min.x;
 }
 
 INLINE bool obb::range_y( const glm::vec3& v ) const
 {
+	glm::vec3 max( corner( CORNER_MAX ) );
+	glm::vec3 min( corner( CORNER_MIN ) );
 
-    return v.y <= corner( CORNER_MAX ).y && v.y >= corner( CORNER_MIN ).y;
+	return v.y <= max.y && v.y >= min.y;
 }
 
 INLINE bool obb::range_z( const glm::vec3& v ) const
@@ -465,13 +491,29 @@ INLINE bool obb::range_z( const glm::vec3& v ) const
 #ifdef AABB_MAX_Z_LESS_THAN_MIN_Z
     return v.z >= GetCorner( CORNER_MAX ).z && v.z <= GetCorner( CORNER_MIN ).z;
 #else
-    return v.z <= corner( CORNER_MAX ).z && v.z >= corner( CORNER_MIN ).z;
+	glm::vec3 max( corner( CORNER_MAX ) );
+	glm::vec3 min( corner( CORNER_MIN ) );
+
+	return v.z <= max.z && v.z >= min.z;
 #endif
 }
 
 INLINE bool obb::range( const glm::vec3& v ) const
 {
-    return range_x( v ) && range_y( v ) && range_z( v );
+	glm::vec3 max0( corner( CORNER_MAX ) );
+	glm::vec3 min0( corner( CORNER_MIN ) );
+
+	glm::vec3 max( glm::ceil( glm::max( max0, min0 ) ) );
+	glm::vec3 min( glm::floor( glm::min( max0, min0 ) ) );
+
+	if ( ( v.x <= max.x && v.x >= min.x )
+	&& ( v.y <= max.y && v.y >= min.y )
+	&& ( v.z <= max.z && v.z >= min.z ) )
+	{
+		return true;
+	}
+
+	return false;
 }
 
 INLINE void obb::points( std::array< glm::vec3, 8 >& points ) const
