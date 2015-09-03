@@ -119,7 +119,7 @@ namespace {
 
 bool view_frustum::intersects( const obb& box ) const
 {
-	std::array< glm::vec3, 8 > clipBounds;
+	obb::pointlist_t clipBounds;
 	box.points( clipBounds );
 
 	// Test each corner against every plane normal

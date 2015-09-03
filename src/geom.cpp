@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "geom.h"
 #include "bvh.h"
+#include "glm_ext.hpp"
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
@@ -511,116 +512,71 @@ bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;
-bool obb::ray_intersection( float& t0, const ray& r, bool earlyOut ) const
+bool obb::ray_intersection( ray& r, bool earlyOut ) const
 {
-	debug_raylist_clear();
-
-    // Quick early out; 0 implies no scaling necessary
-
-	bool inside = range( r.p );
+	bool inside = range( r.calc_position() );
 
 	if ( earlyOut && inside )
-    {
-		t0 = 0.0f;
+	{
+		r.t = 1.0f;
 		return true;
-    }
+	}
 
-    std::array< float, 3 > intersections;
+	/*
+	glm::vec3 max, min;
+	{
+		glm::vec3 max0, min0;
 
-    int32_t fcount = 0;
-    for ( int32_t i = 0; i < 6; ++i )
-    {
-        if ( fcount == 3 )
-        {
-            break;
-        }
+		max0 = corner( CORNER_MAX );
+		min0 = corner( CORNER_MIN );
 
-        plane p;
+		max = glm::max( max0, min0 );
+		min = glm::min( max0, min0 );
+	}
+	*/
 
-        face_plane( ( face_type )i, p );
+	maxmin_pair mm = std::move( maxmin() );
 
-        float fx = p.normal.x * r.d.x;
-        float fy = p.normal.y * r.d.y;
-        float fz = p.normal.z * r.d.z;
+	glm::mat3 ax( 1.0f );
+	ray tmp( r.p, ax * r.d, r.t );
+	r = tmp;
 
-        float thedot = fx + fy + fz;
-
-        // if true then face faces away from ray, so move on
-		//if ( thedot >= 0.0f && !inside )
-        {
-		//	continue;
-        }
-
-		float t = -( glm::dot( r.p, p.normal ) - p.d ) / thedot;
-
-        if ( isinf( t ) )
-        {
-            continue;
-        }
-
-		//glm::vec3 rr( r.p + r.d * t );
-		ray dbgr( r.p, r.d, t );
-
-		debug_raylist_push( dbgr );
-
-		if ( !range( dbgr.calc_position() ) )
+	glm::vec3 maxT( 0.0f );
+	for ( int32_t i = 0; i < 3; ++i )
+	{
+		if ( r.d[ i ] >= 0.0f )
 		{
-			continue;
+			maxT[ i ] = ( mm.min[ i ] - r.p[ i ] ) / r.d[ i ];
 		}
-
-        // only one component can be nonzero, so we test
-        // against our current face to ensure that we're not outside of the bounds
-        // of the face
-
-        // If the origin is in the range of the corresponding
-        // face's axis, this implies that we're wasting our time: the origin
-        // isn't actually inside of the bounds, and since we've ommitted
-        // all normals which are within 90 degrees or less of the ray,
-        // the only way this face can be hit is if we negate the ray, which we don't want.
-
-		/*
-		bool rangePass = false;
-
-        // front or back face
-        if ( fz != 0.0f && !isinf( fz ) )
-        {
-			rangePass = range_x( rr ) && range_y( rr );
-        }
-
-		// top or bottom face
-		if ( !rangePass && fy != 0.0f && !isinf( fy ) )
-        {
-			rangePass = range_x( rr ) && range_z( rr );
-        }
-
-		// left or right face
-		if ( !rangePass && fx != 0.0f && !isinf( fx ) )
-        {
-			rangePass = range_z( rr ) && range_y( rr );
-        }
-
-		assert( !( isinf( fx ) && isinf( fy ) && isinf( fz ) ) );
-
-		if ( !rangePass )
+		else
 		{
-			continue;
+			maxT[ i ] = ( mm.max[ i ] - r.p[ i ] ) / r.d[ i ];
 		}
-		*/
+	}
 
-        intersections[ fcount++ ] = t;
-    }
-    // find closest intersection
-	t0 = FLT_MAX;
+	int32_t mi = glmext::max_index( maxT );
+	assert( mi != -1 );
 
-    for ( int32_t i = 0; i < fcount; ++i )
-    {
-        if ( intersections[ i ] < t0 )
-        {
-            t0 = intersections[ i ];
-        }
-    }
+	if ( 0.0f <= mi && mi <= glm::length( r.calc_position() ) )
+	{
+		r.t = maxT[ mi ];
+		glm::vec3 rp( r.calc_position() );
 
-	return t0 < FLT_MAX;
+		int32_t i0 = ( mi + 1 ) % 3;
+		int32_t i1 = ( mi + 2 ) % 3;
+
+		return glmext::in_range( rp, mm.min, mm.max, i0 )
+			&& glmext::in_range( rp, mm.min, mm.max, i1 );
+	}
+
+	return false;
+}
+
+obb::maxmin_pair obb::maxmin( void ) const
+{
+
+
+	return std::move( mm );
 }
 
 void obb::face_plane( face_type face_, plane& plane_ ) const

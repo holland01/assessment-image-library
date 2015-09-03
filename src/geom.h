@@ -236,6 +236,14 @@ public:
     glm::mat4 mAxes;
     glm::vec4 mColor;
 
+	struct maxmin_pair
+	{
+		glm::vec3 max = glm::vec3( FLT_MIN );
+		glm::vec3 min = glm::vec3( FLT_MAX );
+	};
+
+	using pointlist_t = std::array< glm::vec3, 8 >;
+
     enum face_type
     {
         FACE_TOP = 0,
@@ -282,7 +290,7 @@ public:
 
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
-    void            points( std::array< glm::vec3, 8 >& points ) const;
+	void            points( pointlist_t& points ) const;
 
     void			face_plane( face_type face, plane& plane_t ) const;
 
@@ -306,9 +314,9 @@ public:
 
     bool			intersects( glm::vec3& normal, const halfspace& halfSpace ) const;
 
-    bool            ray_intersection( float& t0, const ray& r, bool earlyOut = true ) const;
+	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 
-   // bool            ray_face_intersection( float& t0, const ray& r ) const;
+	maxmin_pair		maxmin( void ) const;
 };
 
 #include "geom.inl"
@@ -516,7 +524,7 @@ INLINE bool obb::range( const glm::vec3& v ) const
 	return false;
 }
 
-INLINE void obb::points( std::array< glm::vec3, 8 >& points ) const
+INLINE void obb::points( pointlist_t& points ) const
 {
     points[ 0 ] = corner( ( corner_type ) 0 );
     points[ 1 ] = corner( ( corner_type ) 1 );

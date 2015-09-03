@@ -17,21 +17,17 @@ namespace {
 
     void calc_interpen_depth( collision_entity& e, const obb& a, const obb& b )
     {
-        glm::vec3 normal( b.center() - a.center() );
+		glm::vec3 normal( ( b.center() - a.center() ) );
 
-		ray r( a.center(), glm::normalize( normal ) );
-
-        float t = 0.0f;
-        b.ray_intersection( t, r, false );
-
-		if ( t == FLT_MAX )
+		ray r( a.center(), normal );
+		if ( !b.ray_intersection( r, false ) )
 		{
 			debug_set_flag( true );
 			debug_set_ray( r );
 			return;
 		}
 
-        glm::vec3 depth( r.d * t );
+		glm::vec3 depth( r.d * r.t );
 
         e.interpenDepth = glm::length( normal - depth );
     }

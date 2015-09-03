@@ -542,6 +542,58 @@ INLINE void Billboard_LoadParams( map_tile& tile, const shader_program& billboar
     billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
 }
 
+INLINE void draw_debug_ray( application& game,
+							imm_draw& d,
+							const obb& bounds,
+							const shader_program& singleColor,
+							const ray& debugRay )
+{
+	singleColor.load_mat4( "modelToView", game.camera->view_params().mTransform );
+
+	singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
+
+	d.begin( GL_LINES );
+	d.vertex( debugRay.p );
+	d.vertex( debugRay.calc_position() );
+	d.end();
+
+	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+
+	d.begin( GL_POINTS );
+	d.vertex( debugRay.p );
+	d.end();
+
+	singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+
+	d.begin( GL_POINTS );
+	d.vertex( debugRay.calc_position() );
+	d.end();
+
+	obb::maxmin_pair mm = bounds.maxmin();
+
+	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 1.0f, 1.0f ) );
+
+	d.begin( GL_POINTS );
+	d.vertex( mm.max );
+	d.end();
+
+	singleColor.load_vec4( "color", glm::vec4( 0.0f, 1.0f, 1.0f, 1.0f ) );
+
+	d.begin( GL_POINTS );
+	d.vertex( mm.min );
+	d.end();
+}
+
+INLINE void draw_debug_ray_list( application& game, const obb& bounds, const shader_program& singleColor )
+{
+	imm_draw d( singleColor );
+
+	for ( auto i = debug_raylist_begin(); i != debug_raylist_end(); ++i )
+	{
+		draw_debug_ray( game, d, bounds, singleColor, *i );
+	}
+}
+
 INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, const shader_program& singleColor )
 {
     if ( game.bullet )
@@ -559,43 +611,18 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, co
 
 			if ( debug_flag_set() )
 			{
-				//const obb& tileBox = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AIR_COLLIDE );
+				const obb& tileBox = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AIR_COLLIDE );
 				//const obb& bulletBox = *ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_AIR_COLLIDE );
 
 				singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
 
-				imm_draw d( singleColor );
-
 				GL_CHECK( glPointSize( 50.0f ) );
 
-				for ( auto i = debug_raylist_begin(); i != debug_raylist_end(); ++i )
-				{
-					const ray& debugRay = *i;
+				imm_draw d( singleColor );
 
-					//glm::mat4 t(
-						//		 * glm::translate( glm::mat4( 1.0f ), debugRay.p ) );
-
-					singleColor.load_mat4( "modelToView", game.camera->view_params().mTransform );
-
-					singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
-
-					d.begin( GL_LINES );
-					d.vertex( debugRay.p );
-					d.vertex( debugRay.calc_position() );
-					d.end();
-
-					singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-
-					d.begin( GL_POINTS );
-					d.vertex( debugRay.p );
-					d.end();
-
-					singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
-
-					d.begin( GL_POINTS );
-					d.vertex( debugRay.calc_position() );
-					d.end();
-				}
+				ray dbr;
+				debug_get_ray( dbr );
+				draw_debug_ray( game, d, tileBox, singleColor, dbr );
 
 				GL_CHECK( glPointSize( 10.0f ) );
 
@@ -628,21 +655,7 @@ void Process_Billboards( application& game, const view_data& vp, map_tile_list_t
     {
         Billboard_LoadParams( *tile, billboard  );
 
-        obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
-
-		if ( ( gTestFlags & COLLIDE_BILLBOARDS )
-			 && glm::distance( tile->mBody->position(), vp.mOrigin ) <= DISTANCE_THRESHOLD )
-        {
-            // Check for an intersection...
-            glm::vec3 normal;
-
-            obb* box = ENTITY_PTR_GET_BOX( game.camera, ENTITY_BOUNDS_MOVE_COLLIDE );
-
-            if ( box->intersects( normal, *tileBounds ) )
-            {
-				//Apply_Force( game,  );
-            }
-        }
+		const obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
 
         singleColor.bind();
 		Billboard_TestBulletCollision( game, tile, singleColor );

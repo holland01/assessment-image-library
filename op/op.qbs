@@ -78,6 +78,7 @@ Product {
         "../src/geom.cpp",
         "../src/geom.h",
         "../src/geom.inl",
+        "../src/glm_ext.hpp",
         "../src/input.cpp",
         "../src/input.h",
         "../src/lib/stb_image.c",
