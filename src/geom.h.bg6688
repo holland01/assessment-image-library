@@ -507,6 +507,41 @@ INLINE bool obb::range_z( const glm::vec3& v ) const
 #endif
 }
 
+INLINE bool obb::range( const glm::vec3& v ) const
+{
+    pointlist_t pl;
+    points( pl );
+
+    for ( int32_t axis = 0; axis < 3; ++axis )
+    {
+        pointlist_t pl0;
+        int32_t j = 0;
+
+        for ( auto p: pl )
+        {
+            pl0[ j++ ] = glmext::project_cardinal( p, axis );
+        }
+
+        glm::mat3 axes( glmext::project_cardinal( glm::mat3( mAxes ), axis ) );
+        glm::mat3 invProj( glm::inverse( axes ) );
+
+        pl0[ CORNER_MAX ] = invProj * pl0[ CORNER_MAX ];
+        pl0[ CORNER_MIN ] = invProj * pl0[ CORNER_MIN ];
+
+        glm::vec3 v0( invProj * glmext::project_cardinal( v, axis ) );
+
+        int32_t i0 = ( axis + 1 ) % 3;
+        int32_t i1 = ( axis + 1 ) % 3;
+
+        bool inside = glmext::range( v0, pl0[ CORNER_MIN ], pl0[ CORNER_MAX ], i0 )
+                && glmext::range( v0, pl0[ CORNER_MIN ], pl0[ CORNER_MAX ], i1 );
+
+        if ( ! )
+    }
+
+	return false;
+}
+
 INLINE void obb::points( pointlist_t& points ) const
 {
     points[ 0 ] = corner( ( corner_type ) 0 );

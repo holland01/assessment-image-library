@@ -1,7 +1,6 @@
 #include "debug.h"
 #include "geom.h"
 #include "bvh.h"
-#include "glm_ext.hpp"
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
@@ -483,6 +482,75 @@ bool obb::encloses( const obb& box ) const
     return true;
 }
 
+bool obb::range( const glm::vec3& v ) const
+{
+    pointlist_t pl;
+    points( pl );
+
+    glm::mat3 invProj( glm::inverse( glm::mat3( axes() ) ) );
+
+    for ( auto& p: pl )
+    {
+        p = invProj * p;
+    }
+
+    glm::vec3 v0( invProj * v );
+
+    for ( int32_t axis = 0; axis < 3; ++axis )
+    {
+        pointlist_t pl0;
+        int32_t j = 0;
+
+        for ( auto p: pl )
+        {
+            pl0[ j++ ] = glm::ext::project_cardinal( p, axis );
+        }
+
+        glm::vec3 max, min;
+
+        glm::vec3 line( 0.0f );
+
+        float maxLen = 0.0f;
+
+        for ( const auto& p: pl0 )
+        {
+            for ( const auto& p0: pl0 )
+            {
+                if ( p0 == p )
+                {
+                    continue;
+                }
+
+                glm::vec3 d( p0 - p );
+                float dlen = glm::length( d );
+
+                if ( dlen > maxLen )
+                {
+                    line = std::move( d );
+                    maxLen = dlen;
+
+                    glm::ext::maxmin( max, min, p, p0 );
+                }
+            }
+        }
+
+        glm::vec3 vproj( glm::ext::project_cardinal( v0, axis ) );
+
+        int32_t i0 = ( axis + 1 ) % 3;
+        int32_t i1 = ( axis + 2 ) % 3;
+
+        bool inside = glm::ext::range( vproj, min, max, i0 )
+                && glm::ext::range( vproj, min, max, i1 );
+
+        if ( !inside )
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
 	glm::mat3 a( bounds.mAxes );
@@ -522,19 +590,6 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		return true;
 	}
 
-	/*
-	glm::vec3 max, min;
-	{
-		glm::vec3 max0, min0;
-
-		max0 = corner( CORNER_MAX );
-		min0 = corner( CORNER_MIN );
-
-		max = glm::max( max0, min0 );
-		min = glm::min( max0, min0 );
-	}
-	*/
-
 	maxmin_pair mm = std::move( maxmin() );
 
 	glm::mat3 ax( 1.0f );
@@ -554,19 +609,21 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		}
 	}
 
-	int32_t mi = glmext::max_index( maxT );
+    int32_t mi = glm::ext::max_index( maxT );
 	assert( mi != -1 );
 
 	if ( 0.0f <= mi && mi <= glm::length( r.calc_position() ) )
 	{
 		r.t = maxT[ mi ];
-		glm::vec3 rp( r.calc_position() );
+        glm::vec3 rp( r.calc_position() );
 
-		int32_t i0 = ( mi + 1 ) % 3;
-		int32_t i1 = ( mi + 2 ) % 3;
+        return range( rp );
 
-		return glmext::in_range( rp, mm.min, mm.max, i0 )
-			&& glmext::in_range( rp, mm.min, mm.max, i1 );
+        //int32_t i0 = ( mi + 1 ) % 3;
+        //int32_t i1 = ( mi + 2 ) % 3;
+
+        //return glm::ext::range( rp, mm.min, mm.max, i0 )
+          //  && glm::ext::range( rp, mm.min, mm.max, i1 );
 	}
 
 	return false;
@@ -574,7 +631,10 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 
 obb::maxmin_pair obb::maxmin( void ) const
 {
+    maxmin_pair mm;
 
+    mm.max = corner( CORNER_MAX );
+    mm.min = corner( CORNER_MIN );
 
 	return std::move( mm );
 }
