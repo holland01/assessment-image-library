@@ -289,6 +289,10 @@ public:
 
     const glm::mat4& axes( void ) const;
 
+    glm::mat3       linear_axes( void ) const { return std::move( glm::mat3( axes() ) ); }
+
+    glm::mat3       inv_linear_axes( void ) const { return std::move( glm::mat3( glm::inverse( axes() ) ) ); }
+
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
 	void            points( pointlist_t& points ) const;
@@ -309,7 +313,8 @@ public:
 
     bool			range_z( const glm::vec3& v ) const;
 
-    bool			range( const glm::vec3& v ) const;
+    // pass isTransformed = "true" if v has already been transformed relative to the linear inverse of this bounds
+    bool			range( glm::vec3 v, bool isTransformed ) const;
 
     bool			intersects( glm::vec3& normal, const obb& bounds ) const;
 
@@ -317,7 +322,7 @@ public:
 
 	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 
-	maxmin_pair		maxmin( void ) const;
+    maxmin_pair		maxmin( bool inverse ) const;
 };
 
 #include "geom.inl"

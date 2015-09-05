@@ -263,7 +263,7 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
         }
 
         // Half space axes will be outside of the bounds; move on
-        if ( !bounds.range( point + extents[ 0 ] ) || !bounds.range( point + extents[ 1 ] ) )
+        if ( !bounds.range( point + extents[ 0 ], false ) || !bounds.range( point + extents[ 1 ], false ) )
         {
             continue;
         }
@@ -482,73 +482,17 @@ bool obb::encloses( const obb& box ) const
     return true;
 }
 
-bool obb::range( const glm::vec3& v ) const
+bool obb::range( glm::vec3 v, bool inversed ) const
 {
-    pointlist_t pl;
-    points( pl );
-
-    glm::mat3 invProj( glm::inverse( glm::mat3( axes() ) ) );
-
-    for ( auto& p: pl )
+    if ( !inversed )
     {
-        p = invProj * p;
+        v = std::move( inv_linear_axes() * v );
     }
 
-    glm::vec3 v0( invProj * v );
+    maxmin_pair mm = std::move( maxmin( true ) );
 
-    for ( int32_t axis = 0; axis < 3; ++axis )
-    {
-        pointlist_t pl0;
-        int32_t j = 0;
-
-        for ( auto p: pl )
-        {
-            pl0[ j++ ] = glm::ext::project_cardinal( p, axis );
-        }
-
-        glm::vec3 max, min;
-
-        glm::vec3 line( 0.0f );
-
-        float maxLen = 0.0f;
-
-        for ( const auto& p: pl0 )
-        {
-            for ( const auto& p0: pl0 )
-            {
-                if ( p0 == p )
-                {
-                    continue;
-                }
-
-                glm::vec3 d( p0 - p );
-                float dlen = glm::length( d );
-
-                if ( dlen > maxLen )
-                {
-                    line = std::move( d );
-                    maxLen = dlen;
-
-                    glm::ext::maxmin( max, min, p, p0 );
-                }
-            }
-        }
-
-        glm::vec3 vproj( glm::ext::project_cardinal( v0, axis ) );
-
-        int32_t i0 = ( axis + 1 ) % 3;
-        int32_t i1 = ( axis + 2 ) % 3;
-
-        bool inside = glm::ext::range( vproj, min, max, i0 )
-                && glm::ext::range( vproj, min, max, i1 );
-
-        if ( !inside )
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return glm::all( glm::lessThanEqual( mm.min, v ) )
+        && glm::all( glm::lessThanEqual( v, mm.max ) );
 }
 
 bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
@@ -582,7 +526,11 @@ bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
 // then make sure the ray will be within the bounds of the three faces;
 bool obb::ray_intersection( ray& r, bool earlyOut ) const
 {
-	bool inside = range( r.calc_position() );
+    glm::mat3 i( inv_linear_axes() );
+    ray tmp( i * r.p, i * r.d, r.t );
+    r = tmp;
+
+    bool inside = range( r.calc_position(), true );
 
 	if ( earlyOut && inside )
 	{
@@ -590,16 +538,12 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		return true;
 	}
 
-	maxmin_pair mm = std::move( maxmin() );
-
-	glm::mat3 ax( 1.0f );
-	ray tmp( r.p, ax * r.d, r.t );
-	r = tmp;
+    maxmin_pair mm = std::move( maxmin( true ) );
 
 	glm::vec3 maxT( 0.0f );
 	for ( int32_t i = 0; i < 3; ++i )
 	{
-		if ( r.d[ i ] >= 0.0f )
+        if ( r.d[ i ] >= 0.0f )
 		{
 			maxT[ i ] = ( mm.min[ i ] - r.p[ i ] ) / r.d[ i ];
 		}
@@ -617,24 +561,32 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		r.t = maxT[ mi ];
         glm::vec3 rp( r.calc_position() );
 
-        return range( rp );
+        return range( rp, true );
 
-        //int32_t i0 = ( mi + 1 ) % 3;
-        //int32_t i1 = ( mi + 2 ) % 3;
+        int32_t i0 = ( mi + 1 ) % 3;
+        int32_t i1 = ( mi + 2 ) % 3;
 
-        //return glm::ext::range( rp, mm.min, mm.max, i0 )
-          //  && glm::ext::range( rp, mm.min, mm.max, i1 );
+        return glm::ext::range( rp, mm.min, mm.max, i0 )
+            && glm::ext::range( rp, mm.min, mm.max, i1 );
 	}
 
 	return false;
 }
 
-obb::maxmin_pair obb::maxmin( void ) const
+obb::maxmin_pair obb::maxmin( bool inverse ) const
 {
     maxmin_pair mm;
 
     mm.max = corner( CORNER_MAX );
     mm.min = corner( CORNER_MIN );
+
+    if ( inverse )
+    {
+        glm::mat3 i( inv_linear_axes() );
+
+        mm.max = i * mm.max;
+        mm.min = i * mm.min;
+    }
 
 	return std::move( mm );
 }

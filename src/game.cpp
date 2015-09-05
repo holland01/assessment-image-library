@@ -569,7 +569,7 @@ INLINE void draw_debug_ray( application& game,
 	d.vertex( debugRay.calc_position() );
 	d.end();
 
-	obb::maxmin_pair mm = bounds.maxmin();
+    obb::maxmin_pair mm = bounds.maxmin( false );
 
 	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 1.0f, 1.0f ) );
 

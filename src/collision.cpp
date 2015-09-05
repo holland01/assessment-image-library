@@ -19,12 +19,12 @@ namespace {
     {
 		glm::vec3 normal( ( b.center() - a.center() ) );
 
-		ray r( a.center(), normal );
-		if ( !b.ray_intersection( r, false ) )
+        ray r( a.center(), normal );
+        if ( !b.ray_intersection( r, false ) )
 		{
-			debug_set_flag( true );
-			debug_set_ray( r );
-			return;
+            debug_set_flag( true );
+            debug_set_ray( r );
+            return;
 		}
 
 		glm::vec3 depth( r.d * r.t );

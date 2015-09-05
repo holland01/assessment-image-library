@@ -8,6 +8,15 @@ namespace glm {
 
 namespace ext {
 
+template < typename vec_type >
+struct maxmin_pair
+{
+    vec_type max = vec_type( 0.0f );
+    vec_type min = vec_type( 0.0f );
+};
+
+using vec3_maxmin_pair_t = maxmin_pair< glm::vec3 >;
+
 using index_t = glm::int_t;
 
 const index_t no_index = -1;
@@ -59,6 +68,40 @@ INLINE void maxmin( glm::vec3& max, glm::vec3& min, glm::vec3 a, glm::vec3 b )
 {
     max = glm::max( a, b );
     min = glm::min( a, b );
+}
+
+template < typename list_type >
+INLINE vec3_maxmin_pair_t maxmin_from_list( const list_type& list )
+{
+    vec3_maxmin_pair_t pair;
+
+    glm::vec3 line( 0.0f );
+
+    float maxLen = 0.0f;
+
+    for ( const glm::vec3& p: list )
+    {
+        for ( const glm::vec3& p0: list )
+        {
+            if ( p0 == p )
+            {
+                continue;
+            }
+
+            glm::vec3 d( p0 - p );
+            float dlen = glm::length( d );
+
+            if ( dlen > maxLen )
+            {
+                line = std::move( d );
+                maxLen = dlen;
+
+                glm::ext::maxmin( pair.max, pair.min, p, p0 );
+            }
+        }
+    }
+
+    return std::move( pair );
 }
 
 } // ext
