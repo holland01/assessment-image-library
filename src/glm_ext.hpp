@@ -3,6 +3,7 @@
 #include "def.h"
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
+#include <stdint.h>
 
 namespace glm {
 
@@ -13,6 +14,13 @@ struct maxmin_pair
 {
     vec_type max = vec_type( 0.0f );
     vec_type min = vec_type( 0.0f );
+};
+
+enum class cardinal_plane
+{
+    x = 0,
+    y = 1,
+    z = 2
 };
 
 using vec3_maxmin_pair_t = maxmin_pair< glm::vec3 >;
@@ -55,10 +63,10 @@ INLINE glm::mat3 project_cardinal( const glm::mat3& m, index_t normalAxis )
     return std::move( copy );
 }
 
-INLINE glm::vec3 project_cardinal( const glm::vec3& v, index_t normalAxis )
+INLINE glm::vec3 project_cardinal( const glm::vec3& v, cardinal_plane p )
 {
     glm::vec3 copy( v );
-    copy[ normalAxis ] = 0.0f;
+    copy[ ( index_t ) p ] = 0.0f;
     return std::move( copy );
 }
 
@@ -68,6 +76,29 @@ INLINE void maxmin( glm::vec3& max, glm::vec3& min, glm::vec3 a, glm::vec3 b )
 {
     max = glm::max( a, b );
     min = glm::min( a, b );
+}
+
+INLINE cardinal_plane best_cardinal_plane( const glm::vec3& normal )
+{
+    //assert( glm::length( normal ) == 1.0f && "normal must be normalized" );
+
+    glm::mat3 cardinal( 1.0f );
+
+    uint32_t index = 0;
+    float max = 0.0f;
+
+    for ( uint32_t i = 0; i < 3; ++i )
+    {
+        float d = glm::abs( glm::dot( normal, cardinal[ i ] ) );
+
+        if ( d > max )
+        {
+            max = d;
+            index = i;
+        }
+    }
+
+    return ( cardinal_plane )( index );
 }
 
 template < typename list_type >

@@ -394,7 +394,7 @@ INLINE void Draw_Tiles( const application& game,
     {
         const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
 
-        Draw_Quad( game, box.mAxes, color, alpha );
+        Draw_Quad( game, box.axes(), color, alpha );
     }
 }
 
@@ -437,7 +437,7 @@ INLINE void Draw_BoundsTiles( const application& game, const shared_tile_region_
 */
     const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
 
-    Draw_Quad( game, box.mAxes, glm::vec3( 1.0f ), 1.0f );
+    Draw_Quad( game, box.axes(), glm::vec3( 1.0f ), 1.0f );
 
     region->mBoundsVolume->mRoot->draw( *( game.pipeline ), game.camera->view_params() );
 }
@@ -521,7 +521,7 @@ INLINE void Billboard_DrawBounds( const application& game, const view_data& vp, 
     Draw_Bounds( game, billboardBounds, glm::vec3( 0.5f ), 0.5f );
 
     singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    singleColor.load_mat4( "modelToView", vp.mTransform * billboardBounds.mAxes );
+    singleColor.load_mat4( "modelToView", vp.mTransform * billboardBounds.axes() );
 
     imm_draw drawer( singleColor );
 
@@ -569,7 +569,7 @@ INLINE void draw_debug_ray( application& game,
 	d.vertex( debugRay.calc_position() );
 	d.end();
 
-    obb::maxmin_pair mm = bounds.maxmin( false );
+    obb::maxmin_pair3D_t mm = bounds.maxmin( false );
 
 	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 1.0f, 1.0f ) );
 
@@ -633,6 +633,12 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, co
 				game.bullet.release();
 			}
 
+        }
+        else if ( glm::distance( game.bullet->mBody->position(), tile->mBody->position() ) <= 1.0f )
+        {
+            game.billboard_oriented( *tile, false );
+
+            game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
         }
     }
 }

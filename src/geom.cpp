@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "geom.h"
 #include "bvh.h"
+#include "stl_ext.hpp"
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
@@ -164,12 +165,13 @@ namespace geom {
 
 const float DISTANCE_THRESH = 0.03125f;
 
-glm::vec3 plane_project( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal )
+glm::vec3 plane_project( const glm::vec3& origin, const plane& p )
 {
-	glm::vec3 originToP( p - origin );
+    glm::vec3 originToP( p.point - origin );
 
-	float dist = glm::dot( originToP, normal );
-	return std::move( glm::vec3( p - normal * dist ) );
+    float dist = glm::dot( originToP, p.normal );
+
+    return std::move( glm::vec3( origin + p.normal * dist ) );
 }
 
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 )
@@ -349,11 +351,17 @@ obb::obb( const glm::mat4& transform_ )
 }
 
 obb::obb( obb&& m )
-    : bounds_primitive( BOUNDS_PRIM_BOX ),
+    : bounds_primitive( m ),
       mAxes( std::move( m.mAxes ) ),
       mColor( std::move( m.mColor ) )
 {
 }
+
+obb::obb( const obb& c )
+    : bounds_primitive( c ),
+      mAxes( c.mAxes ),
+      mColor( c.mColor )
+{}
 
 glm::vec3 obb::center( void ) const
 {
@@ -489,23 +497,92 @@ bool obb::range( glm::vec3 v, bool inversed ) const
         v = std::move( inv_linear_axes() * v );
     }
 
-    maxmin_pair mm = std::move( maxmin( true ) );
+    obb::maxmin_pair3D_t mm = std::move( maxmin( true ) );
 
     return glm::all( glm::lessThanEqual( mm.min, v ) )
         && glm::all( glm::lessThanEqual( v, mm.max ) );
 }
 
+using cardinal_plane = glm::ext::cardinal_plane;
+
+namespace {
+
+    // returns true if a intersects b
+    bool pointset_intersects( cardinal_plane planeType,
+                              const obb::pointset3D_t& a,
+                              const obb::pointset3D_t& b )
+    {
+        //assert( a.size() == b.size() );
+
+        obb::pointset3D_t cardinalB;
+        for ( const auto& p: b )
+        {
+            cardinalB.insert( glm::ext::project_cardinal( p, planeType ) );
+        }
+
+        uint32_t axis0 = ( ( uint32_t )planeType + 1 ) % 3;
+        uint32_t axis1 = ( ( uint32_t )planeType + 2 ) % 3;
+
+        glm::ext::vec3_maxmin_pair_t mm = glm::ext::maxmin_from_list( cardinalB );
+
+        for ( auto i = a.begin(); i != a.end(); ++i )
+        {
+            const glm::vec3 u( glm::ext::project_cardinal( *i, planeType ) );
+
+            if ( glm::ext::range( u, mm.min, mm.max, axis0 )
+                 && glm::ext::range( u, mm.min, mm.max, axis1 ) )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool face_intersects( obb::face_type face,
+                          const obb& source,
+                          const obb::pointlist3D_t& a,
+                          const obb::pointlist3D_t& b )
+    {
+        plane facePlane;
+        source.face_plane( face, facePlane );
+
+        obb::pointset3D_t a0 = std::move( source.face_project( facePlane, a ) );
+        obb::pointset3D_t b0 = std::move( source.face_project( facePlane, b ) );
+
+        cardinal_plane cp = glm::ext::best_cardinal_plane( facePlane.normal );
+
+        return pointset_intersects( cp, a0, b0 );
+    }
+}
+
 bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
-	glm::mat3 a( bounds.mAxes );
-	a[ 2 ] = -a[ 2 ];
+    normal = glm::vec3( 0.0f );
 
-	glm::mat3 b( mAxes );
-	b[ 2 ] = -b[ 2 ];
+    obb boundsCopy( bounds );
 
-	halfspace hs( a, bounds.center(), 0.0f );
+    glm::mat4 t( bounds.linear_axes() * bounds.inv_linear_axes() );
+    t[ 3 ] = glm::vec4( bounds.center(), 1.0f );
 
-	return hs.test_bounds( normal, b, center() );
+    boundsCopy.axes( t );
+
+    obb thisCopy( *this );
+    thisCopy.orientation( bounds.inv_linear_axes() * thisCopy.linear_axes() );
+
+    pointlist3D_t thisPoints, otherPoints;
+    thisCopy.points( thisPoints );
+    boundsCopy.points( otherPoints );
+
+    for ( int32_t i = 0; i < 6; ++i )
+    {
+        if ( !face_intersects( ( face_type )i, boundsCopy, thisPoints, otherPoints ) )
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
@@ -538,7 +615,7 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		return true;
 	}
 
-    maxmin_pair mm = std::move( maxmin( true ) );
+    obb::maxmin_pair3D_t mm = std::move( maxmin( true ) );
 
 	glm::vec3 maxT( 0.0f );
 	for ( int32_t i = 0; i < 3; ++i )
@@ -573,9 +650,9 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 	return false;
 }
 
-obb::maxmin_pair obb::maxmin( bool inverse ) const
+obb::maxmin_pair3D_t obb::maxmin( bool inverse ) const
 {
-    maxmin_pair mm;
+    obb::maxmin_pair3D_t mm;
 
     mm.max = corner( CORNER_MAX );
     mm.min = corner( CORNER_MIN );
@@ -591,41 +668,53 @@ obb::maxmin_pair obb::maxmin( bool inverse ) const
 	return std::move( mm );
 }
 
-void obb::face_plane( face_type face_, plane& plane_ ) const
+obb::pointset3D_t obb::face_project( const plane& facePlane, const pointlist3D_t& sourcePoints ) const
+{
+    pointset3D_t projected;
+
+    for ( const auto& p: sourcePoints )
+    {
+        projected.insert( plane_project( p, facePlane ) );
+    }
+
+    return std::move( projected );
+}
+
+void obb::face_plane( face_type face, plane& thePlane ) const
 {
     glm::vec3 p;
 
-    switch ( face_ )
+    switch ( face )
     {
         case obb::FACE_TOP:
             p = corner( CORNER_MAX );
-            plane_.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
+            thePlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
         case obb::FACE_RIGHT:
             p = corner( CORNER_MAX );
-            plane_.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
+            thePlane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
         case obb::FACE_FRONT:
             p = corner( CORNER_NEAR_UP_RIGHT );
-			plane_.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
+            thePlane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
         case obb::FACE_LEFT:
             p = corner( CORNER_NEAR_UP_LEFT );
-            plane_.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
+            thePlane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
         case obb::FACE_BACK:
             p = corner( CORNER_FAR_UP_LEFT );
-			plane_.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
+            thePlane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
         case obb::FACE_BOTTOM:
             p = corner( CORNER_NEAR_DOWN_RIGHT );
-            plane_.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
+            thePlane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
     }
 
-    plane_.normal = glm::normalize( glm::mat3( mAxes ) * plane_.normal );
-
-    plane_.d = glm::dot( p, plane_.normal );
+    thePlane.normal = glm::normalize( linear_axes() * thePlane.normal );
+    thePlane.point = p;
+    thePlane.d = glm::dot( p, thePlane.normal );
 }
 
 void obb::color( const glm::vec4& color_ )

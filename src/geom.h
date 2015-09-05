@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <memory>
 #include <stack>
+#include <unordered_set>
 
 struct plane;
 struct ray;
@@ -37,7 +38,7 @@ static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, c
 
 static INLINE float triple_product( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c );
 
-glm::vec3 plane_project( const glm::vec3& p, const glm::vec3& origin, const glm::vec3& normal );
+glm::vec3 plane_project( const glm::vec3& origin, const plane& p );
 
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 );
 
@@ -50,6 +51,7 @@ struct plane
 {
     float       d = 0.0f;
     glm::vec3   normal = glm::vec3( 0.0f );
+    glm::vec3   point = glm::vec3( 0.0f );
 };
 
 //-------------------------------------------------------------------------------------------------------
@@ -172,6 +174,16 @@ protected:
         : type( type_ )
     {}
 
+    bounds_primitive( const bounds_primitive& c )
+        : type( c.type )
+    {
+    }
+
+    bounds_primitive( const bounds_primitive&& m )
+        : type( m.type )
+    {
+    }
+
 public:
     const bounds_primtype type;
 
@@ -228,22 +240,22 @@ struct halfspace : public bounds_primitive
 };
 
 //-------------------------------------------------------------------------------------------------------
-// bounding_box_t
+// obb
 //-------------------------------------------------------------------------------------------------------
 
 struct obb : public bounds_primitive
 {
-public:
+private:
     glm::mat4 mAxes;
+
+public:
     glm::vec4 mColor;
 
-	struct maxmin_pair
-	{
-		glm::vec3 max = glm::vec3( FLT_MIN );
-		glm::vec3 min = glm::vec3( FLT_MAX );
-	};
+    using pointset3D_t = std::unordered_set< glm::vec3 >;
 
-	using pointlist_t = std::array< glm::vec3, 8 >;
+    using pointlist3D_t = std::array< glm::vec3, 8 >;
+
+    using maxmin_pair3D_t = glm::ext::vec3_maxmin_pair_t;
 
     enum face_type
     {
@@ -271,9 +283,9 @@ public:
 
     obb( obb&& m );
 
-	// We make this movable only because of the drawBuffer member
-    obb( const obb& toCopy ) = delete;
-    obb& operator =( obb toAssign ) = delete;
+    obb( const obb& c );
+
+    obb& operator =( obb c ) = delete;
 
     bool			encloses( const obb& box ) const;
 
@@ -289,13 +301,17 @@ public:
 
     const glm::mat4& axes( void ) const;
 
+    void            axes( const glm::mat4& m ) { mAxes = m; }
+
     glm::mat3       linear_axes( void ) const { return std::move( glm::mat3( axes() ) ); }
 
     glm::mat3       inv_linear_axes( void ) const { return std::move( glm::mat3( glm::inverse( axes() ) ) ); }
 
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
-	void            points( pointlist_t& points ) const;
+    void            points( pointlist3D_t& points ) const;
+
+    pointset3D_t    face_project( const plane& facePlane, const pointlist3D_t& sourcePoints ) const;
 
     void			face_plane( face_type face, plane& plane_t ) const;
 
@@ -322,7 +338,7 @@ public:
 
 	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 
-    maxmin_pair		maxmin( bool inverse ) const;
+    maxmin_pair3D_t maxmin( bool inverse ) const;
 };
 
 #include "geom.inl"
@@ -512,7 +528,7 @@ INLINE bool obb::range_z( const glm::vec3& v ) const
 #endif
 }
 
-INLINE void obb::points( pointlist_t& points ) const
+INLINE void obb::points( pointlist3D_t& points ) const
 {
     points[ 0 ] = corner( ( corner_type ) 0 );
     points[ 1 ] = corner( ( corner_type ) 1 );
