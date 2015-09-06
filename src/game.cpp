@@ -153,21 +153,22 @@ application::application( uint32_t width_ , uint32_t height_ )
 
     const map_tile* tile = gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
 
-    auto LMakeBody = [ this, &tile ]( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass )
+    auto make_body = [ this, &tile ]( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass )
     {
-		rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM );
+        rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM /*| rigid_body::RESET_TORQUE_ACCUM*/ );
         body->position( pos );
         body->mass( mass );
+        body->linear_damping( 0.6f );
+        body->angular_damping( 1.0f );
+        body->iit_local( get_block_inertia( glm::vec3( 1.0f ), mass ) );
 
         dest.mMode = mode;
         dest.mBody.reset( body );
         dest.sync();
-
-        //world.mBodies.push_back( &dest );
     };
 
-    LMakeBody( player, input_client::MODE_PLAY, glm::vec3( tile->mX, 0.0f, tile->mZ ), 80.0f );
-    LMakeBody( spec, input_client::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
+    make_body( player, input_client::MODE_PLAY, glm::vec3( tile->mX, 0.0f, tile->mZ ), 80.0f );
+    make_body( spec, input_client::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
 
 	camera = &player;
     drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
@@ -212,11 +213,11 @@ void application::toggle_culling( void )
 
     if ( !drawAll )
     {
-        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP;
+        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 10.0f;
     }
     else
     {
-        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 100.0f;
+        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 10.0f;
     }
 }
 
@@ -609,10 +610,11 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, co
 
             game.billboard_oriented( *tile, false );
 
+            game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
+
 			if ( debug_flag_set() )
 			{
 				const obb& tileBox = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AIR_COLLIDE );
-				//const obb& bulletBox = *ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_AIR_COLLIDE );
 
 				singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
 
@@ -628,11 +630,6 @@ INLINE void Billboard_TestBulletCollision( application& game, map_tile* tile, co
 
 				game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
 			}
-			else
-			{
-				game.bullet.release();
-			}
-
         }
         else if ( glm::distance( game.bullet->mBody->position(), tile->mBody->position() ) <= 1.0f )
         {

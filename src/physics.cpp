@@ -198,8 +198,11 @@ INLINE void inertia_tensor_to_world( glm::mat3& iitWorld,
 
 rigid_body::rigid_body( uint32_t options )
     : mInvMass( 0.0f ),
+      mLinearDamping( 1.0f ),
+      mAngularDamping( 1.0f ),
       mPosition( 0.0f ),
-      mInitialVelocity( 0.0f ),
+      mLinearVelocity( 0.0f ),
+      mAngularVelocity( 0.0f ),
 	  mTorqueAccum( 0.0f ),
       mForceAccum( 0.0f ),
 	  mIitLocal( 1.0f ),
@@ -215,15 +218,23 @@ void rigid_body::integrate( float t )
 		return;
 	}
 
-	inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
+    mAngularVelocity += angular_acceleration() * t;
 
-	glm::vec3 accel( acceleration() );
+    glm::vec3 accel( linear_acceleration() * t );
+    mLinearVelocity += accel;
 
-    glm::mat3 orient( glm::mat3_cast( mOrientation ) );
+    mLinearVelocity *= glm::pow( mLinearDamping, t );
+    mAngularVelocity *= glm::pow( mAngularDamping, t );
 
-	glm::vec3 v( orient * mInitialVelocity + accel * t );
+    glm::quat angQuat( 0.0f, mAngularVelocity.x, mAngularVelocity.y, mAngularVelocity.z );
 
-	mPosition += v * t;
+    mOrientation += angQuat * t * 0.5f;
+
+    mOrientation = glm::normalize( mOrientation );
+
+    mPosition += mOrientation * ( mLinearVelocity + accel * t );
+
+    inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
 }
 
 void rigid_body::mass( float m )
@@ -257,7 +268,7 @@ std::string rigid_body::info( void ) const
 	std::stringstream ss;
 
     ss << "Position: " << glm::to_string( mPosition ) <<
-       "\n Velocity: " << glm::to_string( mInitialVelocity ) <<
+       "\n Velocity: " << glm::to_string( mLinearVelocity ) <<
        "\n Force Accum: " << glm::to_string( mForceAccum ) <<
        "\n Mass: " << ( mInvMass == INFINITE_MASS? 0.0f: 1.0f / mInvMass );
 
@@ -267,10 +278,10 @@ std::string rigid_body::info( void ) const
 void rigid_body::reset( void )
 {
 	if ( mOptions & RESET_FORCE_ACCUM ) mForceAccum = glm::zero< glm::vec3 >();
-	if ( mOptions & RESET_VELOCITY ) mInitialVelocity = glm::zero< glm::vec3 >();
+    if ( mOptions & RESET_TORQUE_ACCUM ) mTorqueAccum = glm::zero< glm::vec3 >();
+    if ( mOptions & RESET_VELOCITY ) mLinearVelocity = glm::zero< glm::vec3 >();
 	if ( mOptions & RESET_ORIENTATION ) mOrientation = glm::quat();
 	if ( mOptions & RESET_POSITION ) mPosition = glm::zero< glm::vec3 >();
-	if ( mOptions & RESET_TORQUE_ACCUM ) mTorqueAccum = glm::zero< glm::vec3 >();
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -279,7 +290,7 @@ void rigid_body::reset( void )
 
 physics_world::physics_world( float time_, float dt_ )
     : mTime( time_ ),
-      mDT( dt_ ),
+      mTargetDeltaTime( dt_ ),
       mT( 0.0f )
 {
 }
@@ -310,7 +321,7 @@ namespace {
 
 void physics_world::sync_bodies( void )
 {
-    float measure = mDT;
+    float measure = mTargetDeltaTime;
 
     mLastMeasureCount = 0;
 
@@ -322,8 +333,8 @@ void physics_world::sync_bodies( void )
         {
             if ( e )
             {
-                e->mBody->integrate( delta );
                 e->sync();
+                e->mBody->integrate( delta );
             }
         }
 

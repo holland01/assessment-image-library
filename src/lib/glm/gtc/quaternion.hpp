@@ -142,6 +142,8 @@ namespace glm
 		template <typename U>
 		GLM_FUNC_DECL tquat<T, P> & operator+=(tquat<U, P> const & q);
 		template <typename U>
+        GLM_FUNC_DECL tquat<T, P> & operator+=(tvec3<U, P> const & q);
+        template <typename U>
 		GLM_FUNC_DECL tquat<T, P> & operator*=(tquat<U, P> const & q);
 		template <typename U>
 		GLM_FUNC_DECL tquat<T, P> & operator*=(U s);

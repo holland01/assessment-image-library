@@ -257,6 +257,22 @@ namespace detail
 		return *this;
 	}
 
+    template <typename T, precision P>
+    template <typename U>
+    GLM_FUNC_QUALIFIER tquat<T, P> & tquat<T, P>::operator+=(tvec3<U, P> const & v)
+    {
+        tquat<T, P> q( T(0.0), v.x, v.y, v.z );
+
+        q *= *this;
+
+        this->w += q.w * T(0.5);
+        this->x += q.x * T(0.5);
+        this->y += q.y * T(0.5);
+        this->z += q.z * T(0.5);
+
+        return *this;
+    }
+
 	template <typename T, precision P>
 	template <typename U>
 	GLM_FUNC_QUALIFIER tquat<T, P> & tquat<T, P>::operator*=(tquat<U, P> const & r)

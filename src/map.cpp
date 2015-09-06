@@ -1152,7 +1152,7 @@ void map_tile_generator::find_entities_raycast(
 
     glm::vec2 pos( fCenterX, fCenterZ );
 
-    glm::vec3 u( camera.world_dir( G_DIR_FORWARD ) );
+    glm::vec3 u( camera.world_direction( G_DIR_FORWARD ) );
     glm::vec2 look( glm::normalize( glm::vec2( u.x, u.z ) ) );
 
     glm::vec3 v( glm::cross( u, G_DIR_UP ) );

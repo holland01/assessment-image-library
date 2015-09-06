@@ -512,8 +512,6 @@ namespace {
                               const obb::pointset3D_t& a,
                               const obb::pointset3D_t& b )
     {
-        //assert( a.size() == b.size() );
-
         obb::pointset3D_t cardinalB;
         for ( const auto& p: b )
         {

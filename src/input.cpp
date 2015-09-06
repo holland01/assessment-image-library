@@ -45,11 +45,7 @@ input_client::input_client( void )
 }
 
 input_client::input_client( const view_data& view )
-    : entity( entity::BODY_DEPENDENT,
-                []( void ) -> rigid_body*
-                {
-                    return nullptr;
-                }() ),
+    : entity( entity::BODY_DEPENDENT, nullptr ),
       mViewParams( view ),
 	  mMode( MODE_PLAY )
 {
@@ -199,13 +195,11 @@ void input_client::sync( void )
 
     mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
-    mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
-
 	if ( mMode == MODE_PLAY )
 	{
 		if ( mBody )
 		{
-            mBody->position( 1.0f, 0.0f );
+            mBody->position( 1, 0.0f );
 		}
 		else
 		{
@@ -215,8 +209,19 @@ void input_client::sync( void )
 
 	if ( mBody )
 	{
+        float yrad = glm::radians( mViewParams.mCurrRot.y );
+        //float xrad = glm::radians( mViewParams.mCurrRot.x );
+
+        glm::vec3 yRot( glm::cos( yrad ), 0.0f, glm::sin( yrad ) );
+        //glm::vec3 xRot( 0.0f, glm::sin( xrad ), glm::cos( xrad ) );
+
+        mBody->apply_force_at_point( yRot * mViewParams.mMoveStep, mBody->position() );
+        //mBody->apply_force_at_point( xRot * mViewParams.mMoveStep, mBody->position() );
+
+        //mBody->apply_torque_from_center( yRot * mViewParams.mMoveStep + xRot * mViewParams.mMoveStep );
+
         mViewParams.mOrigin = mBody->position();
-        mBody->orientation( mViewParams.mInverseOrient );
+        //mBody->orientation( mViewParams.mInverseOrient );
         entity::sync();
 	}
 	else
@@ -227,6 +232,9 @@ void input_client::sync( void )
         b->center( mViewParams.mOrigin );
         b->orientation( glm::mat3( mViewParams.mInverseOrient ) );
 	}
+
+    mViewParams.mTransform = /*mViewParams.mOrientation*/ glm::mat4( mBody->orientation() ) * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
+
 }
 
 void input_client::print_origin( void ) const

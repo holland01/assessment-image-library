@@ -70,70 +70,47 @@ struct input_client : public entity
 
     void	position( const glm::vec3& origin );
 
-    glm::vec3   forward( void ) const;
-    glm::vec3   up( void ) const;
-    glm::vec3   right( void ) const;
+    glm::vec3   calc_direction( const glm::vec3& d ) const;
 
-    glm::vec3   world_dir( const glm::vec3& ) const;
+    glm::vec3   forward( void ) const { return std::move( calc_direction( G_DIR_FORWARD ) ); }
+    glm::vec3   up( void ) const { return std::move( calc_direction( G_DIR_UP ) ); }
+    glm::vec3   right( void ) const { return std::move( calc_direction( G_DIR_RIGHT ) ); }
+
+    glm::vec3   world_direction( const glm::vec3& d ) const;
 
     const view_data& view_params( void ) const;
 
     void print_origin( void ) const;
 };
 
-INLINE glm::vec3 input_client::forward( void ) const
+INLINE glm::vec3 input_client::calc_direction( const glm::vec3& d ) const
 {
     // If we have a body defined, then we're going to update its orientation
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
     if ( mBody )
     {
-        return G_DIR_FORWARD;
+        return d;
     }
 
-    return std::move( world_dir( G_DIR_FORWARD ) );
-}
-
-INLINE glm::vec3 input_client::right( void ) const
-{
-    // If we have a body defined, then we're going to update its orientation
-    // with the inverse orientation transform computed from the camera already;
-    // this avoids a double transformation which screws things up.
-    if ( mBody )
-    {
-        return G_DIR_RIGHT;
-    }
-
-    return std::move( world_dir( G_DIR_RIGHT ) );
-}
-
-INLINE glm::vec3 input_client::up( void ) const
-{
-    // If we have a body defined, then we're going to update its orientation
-    // with the inverse orientation transform computed from the camera already;
-    // this avoids a double transformation which screws things up.
-    if ( mBody )
-    {
-        return G_DIR_UP;
-    }
-
-    return std::move( world_dir( G_DIR_UP ) );
+    return std::move( world_direction( d ) );
 }
 
 INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 {
+    glm::vec3 f( dir * scale );
+
     if ( mBody )
 	{
-        mBody->apply_velocity( dir * scale );
-		mBody->apply_force( dir );
+        mBody->apply_force( f );
 	}
 	else
 	{
-        mViewParams.mOrigin += dir * scale;
+        mViewParams.mOrigin += f;
 	}
 }
 
-INLINE glm::vec3 input_client::world_dir( const glm::vec3& v ) const
+INLINE glm::vec3 input_client::world_direction( const glm::vec3& v ) const
 {
     glm::vec4 u = mViewParams.mInverseOrient * glm::vec4( v, 1.0f );
     return std::move( glm::normalize( glm::vec3( u ) ) );
