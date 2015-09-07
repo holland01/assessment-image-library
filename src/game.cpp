@@ -155,10 +155,12 @@ application::application( uint32_t width_ , uint32_t height_ )
 
     auto make_body = [ this, &tile ]( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass )
     {
-        rigid_body* body = new rigid_body( rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM /*| rigid_body::RESET_TORQUE_ACCUM*/ );
+        uint32_t flags = rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
+
+        rigid_body* body = new rigid_body( flags );
         body->position( pos );
         body->mass( mass );
-        body->linear_damping( 0.6f );
+        body->linear_damping( 0.1f );
         body->angular_damping( 1.0f );
         body->iit_local( get_block_inertia( glm::vec3( 1.0f ), mass ) );
 
@@ -213,7 +215,7 @@ void application::toggle_culling( void )
 
     if ( !drawAll )
     {
-        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 10.0f;
+        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP;
     }
     else
     {
@@ -255,7 +257,7 @@ void application::fire_gun( void )
 		bullet->mSize = 0.1f;
 		bullet->sync_options( ENTITY_SYNC_APPLY_SCALE );
 
-		bullet->mBody->orientation( camera->mBody->orientation() );
+        bullet->mBody->orientation( camera->mBody->orientation_mat3() );
 		bullet->mBody->apply_velocity( camera->view_params().mForward );
         bullet->mBody->position( camera->view_params().mOrigin );
 
@@ -540,7 +542,7 @@ INLINE void Billboard_LoadParams( map_tile& tile, const shader_program& billboar
 
     billboard.load_vec3( "origin", boundsOrigin );
 
-    billboard.load_mat3( "viewOrient", tile.mBody->orientation() );
+    billboard.load_mat3( "viewOrient", tile.mBody->orientation_mat3() );
 }
 
 INLINE void draw_debug_ray( application& game,
@@ -809,6 +811,8 @@ void Game_Frame( void )
         std::exit( 0 );
     }
 #endif
+
+    game.camera->mViewParams.mInverseOrient = game.camera->mBody->orientation_mat4();
 
     const view_data& vp = game.camera->view_params();
 

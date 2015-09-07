@@ -11,6 +11,7 @@ view_data::view_data( void )
       mTransform( 1.0f ),
       mOrientation( 1.0f ),
       mInverseOrient( 1.0f ),
+      mLastOrientation( 1.0f ),
       mClipTransform( 1.0f )
 {
 }

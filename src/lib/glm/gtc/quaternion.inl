@@ -261,7 +261,7 @@ namespace detail
     template <typename U>
     GLM_FUNC_QUALIFIER tquat<T, P> & tquat<T, P>::operator+=(tvec3<U, P> const & v)
     {
-        tquat<T, P> q( T(0.0), v.x, v.y, v.z );
+        tquat<T, P> q(T(0.0), T(v.x), T(v.y), T(v.z));
 
         q *= *this;
 

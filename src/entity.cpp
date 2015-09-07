@@ -28,7 +28,7 @@ namespace {
             {
                 box->center( body->position() );
 
-				glm::mat3 o( body->orientation() );
+                glm::mat3 o( body->orientation_mat3() );
 
 				if ( e.sync_options() & ENTITY_SYNC_APPLY_SCALE  )
 				{

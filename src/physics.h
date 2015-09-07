@@ -51,6 +51,10 @@ private:
 
     glm::vec3 mAngularVelocity;
 
+    glm::vec3 mLastAngularAccel;
+
+    glm::vec3 mLastLinearAccel;
+
     glm::vec3 mTorqueAccum;
 
     glm::vec3 mForceAccum;
@@ -77,13 +81,15 @@ public:
 
     void apply_force( const glm::vec3& force );
 
+    void apply_torque( const glm::vec3& f, const glm::vec3& p );
+
 	void apply_force_at_local_point( const glm::vec3& f, const glm::vec3& point );
 
 	void apply_force_at_point( const glm::vec3& f, const glm::vec3& point );
 
-    void apply_torque_from_center( const glm::vec3& f );
-
 	void apply_velocity( const glm::vec3& initial );
+
+    void apply_torque_from_center( const glm::vec3& f );
 
     void integrate( float t );
 
@@ -95,23 +101,19 @@ public:
 
     float inv_mass( void ) const;
 
-    void linear_damping( float d ) { mLinearDamping = d; }
+    const glm::vec3& position( void ) const { return mPosition; }
 
-    void angular_damping( float d ) { mAngularDamping = d; }
+    const glm::mat3 orientation_mat3( void ) const { return std::move( glm::mat3_cast( mOrientation ) ); }
 
-    const glm::vec3& position( void ) const;
-
-    const glm::mat3 orientation( void ) const;
-
-    void             iit_local( const glm::mat3& m ) { mIitLocal = m; }
+    const glm::mat4 orientation_mat4( void ) const { return std::move( glm::mat4_cast( mOrientation ) ); }
 
     const glm::mat3& iit_local( void ) const { return mIitLocal; }
 
 	const glm::mat3& iit_world( void ) const { return mIitWorld; }
 
-    const glm::vec3& initial_velocity( void ) const;
+    const glm::vec3& linear_velocity( void ) const { return mLinearVelocity; }
 
-	const glm::vec3& force_accum( void ) const;
+    const glm::vec3& force_accum( void ) const { return mForceAccum; }
 
     const glm::vec3& torque_accum( void ) const { return mTorqueAccum; }
 
@@ -121,6 +123,10 @@ public:
 
     void mass( float m );
 
+    void linear_damping( float d );
+
+    void angular_damping( float d );
+
     void position( const glm::vec3& p );
 
     void position( uint32_t axis, float v );
@@ -128,6 +134,8 @@ public:
     void orientation( const glm::mat4& mOrientation );
 
     void orientation( const glm::mat3& mOrientation );
+
+    void iit_local( const glm::mat3& m );
 
     void set( const glm::mat4& t );
 
@@ -137,27 +145,6 @@ public:
 
 	rigid_body from_velocity( const glm::vec3& v ) const;
 };
-
-INLINE const glm::vec3& rigid_body::position( void) const
-{
-    return mPosition;
-}
-
-INLINE const glm::mat3 rigid_body::orientation( void ) const
-{
-    return glm::mat3_cast( mOrientation );
-}
-
-
-INLINE const glm::vec3& rigid_body::initial_velocity( void ) const
-{
-    return mLinearVelocity;
-}
-
-INLINE const glm::vec3& rigid_body::force_accum( void ) const
-{
-	return mForceAccum;
-}
 
 INLINE void rigid_body::apply_force( const glm::vec3& force )
 {
@@ -171,20 +158,35 @@ INLINE void rigid_body::apply_force_at_local_point( const glm::vec3& f, const gl
 	apply_force_at_point( f, worldP );
 }
 
+INLINE void rigid_body::apply_torque( const glm::vec3& f, const glm::vec3& p )
+{
+    mTorqueAccum += glm::cross( p, f );
+}
+
 INLINE void rigid_body::apply_torque_from_center( const glm::vec3& f )
 {
-    mTorqueAccum += glm::cross( position(), f );
+    apply_torque( f, position() );
 }
 
 INLINE void rigid_body::apply_force_at_point( const glm::vec3& f, const glm::vec3& point )
 {
-	mForceAccum += f;
-    mTorqueAccum += glm::cross( point, f );
+    apply_force( f );
+    apply_torque( f, point );
 }
 
 INLINE void rigid_body::apply_velocity( const glm::vec3& v )
 {
     mLinearVelocity += v;
+}
+
+INLINE void rigid_body::linear_damping( float d )
+{
+    mLinearDamping = d;
+}
+
+INLINE void rigid_body::angular_damping( float d )
+{
+    mAngularDamping = d;
 }
 
 INLINE void rigid_body::position( const glm::vec3& p )
@@ -207,6 +209,11 @@ INLINE void rigid_body::orientation( const glm::mat4& orientation )
 INLINE void rigid_body::orientation( const glm::mat3& orientation )
 {
     this->mOrientation = std::move( glm::quat_cast( orientation ) );
+}
+
+INLINE void rigid_body::iit_local( const glm::mat3& m )
+{
+    mIitLocal = m;
 }
 
 INLINE void rigid_body::set( const glm::mat4& t )

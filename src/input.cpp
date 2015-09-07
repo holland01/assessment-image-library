@@ -177,24 +177,31 @@ void input_client::apply_movement( void )
     mViewParams.mRight = right();
     mViewParams.mUp = up();
 
-    if ( mKeysPressed[ KEY_FORWARD ] ) add_dir( mViewParams.mForward, mViewParams.mMoveStep );
-    if ( mKeysPressed[ KEY_BACKWARD ] ) add_dir( mViewParams.mForward, -mViewParams.mMoveStep );
-    if ( mKeysPressed[ KEY_RIGHT ] ) add_dir( mViewParams.mRight, mViewParams.mMoveStep );
-    if ( mKeysPressed[ KEY_LEFT ] ) add_dir( mViewParams.mRight, -mViewParams.mMoveStep );
-    if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
-    if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_IN ] ) mViewParams.mCurrRot.z += mViewParams.mMoveStep;
     if ( mKeysPressed[ KEY_OUT ] ) mViewParams.mCurrRot.z -= mViewParams.mMoveStep;
-}
 
-void input_client::sync( void )
-{
+    mViewParams.mLastOrientation = mViewParams.mOrientation;
     mViewParams.mOrientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( mViewParams.mCurrRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
     mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
 
     mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
+    if ( mBody )
+    {
+        mBody->orientation( mViewParams.mInverseOrient );
+    }
+
+    if ( mKeysPressed[ KEY_FORWARD ] ) add_dir( mViewParams.mForward, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_BACKWARD ] ) add_dir( mViewParams.mForward, -mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_RIGHT ] ) add_dir( mViewParams.mRight, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_LEFT ] ) add_dir( mViewParams.mRight, -mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
+    if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
+}
+
+void input_client::sync( void )
+{
 	if ( mMode == MODE_PLAY )
 	{
 		if ( mBody )
@@ -207,21 +214,17 @@ void input_client::sync( void )
 		}
 	}
 
+    auto set_view_transform = [ this ]( const glm::mat4& orient )
+    {
+        UNUSEDPARAM( orient );
+
+        mViewParams.mTransform = orient * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
+    };
+
 	if ( mBody )
 	{
-        float yrad = glm::radians( mViewParams.mCurrRot.y );
-        //float xrad = glm::radians( mViewParams.mCurrRot.x );
-
-        glm::vec3 yRot( glm::cos( yrad ), 0.0f, glm::sin( yrad ) );
-        //glm::vec3 xRot( 0.0f, glm::sin( xrad ), glm::cos( xrad ) );
-
-        mBody->apply_force_at_point( yRot * mViewParams.mMoveStep, mBody->position() );
-        //mBody->apply_force_at_point( xRot * mViewParams.mMoveStep, mBody->position() );
-
-        //mBody->apply_torque_from_center( yRot * mViewParams.mMoveStep + xRot * mViewParams.mMoveStep );
-
         mViewParams.mOrigin = mBody->position();
-        //mBody->orientation( mViewParams.mInverseOrient );
+        set_view_transform( mViewParams.mOrientation );
         entity::sync();
 	}
 	else
@@ -231,10 +234,9 @@ void input_client::sync( void )
 
         b->center( mViewParams.mOrigin );
         b->orientation( glm::mat3( mViewParams.mInverseOrient ) );
+
+        set_view_transform( mViewParams.mOrientation );
 	}
-
-    mViewParams.mTransform = /*mViewParams.mOrientation*/ glm::mat4( mBody->orientation() ) * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
-
 }
 
 void input_client::print_origin( void ) const

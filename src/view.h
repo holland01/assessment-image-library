@@ -9,7 +9,7 @@
 #ifdef EMSCRIPTEN
 #	define OP_DEFAULT_MOVE_STEP 0.5f
 #else
-#	define OP_DEFAULT_MOVE_STEP 0.1f
+#	define OP_DEFAULT_MOVE_STEP 1.0f
 #endif
 
 struct view_data
@@ -32,6 +32,7 @@ struct view_data
 
     glm::mat4   mOrientation;
     glm::mat4   mInverseOrient;
+    glm::mat4   mLastOrientation;
 
     glm::mat4   mClipTransform;
 

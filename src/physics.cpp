@@ -203,6 +203,8 @@ rigid_body::rigid_body( uint32_t options )
       mPosition( 0.0f ),
       mLinearVelocity( 0.0f ),
       mAngularVelocity( 0.0f ),
+      mLastAngularAccel( 0.0f ),
+      mLastLinearAccel( 0.0f ),
 	  mTorqueAccum( 0.0f ),
       mForceAccum( 0.0f ),
 	  mIitLocal( 1.0f ),
@@ -218,23 +220,28 @@ void rigid_body::integrate( float t )
 		return;
 	}
 
-    mAngularVelocity += angular_acceleration() * t;
+    mAngularVelocity += mLastAngularAccel * t;
 
-    glm::vec3 accel( linear_acceleration() * t );
+    glm::vec3 accel( mLastLinearAccel * t );
     mLinearVelocity += accel;
 
     mLinearVelocity *= glm::pow( mLinearDamping, t );
     mAngularVelocity *= glm::pow( mAngularDamping, t );
 
-    glm::quat angQuat( 0.0f, mAngularVelocity.x, mAngularVelocity.y, mAngularVelocity.z );
+    //glm::quat angQuat( 0.0f, mAngularVelocity.x, mAngularVelocity.y, mAngularVelocity.z );
 
-    mOrientation += angQuat * t * 0.5f;
+    glm::vec3 add( mAngularVelocity * t );
+
+    mOrientation += add;
 
     mOrientation = glm::normalize( mOrientation );
 
     mPosition += mOrientation * ( mLinearVelocity + accel * t );
 
     inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
+
+    mLastLinearAccel = linear_acceleration();
+    mLastAngularAccel = angular_acceleration();
 }
 
 void rigid_body::mass( float m )
@@ -310,9 +317,12 @@ namespace {
 
         for ( map_tile* t: billboards )
         {
-            if ( g.billboard_oriented( *t ) )
+            if ( t )
             {
-                t->orient_to( g.camera->view_params().mOrigin );
+                if ( g.billboard_oriented( *t ) )
+                {
+                    t->orient_to( g.camera->view_params().mOrigin );
+                }
             }
         }
     }
@@ -333,8 +343,8 @@ void physics_world::sync_bodies( void )
         {
             if ( e )
             {
-                e->sync();
                 e->mBody->integrate( delta );
+                e->sync();
             }
         }
 
