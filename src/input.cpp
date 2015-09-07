@@ -187,11 +187,6 @@ void input_client::apply_movement( void )
 
     mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
-    if ( mBody )
-    {
-        mBody->orientation( mViewParams.mInverseOrient );
-    }
-
     if ( mKeysPressed[ KEY_FORWARD ] ) add_dir( mViewParams.mForward, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_BACKWARD ] ) add_dir( mViewParams.mForward, -mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_RIGHT ] ) add_dir( mViewParams.mRight, mViewParams.mMoveStep );
@@ -225,6 +220,7 @@ void input_client::sync( void )
 	{
         mViewParams.mOrigin = mBody->position();
         set_view_transform( mViewParams.mOrientation );
+		mBody->orientation( mViewParams.mInverseOrient );
         entity::sync();
 	}
 	else

@@ -98,12 +98,11 @@ INLINE glm::vec3 input_client::calc_direction( const glm::vec3& d ) const
 
 INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 {
-    glm::vec3 f( dir * glm::sign( scale ) );
+	glm::vec3 f( dir * glm::sign( scale ) );
 
     if ( mBody )
 	{
-        //mBody->apply_force( f );
-        mBody->apply_velocity( f );
+		mBody->apply_force( f );
 	}
 	else
 	{
