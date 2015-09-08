@@ -228,8 +228,6 @@ void rigid_body::integrate( float t )
     mLinearVelocity *= glm::pow( mLinearDamping, t );
     mAngularVelocity *= glm::pow( mAngularDamping, t );
 
-    //glm::quat angQuat( 0.0f, mAngularVelocity.x, mAngularVelocity.y, mAngularVelocity.z );
-
     glm::vec3 add( mAngularVelocity * t );
 
     mOrientation += add;

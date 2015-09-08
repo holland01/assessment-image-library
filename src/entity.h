@@ -79,7 +79,7 @@ public:
 
     virtual void sync( void );
 
-    glm::mat4 scale_transform( void ) const;
+	glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), glm::vec3( mSize ) ); }
 
     void add_bounds( uint32_t usageFlags, bounds_primitive* mBounds );
 
@@ -93,11 +93,6 @@ public:
 
 	uint32_t sync_options( void ) const { return mSyncOpt; }
 };
-
-INLINE glm::mat4 entity::scale_transform( void ) const
-{
-    return glm::scale( glm::mat4( 1.0f ), glm::vec3( mSize ) );
-}
 
 
 

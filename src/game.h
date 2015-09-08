@@ -34,13 +34,16 @@ public:
 	float frameTime, lastTime, startTime;
 
     std::unique_ptr< map_tile_generator > gen;
-    std::unique_ptr< render_pipeline > pipeline;
+
+	std::unique_ptr< render_pipeline > pipeline;
 
     plane groundPlane;
 
     input_client player, spec;
-    input_client* camera;
-    obb* drawBounds;
+
+	input_client* camera;
+
+	obb* drawBounds;
 
     std::unique_ptr< entity > bullet;
 
@@ -53,7 +56,8 @@ public:
     collision_provider collision;
 
     application( uint32_t width, uint32_t height );
-   ~application( void );
+
+	~application( void );
 
     void reset_map( void );
 

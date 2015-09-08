@@ -112,7 +112,7 @@ void view_frustum::update( const view_data& view )
 // Adding plane[ 3 ] ( which is the distance from the plane to the origin ) offsets the plane so we can ensure that the point is in front of the plane normal
 
 namespace {
-	bool PointPlanePredicate( float value )
+	bool point_plane_predicate( float value )
 	{
 		return value >= 0.0f;
 	}
@@ -126,7 +126,7 @@ bool view_frustum::intersects( const obb& box ) const
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-        if ( test_point_plane< 8, PointPlanePredicate >( clipBounds, mFrustPlanes[ i ] ) )
+		if ( test_point_plane< 8, point_plane_predicate >( clipBounds, mFrustPlanes[ i ] ) )
 		{
 			continue;
 		}
