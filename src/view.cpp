@@ -2,20 +2,6 @@
 #include "base.h"
 #include "geom.h"
 
-view_data::view_data( void )
-    : mForward( 0.0f ), mUp( 0.0f ), mRight( 0.0f ),
-      mOrigin( 0.0f ),
-      mFovy( 0.0f ), mAspect( 0.0f ), mZNear( 0.0f ), mZFar( 0.0f ),
-      mWidth( 0.0f ), mHeight( 0.0f ),
-      mMoveStep( OP_DEFAULT_MOVE_STEP ),
-      mTransform( 1.0f ),
-      mOrientation( 1.0f ),
-      mInverseOrient( 1.0f ),
-      mLastOrientation( 1.0f ),
-      mClipTransform( 1.0f )
-{
-}
-
 //-------------------------------------------------------------------------------------------------------
 // Frustum
 //-------------------------------------------------------------------------------------------------------

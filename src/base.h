@@ -8,7 +8,11 @@
 #include <algorithm>
 #include <memory>
 #include <limits>
+#include <unordered_map>
 #include <glm/glm.hpp>
+
+using string_int_map_t = std::unordered_map< std::string, int32_t >;
+using string_address_map_t = std::unordered_map< std::string, intptr_t >;
 
 extern void flag_exit( void ); // should be defined by the user in a different source file
 extern float get_time( void );

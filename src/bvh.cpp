@@ -83,8 +83,8 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
     {
         set_blend_mode b( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
-        const shader_program& singleColor = pl.mPrograms.at( "single_color" );
-        const draw_buffer& linedCube = pl.mDrawBuffers.at( "lined_cube" );
+        const shader_program& singleColor = pl.programs().at( "single_color" );
+        const draw_buffer& linedCube = pl.draw_buffers().at( "lined_cube" );
 
         glm::vec4 color( rand_color( 0.5f, 1.0f, 0.5f ) );
 
@@ -93,7 +93,7 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
         singleColor.load_mat4( "modelToView", vp.mTransform * t );
         linedCube.render( singleColor );
 
-        const draw_buffer& coloredCube = pl.mDrawBuffers.at( "colored_cube" );
+        const draw_buffer& coloredCube = pl.draw_buffers().at( "colored_cube" );
 
         for ( const entity* e: mEntities )
         {

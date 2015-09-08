@@ -57,24 +57,24 @@ class shader_program;
 // Util Functions
 //---------------------------------------------------------------------
 
-void rend_bind_texture( GLenum target,
+void bind_texture( GLenum target,
                   GLuint handle, int32_t offset, const std::string& uniform, const shader_program& program );
 	
 template < typename T >
-static INLINE GLuint rend_make_buffer( GLenum target, const std::vector< T >& data, GLenum usage );
+static INLINE GLuint make_vertex_buffer( GLenum target, const std::vector< T >& data, GLenum usage );
 
 template < typename T, size_t count >
-static INLINE GLuint rend_make_buffer( GLenum target, const std::array< T, count >& data, GLenum usage );
+static INLINE GLuint make_vertex_buffer( GLenum target, const std::array< T, count >& data, GLenum usage );
 
 template < typename T >
-static INLINE void rend_update_buffer( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
+static INLINE void update_vertex_buffer( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind );
 
-static INLINE void rend_free_buffer( GLenum target, GLuint obj );
+static INLINE void free_vertex_buffer( GLenum target, GLuint obj );
 
-static INLINE uint32_t rend_get_max_mip2d( int32_t baseWidth, int32_t baseHeight );
+static INLINE uint32_t get_max_mip_level_2d( int32_t baseWidth, int32_t baseHeight );
 
-template< typename textureHelper_t >
-static INLINE uint32_t rend_get_mip2d( const textureHelper_t& tex,
+template< typename texture_helper_t >
+static INLINE uint32_t make_mipmaps_2d( const texture_helper_t& tex,
                                                 int32_t baseWidth, int32_t baseHeight, int32_t maxLevels );
 //---------------------------------------------------------------------
 // POD types
@@ -91,9 +91,9 @@ struct draw_vertex_tmpl
 
 using draw_vertex_t = draw_vertex_tmpl< float[ 3 ], float[ 3 ], float[ 2 ], uint8_t[ 4 ] >;
 
-static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color );
-static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position, const glm::u8vec4& color );
-static INLINE draw_vertex_t rend_make_draw_vertex( const glm::vec3& position );
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color );
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position, const glm::u8vec4& color );
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position );
 
 struct triangle
 {
@@ -105,22 +105,32 @@ struct triangle
 //---------------------------------------------------------------------
 struct texture
 {
+private:
     bool mSrgb: 1;
+
     bool mMipmap: 1;
 
     GLuint mHandle;
+
     GLenum mWrap;
+
     GLenum mMinFilter;
+
     GLenum mMagFilter;
+
     GLenum mFormat;
+
     GLenum mInternalFormat;
+
     GLenum mTarget;
+
     GLuint mMaxMip;
 
     GLsizei mWidth, mHeight, mDepth, mBpp; // bpp is in bytes
 
     std::vector< uint8_t > mPixels;
 
+public:
     texture( void );
 
 	~texture( void );
@@ -141,7 +151,7 @@ struct texture
 	
     void load_2d( void );
 	
-    bool load_from_file( const char* texPath );
+    bool open_file( const char* texPath );
 	
     bool set_buffer_size( int32_t width, int32_t height, int32_t bpp, uint8_t fill );
 
@@ -163,35 +173,65 @@ struct texture
 
 	GLenum target( void ) const { return mTarget; }
 
-	GLuint max_mip_levels( void ) const { mMaxMip; }
+    GLuint max_mip_levels( void ) const { return mMaxMip; }
 
 	const std::vector< uint8_t >& pixels( void ) const { return mPixels; }
 
-	GLsizei width( void ) const { return mWidth; }
+    GLsizei width( void ) const { return mWidth; }
 
-	GLsizei height( void ) const { return mHeight; }
+    GLsizei height( void ) const { return mHeight; }
 
-	GLsizei depth( void ) const { return mDepth; }
+    GLsizei depth( void ) const { return mDepth; }
 
-	GLsizei bpp( void ) const { return mBpp; }
+    GLsizei bpp( void ) const { return mBpp; }
+
+    void width( GLsizei w );
+
+    void height( GLsizei h );
+
+    void depth( GLsizei d );
+
+    void bpp( GLsizei b );
+
+    void wrap_mode( GLenum wrap );
+
+    void min_filter( GLenum minfilter );
+
+    void mag_filter( GLenum magFilter );
+
+    void format( GLenum fmt );
+
+    void internal_format( GLenum internalFmt );
+
+    void target( GLenum targ );
+
+    void max_mip_levels( GLenum maxmiplevs );
+
+    void mip_map( bool mipMap );
+
+    void pixels( std::vector< uint8_t > p );
 };
 
 //---------------------------------------------------------------------
 // Program
 //---------------------------------------------------------------------
+
 class shader_program
 {
 private:
     GLuint mProgram;
 
-    void gen_data( const std::vector< std::string >& mUniforms, const std::vector< std::string >& mAttribs );
+    string_int_map_t mUniforms;
 
-public:
-    std::unordered_map< std::string, GLint > mUniforms;
-    std::unordered_map< std::string, GLint > mAttribs;
-    std::unordered_map< std::string, intptr_t > mAttribPointerOffsets;
+    string_int_map_t mAttribs;
+
+    string_address_map_t mAttribPointerOffsets;
 
     std::vector< std::string > mDisableAttribs; // Cleared on each invocation of LoadAttribLayout
+
+    void gen_data( const std::vector< std::string >& uniforms, const std::vector< std::string >& attribs );
+
+public:
 
     shader_program( void );
 
@@ -211,17 +251,34 @@ public:
 
     shader_program& operator=( shader_program&& original );
 
+    const string_int_map_t& uniforms( void ) const { return mUniforms; }
+
+    const string_int_map_t& attribs( void ) const { return mAttribs; }
+
+    const string_address_map_t& attrib_pointer_offsets( void ) const { return mAttribPointerOffsets; }
+
+    const std::vector< std::string >& disable_attribs( void ) { return mDisableAttribs; }
+
     void add_unif( const std::string& name );
+
     void add_attrib( const std::string& name );
+
+    void add_attrib_pointer_offset( const std::string& key, intptr_t offset );
+
+    void add_disable_attrib( const std::string& attribs );
+
+    void clear_disable_attrib( void );
 
     void load_mat4( const std::string& name, const glm::mat4& t ) const;
 	
     void load_mat2( const std::string& name, const glm::mat2& t ) const;
+
     void load_mat2( const std::string& name, const float* t ) const;
 
     void load_mat3( const std::string& name, const glm::mat3& t ) const;
 
     void load_vec2( const std::string& name, const glm::vec2& v ) const;
+
     void load_vec2( const std::string& name, const float* v ) const;
 
     void load_vec2_array( const std::string& name, const float* v, int32_t num ) const;
@@ -231,17 +288,21 @@ public:
     void load_vec3_array( const std::string& name, const float* v, int32_t num ) const;
 
     void load_vec4( const std::string& name, const glm::vec4& v ) const;
+
     void load_vec4( const std::string& name, const float* v ) const;
 
     void load_vec4_array( const std::string& name, const float* v, int32_t num ) const;
 
     void load_int( const std::string& name, int32_t v ) const;
+
     void load_float( const std::string& name, float v ) const;
 
     void bind( void ) const;
+
     void release( void ) const;
 
     static const shader_program* lastAttribLoad;
+
     static const draw_buffer* lastDrawBuffer;
 
     static std::vector< std::string > array_location_names( const std::string& name, int32_t length );
@@ -273,14 +334,16 @@ struct set_blend_mode
 //---------------------------------------------------------------------
 struct render_to_texture
 {
+private:
     texture     mTexture;
 
-	GLuint		fbo;
+    GLuint		mFbo;
 
-	GLenum		attachment;
+    GLenum		mAttachment;
 
-	glm::mat4	view;
+    glm::mat4	mView;
 
+public:
     render_to_texture( GLenum attachment_, const glm::mat4& view_ );
 
     ~render_to_texture( void );
@@ -298,8 +361,10 @@ struct render_to_texture
 //---------------------------------------------------------------------
 struct viewport_stash
 {
-	std::array< GLint, 4 > original; 
+private:
+    std::array< GLint, 4 > mOriginal;
 
+public:
     viewport_stash( GLint originX, GLint originY, GLint width, GLint height );
     ~viewport_stash( void );
 };
@@ -316,16 +381,19 @@ struct attrib_loader
 };
 
 //---------------------------------------------------------------------
-// draw_buffer_t
+// draw_buffer
 //---------------------------------------------------------------------
+
 struct draw_buffer
 {
+private:
     GLuint mVbo, mIbo;
 
     GLsizei mCount;
 
     GLenum mMode, mUsage;
 
+public:
     draw_buffer( const draw_buffer& ) = delete;
 
     draw_buffer& operator =( const draw_buffer& ) = delete;
@@ -351,6 +419,14 @@ struct draw_buffer
     void update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex = 0 ) const;
 
     void render( const shader_program& program ) const;
+
+    GLenum mode( void ) const { return mMode; }
+
+    GLenum usage( void ) const { return mUsage; }
+
+    void usage( GLenum u );
+
+    void mode( GLenum m );
 };
 
 template< typename T >
@@ -368,18 +444,18 @@ struct debug_split_draw
 {
 	using predicate_fn_t = tmpl_predicate_t< predicate_type_t >;
 
-    predicate_fn_t rightDraw;
+    predicate_fn_t mRightDraw;
 
-    viewport_stash originalVp;
+    viewport_stash mOriginalVp;
 
-    glm::ivec2 splitDims;
+    glm::ivec2 mSplitDims;
 
     debug_split_draw( predicate_fn_t predicate, const glm::ivec2& dims );
 
     ~debug_split_draw( void );
 
     void operator()(
-					  predicate_type_t& predobj,
+                      predicate_type_t& predobj,
 					  const renderable_t& draw,
                       const shader_program& program,
 					  const glm::mat4& leftView,
@@ -395,28 +471,26 @@ struct render_pipeline
     using program_map_t = std::unordered_map< std::string, shader_program >;
     using buffer_map_t = std::unordered_map< std::string, draw_buffer >;
 
+private:
     GLuint mVao;
+
     program_map_t mPrograms;
+
     buffer_map_t mDrawBuffers;
 
+public:
     render_pipeline( void );
+
     ~render_pipeline( void );
+
+    const program_map_t& programs( void ) const { return mPrograms; }
+
+    const buffer_map_t& draw_buffers( void ) const { return mDrawBuffers; }
 };
 
 //-------------------------------------------------------------------------------------------------
 // buffer_store_t
 //-------------------------------------------------------------------------------------------------
-
-struct buffer_store
-{
-    size_t mLastSize;
-    std::vector< draw_vertex_t > mVertices;
-    std::unique_ptr< draw_buffer > mBuffer;
-
-    buffer_store( void );
-
-    void update( void );
-};
 
 //---------------------------------------------------------------------
 // imm_draw_t
@@ -425,7 +499,19 @@ struct buffer_store
 struct imm_draw
 {
 private:
+    struct buffer_store
+    {
+        size_t mLastSize;
+        std::vector< draw_vertex_t > mVertices;
+        std::unique_ptr< draw_buffer > mBuffer;
+
+        buffer_store( void );
+
+        void update( void );
+    };
+
     bool mEnabled;
+
     const shader_program& mProgram;
 
     static buffer_store mBufferStore;
@@ -449,3 +535,599 @@ public:
 extern imm_draw* gImmDrawer;
 
 #include "renderer.inl"
+
+#define ATTRIB_OFFSET_VBO -1
+
+//-------------------------------------------------------------------------------------------------------
+// Global
+//-------------------------------------------------------------------------------------------------------
+
+template < typename T >
+static INLINE GLuint make_vertex_buffer( GLenum target, const std::vector< T >& data, GLenum usage )
+{
+    GLuint obj;
+    GL_CHECK( glGenBuffers( 1, &obj ) );
+    GL_CHECK( glBindBuffer( target, obj ) );
+    GL_CHECK( glBufferData( target, data.size() * sizeof( T ), &data[ 0 ], usage ) );
+    GL_CHECK( glBindBuffer( target, 0 ) );
+    return obj;
+}
+
+template < typename T, size_t count >
+static INLINE GLuint make_vertex_buffer( GLenum target, const std::array< T, count >& data, GLenum usage )
+{
+    GLuint obj;
+    GL_CHECK( glGenBuffers( 1, &obj ) );
+    GL_CHECK( glBindBuffer( target, obj ) );
+    GL_CHECK( glBufferData( target, data.size() * sizeof( T ), &data[ 0 ], usage ) );
+    GL_CHECK( glBindBuffer( target, 0 ) );
+    return obj;
+}
+
+template < typename T >
+static INLINE void update_vertex_buffer( GLenum target, GLuint obj, GLuint offset, const std::vector< T >& data, bool bindUnbind )
+{
+    if ( bindUnbind )
+    {
+        GL_CHECK( glBindBuffer( target, obj ) );
+    }
+
+    GL_CHECK( glBufferSubData( target, offset * sizeof( T ), data.size() * sizeof( T ), &data[ 0 ] ) );
+
+    if ( bindUnbind )
+    {
+        GL_CHECK( glBindBuffer( target, 0 ) );
+    }
+}
+
+static INLINE void free_vertex_buffer( GLenum target, GLuint obj )
+{
+    if ( obj )
+    {
+        // Unbind to prevent driver from lazy deletion
+        GL_CHECK( glBindBuffer( target, 0 ) );
+        GL_CHECK( glDeleteBuffers( 1, &obj ) );
+    }
+}
+
+static INLINE uint32_t get_max_mip_level_2d( int32_t baseWidth, int32_t baseHeight )
+{
+    return glm::min( ( int32_t ) glm::log2( ( float ) baseWidth ), ( int32_t ) glm::log2( ( float ) baseHeight ) );
+}
+
+template< typename texture_helper_t >
+static INLINE uint32_t make_mipmaps_2d( const texture_helper_t& tex, int32_t baseWidth, int32_t baseHeight, int32_t maxLevels )
+{
+    if ( !maxLevels )
+    {
+        maxLevels = get_max_mip_level_2d( baseWidth, baseHeight );
+    }
+
+    int32_t w = baseWidth;
+    int32_t h = baseHeight;
+    int32_t mip;
+
+    for ( mip = 0; h != 1 && w != 1; ++mip )
+    {
+        tex.calc_mip_2d( mip, w, h );
+
+        if ( h > 1 )
+        {
+            h /= 2;
+        }
+
+        if ( w > 1 )
+        {
+            w /= 2;
+        }
+    }
+
+    return mip;
+}
+
+//-------------------------------------------------------------------------------------------------------
+// POD types
+//-------------------------------------------------------------------------------------------------------
+
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position, const glm::vec2& texCoord, const glm::u8vec4& color )
+{
+    draw_vertex_t v =
+    {
+        { position.x, position.y, position.z },
+        { 0.0f, 0.0f, 0.0f },
+        { texCoord.x, texCoord.y },
+        { color.r, color.g, color.b, color.a }
+    };
+
+    return v;
+}
+
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position )
+{
+    return make_draw_vertex( position, glm::u8vec4( 255 ) );
+}
+
+static INLINE draw_vertex_t make_draw_vertex( const glm::vec3& position, const glm::u8vec4& color )
+{
+    return make_draw_vertex( position, glm::vec2( 0.0f ), color );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// shader_program
+//-------------------------------------------------------------------------------------------------------
+
+INLINE void shader_program::add_unif( const std::string& name )
+{
+    GL_CHECK( mUniforms[ name ] = glGetUniformLocation( mProgram, name.c_str() ) );
+}
+
+INLINE void shader_program::add_attrib( const std::string& name )
+{
+    GL_CHECK( mAttribs[ name ] = glGetAttribLocation( mProgram, name.c_str() ) );
+}
+
+INLINE void shader_program::add_attrib_pointer_offset( const std::string& key, intptr_t offset )
+{
+    mAttribPointerOffsets[ key ] = offset;
+}
+
+INLINE void shader_program::add_disable_attrib( const std::string& attrib )
+{
+    mDisableAttribs.push_back( attrib );
+}
+
+INLINE void shader_program::clear_disable_attrib( void )
+{
+    mDisableAttribs.clear();
+}
+
+INLINE void shader_program::bind( void ) const
+{
+    GL_CHECK( glUseProgram( mProgram ) );
+}
+
+INLINE void shader_program::release( void ) const
+{
+    GL_CHECK( glUseProgram( 0 ) );
+}
+
+INLINE void shader_program::load_mat4( const std::string& name, const glm::mat4& t ) const
+{
+
+    GL_CHECK( glUniformMatrix4fv( mUniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
+}
+
+INLINE void shader_program::load_mat2( const std::string& name, const glm::mat2& t ) const
+{
+    GL_CHECK( glUniformMatrix2fv( mUniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
+}
+
+INLINE void shader_program::load_mat2( const std::string& name, const float* t ) const
+{
+    GL_CHECK( glUniformMatrix2fv( mUniforms.at( name ), 1, GL_FALSE, t ) );
+}
+
+INLINE void shader_program::load_mat3( const std::string& name, const glm::mat3& t ) const
+{
+    GL_CHECK( glUniformMatrix3fv( mUniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
+}
+
+INLINE void shader_program::load_vec2( const std::string& name, const glm::vec2& v ) const
+{
+    GL_CHECK( glUniform2fv( mUniforms.at( name ), 1, glm::value_ptr( v ) ) );
+}
+
+INLINE void shader_program::load_vec2( const std::string& name, const float* v ) const
+{
+    GL_CHECK( glUniform2fv( mUniforms.at( name ), 1, v ) );
+}
+
+INLINE void shader_program::load_vec2_array( const std::string& name, const float* v, int32_t num ) const
+{
+    GL_CHECK( glUniform2fv( mUniforms.at( name ), num, v ) );
+}
+
+INLINE void shader_program::load_vec3( const std::string& name, const glm::vec3& v ) const
+{
+    GL_CHECK( glUniform3fv( mUniforms.at( name ), 1, glm::value_ptr( v ) ) );
+}
+
+INLINE void shader_program::load_vec3_array( const std::string& name, const float* v, int32_t num ) const
+{
+    GL_CHECK( glUniform3fv( mUniforms.at( name ), num, v ) );
+}
+
+INLINE void shader_program::load_vec4( const std::string& name, const glm::vec4& v ) const
+{
+    GL_CHECK( glUniform4fv( mUniforms.at( name ), 1, glm::value_ptr( v ) ) );
+}
+
+INLINE void shader_program::load_vec4( const std::string& name, const float* v ) const
+{
+    GL_CHECK( glUniform4fv( mUniforms.at( name ), 1, v ) );
+}
+
+INLINE void shader_program::load_vec4_array( const std::string& name, const float* v, int32_t num ) const
+{
+    GL_CHECK( glUniform4fv( mUniforms.at( name ), num, v ) );
+}
+
+INLINE void shader_program::load_int( const std::string& name, int v ) const
+{
+    GL_CHECK( glUniform1i( mUniforms.at( name ), v ) );
+}
+
+INLINE void shader_program::load_float( const std::string& name, float f ) const
+{
+    GL_CHECK( glUniform1f( mUniforms.at( name ), f ) );
+}
+
+template < typename vertex_type_t >
+INLINE void shader_program::load_attrib_layout( const draw_buffer& buffer, const shader_program& program, bool clientArray )
+{
+    if ( lastAttribLoad == &program && lastDrawBuffer == &buffer )
+    {
+        return;
+    }
+
+    for ( const auto& attrib: program.mAttribs )
+    {
+        if ( attrib.second != -1 )
+        {
+            if ( !program.mDisableAttribs.empty() )
+            {
+                auto it = std::find( program.mDisableAttribs.cbegin(), program.mDisableAttribs.cend(), attrib.first );
+
+                if ( it != program.mDisableAttribs.cend() )
+                {
+                    GL_CHECK( glDisableVertexAttribArray( attrib.second ) );
+                    continue;
+                }
+            }
+
+            intptr_t offset;
+
+            if ( clientArray )
+            {
+                offset = program.mAttribPointerOffsets.at( attrib.first );
+            }
+            else
+            {
+                offset = ATTRIB_OFFSET_VBO;
+            }
+
+            attrib_loader< vertex_type_t >::mFunctions[ attrib.first ]( program, offset );
+        }
+    }
+
+    lastAttribLoad = &program;
+    lastDrawBuffer = &buffer;
+}
+
+//-------------------------------------------------------------------------------------------------------
+// texture_t
+//-------------------------------------------------------------------------------------------------------
+
+INLINE void texture::calc_mip_2d( int32_t mip, int32_t mipwidth, int32_t mipheight ) const
+{
+    GL_CHECK( glTexImage2D( mTarget, mip, mInternalFormat,
+                mipwidth, mipheight, 0, mFormat, GL_UNSIGNED_BYTE, &mPixels[ 0 ] ) );
+}
+
+INLINE void texture::gen_handle( void )
+{
+    if ( !mHandle )
+    {
+        GL_CHECK( glGenTextures( 1, &mHandle ) );
+    }
+}
+
+INLINE void texture::bind( void ) const
+{
+    GL_CHECK( glBindTexture( mTarget, mHandle ) );
+}
+
+INLINE void texture::release( void ) const
+{
+    GL_CHECK( glBindTexture( mTarget, 0 ) );
+}
+
+INLINE void texture::release( int offset ) const
+{
+    GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
+    GL_CHECK( glBindTexture( mTarget, 0 ) );
+}
+
+INLINE void texture::width( GLsizei w )
+{
+    mWidth = w;
+}
+
+INLINE void texture::height( GLsizei h )
+{
+    mHeight = h;
+}
+
+INLINE void texture::depth( GLsizei d )
+{
+    mDepth = d;
+}
+
+INLINE void texture::bpp( GLsizei b )
+{
+    mBpp = b;
+}
+
+INLINE void texture::wrap_mode( GLenum wrap )
+{
+    mWrap = wrap;
+}
+
+INLINE void texture::min_filter( GLenum minfilter )
+{
+    mMinFilter = minfilter;
+}
+
+INLINE void texture::mag_filter( GLenum magFilter )
+{
+    mMagFilter = magFilter;
+}
+
+INLINE void texture::format( GLenum fmt )
+{
+    mFormat = fmt;
+}
+
+INLINE void texture::internal_format( GLenum internalFmt )
+{
+    mInternalFormat = internalFmt;
+}
+
+INLINE void texture::target( GLenum targ )
+{
+    mTarget = targ;
+}
+
+INLINE void texture::max_mip_levels( GLenum maxmiplevs )
+{
+    mMaxMip = maxmiplevs;
+}
+
+INLINE void texture::mip_map( bool mipMap )
+{
+    mMaxMip = mipMap;
+}
+
+INLINE void texture::pixels( std::vector< uint8_t > p )
+{
+    mPixels = std::move( p );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// rtt_t
+//-------------------------------------------------------------------------------------------------------
+
+INLINE render_to_texture::render_to_texture( GLenum attachment_, const glm::mat4& view_ )
+    :	mFbo( 0 ),
+        mAttachment( attachment_ ),
+        mView( view_ )
+{
+    GL_CHECK( glGenFramebuffers( 1, &mFbo ) );
+}
+
+INLINE render_to_texture::~render_to_texture( void )
+{
+    if ( mFbo )
+    {
+        GL_CHECK( glDeleteFramebuffers( 1, &mFbo ) );
+    }
+}
+
+INLINE void render_to_texture::attach( int32_t width, int32_t height, int32_t bpp )
+{
+//	mTexture.mMipmap = false;
+//	mTexture.mWrap = GL_REPEAT;
+
+    mTexture.mip_map( false );
+    mTexture.wrap_mode( GL_REPEAT );
+    mTexture.set_buffer_size( width, height, bpp, 255 );
+    mTexture.load_2d();
+    mTexture.load_settings();
+
+    GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, mFbo ) );
+    GL_CHECK( glFramebufferTexture2D( GL_FRAMEBUFFER, mAttachment, GL_TEXTURE_2D, mTexture.handle(), 0 ) );
+
+    GLenum fbocheck;
+    GL_CHECK( fbocheck = glCheckFramebufferStatus( GL_FRAMEBUFFER ) );
+    if ( fbocheck != GL_FRAMEBUFFER_COMPLETE )
+    {
+        MLOG_ERROR( "FBO check incomplete; value returned is 0x%x", fbocheck );
+    }
+    GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
+}
+
+INLINE void render_to_texture::bind( void ) const
+{
+    GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, mFbo ) );
+}
+
+INLINE void render_to_texture::release( void ) const
+{
+    GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// viewport_stash_t
+//-------------------------------------------------------------------------------------------------------
+
+INLINE viewport_stash::viewport_stash( GLint originX, GLint originY, GLint width, GLint height )
+{
+    GL_CHECK( glGetIntegerv( GL_VIEWPORT, &mOriginal[ 0 ] ) );
+    GL_CHECK( glViewport( originX, originY, width, height ) );
+}
+
+INLINE viewport_stash::~viewport_stash( void )
+{
+    GL_CHECK( glViewport( mOriginal[ 0 ], mOriginal[ 1 ], mOriginal[ 2 ], mOriginal[ 3 ] ) );
+}
+
+//-------------------------------------------------------------------------------------------------------
+// attrib_loader_t: loads vertex attributes from an arbitrary vertex type
+//-------------------------------------------------------------------------------------------------------
+
+#define LOADER_FUNC_NAME "attrib_loader::mFunctions::m"
+#define MAP_VEC_3( vname, attribname, funcname )\
+    do {\
+        if ( attribOffset == ATTRIB_OFFSET_VBO )\
+        {\
+            attribOffset = offsetof( vertex_type_t, vname );\
+        }\
+        GLint location = program.attribs().at( #attribname );\
+        GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), funcname );\
+        GL_CHECK_WITH_NAME( glVertexAttribPointer( location,\
+                3, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) attribOffset ), funcname );\
+    }\
+    while( 0 )
+
+template < typename vertex_type_t >
+typename attrib_loader< vertex_type_t >::loader_func_map_t attrib_loader< vertex_type_t >::mFunctions =
+{
+    {
+        "position",
+        []( const shader_program& program, intptr_t attribOffset ) -> void
+        {
+            MAP_VEC_3( mPosition, position, LOADER_FUNC_NAME"Position" );
+        }
+    },
+    {
+        "normal",
+        []( const shader_program& program, intptr_t attribOffset ) -> void
+        {
+            MAP_VEC_3( mNormal, normal, LOADER_FUNC_NAME"Normal" );
+        }
+    },
+    {
+        "color",
+        []( const shader_program& program, intptr_t attribOffset ) -> void
+        {
+            GLint location = program.attribs().at( "color" );
+
+            if ( attribOffset == ATTRIB_OFFSET_VBO )
+            {
+                attribOffset = offsetof( vertex_type_t, mColor );
+            }
+
+            GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ),
+                LOADER_FUNC_NAME"Color" );
+
+            GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
+                4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( vertex_type_t ),
+                ( void* ) attribOffset ), LOADER_FUNC_NAME"Color" );
+        }
+    },
+    {
+        "texCoord",
+        []( const shader_program& program, intptr_t attribOffset ) -> void
+        {
+            if ( attribOffset == ATTRIB_OFFSET_VBO )
+            {
+                attribOffset = offsetof( vertex_type_t, mTexCoord );
+            }
+
+            GLint location = program.attribs().at( "texCoord" );
+            GL_CHECK_WITH_NAME( glEnableVertexAttribArray( location ), LOADER_FUNC_NAME"TexCoord" );
+            GL_CHECK_WITH_NAME( glVertexAttribPointer( location,
+                2, GL_FLOAT, GL_FALSE, sizeof( vertex_type_t ), ( void* ) attribOffset ), LOADER_FUNC_NAME"TexCoord" );
+        }
+    }
+};
+
+#undef LOADER_FUNC_NAME
+#undef MAP_VEC_3
+
+//---------------------------------------------------------------------
+// debug_split_draw
+//---------------------------------------------------------------------
+
+template < typename predicate_type_t, typename renderable_t >
+debug_split_draw< predicate_type_t, renderable_t >::debug_split_draw(
+        typename debug_split_draw< predicate_type_t, renderable_t >::predicate_fn_t predicate_,
+        const glm::ivec2& dims_ )
+    : mRightDraw( predicate_ ),
+      mOriginalVp( 0, 0, dims_.x, dims_.y ),
+      mSplitDims( dims_.x / 2, dims_.y )
+{
+}
+
+template < typename predicate_type_t, typename renderable_t >
+debug_split_draw< predicate_type_t, renderable_t >::~debug_split_draw( void )
+{
+}
+
+template < typename predicate_type_t, typename renderable_t >
+void debug_split_draw< predicate_type_t, renderable_t >::operator()(
+        predicate_type_t& predobj,
+        const renderable_t& draw,
+        const shader_program& program,
+        const glm::mat4& leftView,
+        const glm::mat4& rightView ) const
+{
+    GL_CHECK( glViewport( 0, 0, mSplitDims.x, mSplitDims.y ) );
+    program.load_mat4( "modelToView", leftView );
+    draw.Render( program );
+
+    if ( mRightDraw( predobj ) )
+    {
+        GL_CHECK( glViewport( mSplitDims.x, 0, mSplitDims.x, mSplitDims.y ) );
+        program.load_mat4( "modelToView", rightView );
+        draw.Render( program );
+    }
+}
+
+#undef ATTRIB_OFFSET_VBO
+
+//---------------------------------------------------------------------
+// draw_buffer usage
+//---------------------------------------------------------------------
+
+INLINE void draw_buffer::usage( GLenum u )
+{
+    mUsage = u;
+}
+
+INLINE void draw_buffer::mode( GLenum m )
+{
+    mMode = m;
+}
+
+INLINE void draw_buffer::bind( void ) const
+{
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, mVbo ) );
+}
+
+INLINE void draw_buffer::release( void ) const
+{
+    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+}
+
+INLINE void draw_buffer::realloc( const std::vector< draw_vertex_t >& vertexData )
+{
+    bind();
+    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( draw_vertex_t ) * vertexData.size(), &vertexData[ 0 ], mUsage ) );
+    release();
+
+    if ( !mIbo )
+    {
+        mCount = vertexData.size();
+    }
+}
+
+INLINE void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex ) const
+{
+    bind();
+    GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER,
+                               ( GLintptr )( vertexOffsetIndex * sizeof( draw_vertex_t ) ),
+                               sizeof( draw_vertex_t ) * vertexData.size(),
+                               &vertexData[ 0 ] ) );
+    release();
+}

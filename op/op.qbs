@@ -60,6 +60,8 @@ Product {
         "../asset/shader/es/single_color.frag",
         "../asset/shader/es/single_color_ss.frag",
         "../asset/shader/es/single_color_ss.vert",
+        "../src/application.cpp",
+        "../src/application.h",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",

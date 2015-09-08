@@ -14,29 +14,43 @@
 
 struct view_data
 {
-    glm::vec3   mForward;
-    glm::vec3   mUp;
-    glm::vec3   mRight;
+    float       mFovy = 0.0f;
 
-    glm::vec3   mOrigin;
+    float       mAspect = 0.0f;
 
-    glm::vec3   mCurrRot, mLastRot;
+    float       mZNear = 0.0f;
 
-    glm::vec3   mLastMouse;
+    float       mZFar = 0.0f;
 
-    float       mFovy, mAspect, mZNear, mZFar;
-    float		mWidth, mHeight;
-    float		mMoveStep;
+    float		mWidth = 0.0f;
 
-    glm::mat4   mTransform;
+    float       mHeight = 0.0f;
 
-    glm::mat4   mOrientation;
-    glm::mat4   mInverseOrient;
-    glm::mat4   mLastOrientation;
+    float		mMoveStep = 0.0f;
 
-    glm::mat4   mClipTransform;
+    glm::vec3   mForward = glm::vec3( 0.0f );
 
-    view_data( void );
+    glm::vec3   mUp = glm::vec3( 0.0f );
+
+    glm::vec3   mRight = glm::vec3( 0.0f );
+
+    glm::vec3   mOrigin = glm::vec3( 0.0f );
+
+    glm::vec3   mCurrRot = glm::vec3( 0.0f );
+
+    glm::vec3   mLastRot = glm::vec3( 0.0f );
+
+    glm::vec3   mLastMouse = glm::vec3( 0.0f );
+
+    glm::mat4   mTransform = glm::mat4( 1.0f );
+
+    glm::mat4   mOrientation = glm::mat4( 1.0f );
+
+    glm::mat4   mInverseOrient = glm::mat4( 1.0f );
+
+    glm::mat4   mLastOrientation = glm::mat4( 1.0f );
+
+    glm::mat4   mClipTransform = glm::mat4( 1.0f );
 };
 
 

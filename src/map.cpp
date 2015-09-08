@@ -26,7 +26,7 @@ namespace {
 	std::uniform_int_distribution< uint32_t > wallDet( 0, 100 );
     std::uniform_int_distribution< uint16_t > randByte( 0, 255 );
 
-	INLINE glm::vec4 RandomColor( void )
+    INLINE glm::vec4 make_random_color( void )
 	{
 		std::uniform_real_distribution< float > color( 0.5f, 1.0f );
 		return glm::vec4( color( randEngine ),
@@ -1328,7 +1328,7 @@ void map_tile_generator::find_entities(
 map_tile_region::map_tile_region( const map_tile* origin_ )
     : mDestroy( false ),
       mOrigin( origin_ ),
-      mColor( RandomColor() ),
+      mColor( make_random_color() ),
       mBoundsVolume( nullptr )
 {
 }

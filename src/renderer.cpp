@@ -5,8 +5,9 @@
 //-----------------------------------------------------------
 // Shader Util Functions
 //-----------------------------------------------------------
+namespace {
 
-static GLuint CompileShaderSource( const char* src, int32_t length, GLenum type )
+GLuint compile_shader_source( const char* src, int32_t length, GLenum type )
 {
 	GLuint shaderId;
     GL_CHECK(shaderId = glCreateShader(type));
@@ -62,7 +63,7 @@ static GLuint CompileShaderSource( const char* src, int32_t length, GLenum type 
 	return shaderId;
 }
 
-static GLuint LinkProgram( GLuint shaders[], int len )
+GLuint link_program( GLuint shaders[], int len )
 {
     GLuint program = glCreateProgram();
 
@@ -97,7 +98,7 @@ static GLuint LinkProgram( GLuint shaders[], int len )
 }
 
 // (Slightly modified) Implementation is copy-pasta from http://code.google.com/p/openglbook-samples/source/browse/trunk/Chapter%204/Utils.c
-static GLuint CompileShader( const char* filename, GLenum shader_type )
+GLuint compile_shader( const char* filename, GLenum shader_type )
 {
     GLuint shaderId = 0;
     FILE* file;
@@ -116,7 +117,7 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
             {
                 glsl_source[file_size] = '\0';
 
-                shaderId = CompileShaderSource( glsl_source, file_size, shader_type );
+                shaderId = compile_shader_source( glsl_source, file_size, shader_type );
             }
             else
             {
@@ -140,11 +141,13 @@ static GLuint CompileShader( const char* filename, GLenum shader_type )
     return shaderId;
 }
 
+} // namespace
+
 //-----------------------------------------------------------
 // Texture Utils
 //-----------------------------------------------------------
 
-void rend_bind_texture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program& program )
+void bind_texture( GLenum target, GLuint handle, int32_t offset, const std::string& uniform, const shader_program& program )
 {
 	GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
 	GL_CHECK( glBindTexture( target, handle ) );
@@ -191,7 +194,7 @@ texture::~texture( void )
 
 void texture::bind( int offset, const std::string& unif, const shader_program& prog ) const
 {
-    rend_bind_texture( GL_TEXTURE_2D, mHandle, offset, unif, prog );
+    bind_texture( GL_TEXTURE_2D, mHandle, offset, unif, prog );
 }
 
 void texture::load_cube_map( void )
@@ -218,7 +221,7 @@ void texture::load_2d( void )
 
     if ( mMipmap )
 	{
-        mMaxMip = rend_get_mip2d< texture >( *this, mWidth, mHeight, 0 );
+        mMaxMip = make_mipmaps_2d< texture >( *this, mWidth, mHeight, 0 );
         mMinFilter = GL_LINEAR_MIPMAP_LINEAR;
         GL_CHECK( glGenerateMipmap( mTarget ) );
 	}
@@ -247,7 +250,7 @@ void texture::load_settings( void )
     release();
 }
 
-bool texture::load_from_file( const char* texPath )
+bool texture::open_file( const char* texPath )
 {
     file_get_pixels( texPath, mPixels, mBpp, mWidth, mHeight );
 
@@ -315,11 +318,11 @@ shader_program::shader_program( const std::string& vertexShader, const std::stri
 {
 	GLuint shaders[] = 
 	{
-		CompileShaderSource( vertexShader.c_str(), ( int32_t ) vertexShader.size(), GL_VERTEX_SHADER ),
-		CompileShaderSource( fragmentShader.c_str(), ( int32_t ) fragmentShader.size(), GL_FRAGMENT_SHADER )
+        compile_shader_source( vertexShader.c_str(), ( int32_t ) vertexShader.size(), GL_VERTEX_SHADER ),
+        compile_shader_source( fragmentShader.c_str(), ( int32_t ) fragmentShader.size(), GL_FRAGMENT_SHADER )
 	};
 
-    mProgram = LinkProgram( shaders, 2 );
+    mProgram = link_program( shaders, 2 );
 }
 
 shader_program::shader_program( const std::string& vertexShader, const std::string& fragmentShader,
@@ -451,7 +454,7 @@ draw_buffer::draw_buffer( void )
 
 draw_buffer::draw_buffer( const std::vector< draw_vertex_t >& vertexData,
 							  GLenum mode_, GLenum usage_ )
-    : mVbo( rend_make_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
+    : mVbo( make_vertex_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
       mIbo( 0 ),
       mCount( ( GLsizei ) vertexData.size() ),
       mMode( mode_ ),
@@ -462,8 +465,8 @@ draw_buffer::draw_buffer( const std::vector< draw_vertex_t >& vertexData,
 draw_buffer::draw_buffer( const std::vector< draw_vertex_t >& vertexData,
 							  const std::vector< GLuint >& indexData,
 							  GLenum mode_, GLenum usage_ )
-    : mVbo( rend_make_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
-      mIbo( rend_make_buffer< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
+    : mVbo( make_vertex_buffer< draw_vertex_t >( GL_ARRAY_BUFFER, vertexData, usage_ ) ),
+      mIbo( make_vertex_buffer< GLuint >( GL_ELEMENT_ARRAY_BUFFER, indexData, GL_STATIC_DRAW ) ),
       mCount( ( GLsizei ) indexData.size() ),
       mMode( mode_ ),
       mUsage( usage_ )
@@ -477,8 +480,8 @@ draw_buffer::draw_buffer( draw_buffer&& buffer )
 
 draw_buffer::~draw_buffer( void )
 {
-    rend_free_buffer( GL_ARRAY_BUFFER, mVbo );
-    rend_free_buffer( GL_ELEMENT_ARRAY_BUFFER, mIbo );
+    free_vertex_buffer( GL_ARRAY_BUFFER, mVbo );
+    free_vertex_buffer( GL_ELEMENT_ARRAY_BUFFER, mIbo );
 }
 
 draw_buffer& draw_buffer::operator= ( draw_buffer&& buffer )
@@ -497,38 +500,6 @@ draw_buffer& draw_buffer::operator= ( draw_buffer&& buffer )
 	}
 
 	return *this;
-}
-
-void draw_buffer::bind( void ) const
-{
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, mVbo ) );
-}
-
-void draw_buffer::release( void ) const
-{
-	GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-}
-
-void draw_buffer::realloc( const std::vector< draw_vertex_t >& vertexData )
-{
-    bind();
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof( draw_vertex_t ) * vertexData.size(), &vertexData[ 0 ], mUsage ) );
-    release();
-
-    if ( !mIbo )
-	{
-        mCount = vertexData.size();
-	}
-}
-
-void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData, size_t vertexOffsetIndex ) const
-{
-    bind();
-	GL_CHECK( glBufferSubData( GL_ARRAY_BUFFER,
-							   ( GLintptr )( vertexOffsetIndex * sizeof( draw_vertex_t ) ),
-							   sizeof( draw_vertex_t ) * vertexData.size(),
-							   &vertexData[ 0 ] ) );
-    release();
 }
 
 void draw_buffer::render( const shader_program& program ) const
@@ -550,16 +521,16 @@ void draw_buffer::render( const shader_program& program ) const
 }
 
 //-------------------------------------------------------------------------------------------------
-// buffer_store_t
+// imm_draw_t
 //-------------------------------------------------------------------------------------------------
 
-buffer_store::buffer_store( void )
+imm_draw::buffer_store::buffer_store( void )
     : mLastSize( 0 ),
       mBuffer( nullptr )
 {
 }
 
-void buffer_store::update( void )
+void imm_draw::buffer_store::update( void )
 {
     if ( mLastSize != mVertices.size() )
     {
@@ -574,11 +545,7 @@ void buffer_store::update( void )
     mVertices.clear();
 }
 
-//-------------------------------------------------------------------------------------------------
-// imm_draw_t
-//-------------------------------------------------------------------------------------------------
-
-buffer_store imm_draw::mBufferStore;
+imm_draw::buffer_store imm_draw::mBufferStore;
 
 imm_draw::imm_draw( const shader_program& prog )
       : mEnabled( true ),
@@ -596,10 +563,10 @@ void imm_draw::begin( GLenum mode )
     if ( !mBufferStore.mBuffer )
 	{
         mBufferStore.mBuffer.reset( new draw_buffer() );
-        mBufferStore.mBuffer->mUsage = GL_DYNAMIC_DRAW;
+        mBufferStore.mBuffer->usage( GL_DYNAMIC_DRAW );
 	}
 
-    mBufferStore.mBuffer->mMode = mode;
+    mBufferStore.mBuffer->mode( mode );
 }
 
 void imm_draw::vertex( const draw_vertex_t& v )
@@ -619,7 +586,7 @@ void imm_draw::vertex( const glm::vec3& position )
 		return;
 	}
 
-    mBufferStore.mVertices.push_back( rend_make_draw_vertex( position ) );
+    mBufferStore.mVertices.push_back( make_draw_vertex( position ) );
 }
 
 void imm_draw::end( void )
@@ -724,16 +691,16 @@ render_pipeline::render_pipeline( void )
     std::vector< draw_vertex_t > cubeVertexData =
     {
      // back
-        rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
+        make_draw_vertex( glm::vec3( 1.0f, 1.0f, 1.0f ) ),
+        make_draw_vertex( glm::vec3( -1.0f, 1.0f, 1.0f ) ),
+        make_draw_vertex( glm::vec3( -1.0f, -1.0f, 1.0f ) ),
+        make_draw_vertex( glm::vec3( 1.0f, -1.0f, 1.0f ) ),
 
      // front
-        rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
-        rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, -1.0f ) )
+        make_draw_vertex( glm::vec3( -1.0f, -1.0f, -1.0f ) ),
+        make_draw_vertex( glm::vec3( 1.0f, -1.0f, -1.0f ) ),
+        make_draw_vertex( glm::vec3( 1.0f, 1.0f, -1.0f ) ),
+        make_draw_vertex( glm::vec3( -1.0f, 1.0f, -1.0f ) )
     };
 
 
@@ -785,10 +752,10 @@ render_pipeline::render_pipeline( void )
 			GL_TRIANGLE_STRIP,
 			GL_STATIC_DRAW,
 			{
-                rend_make_draw_vertex( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
-                rend_make_draw_vertex( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
-                rend_make_draw_vertex( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
-                rend_make_draw_vertex( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
+                make_draw_vertex( glm::vec3( -1.0f, -1.0f, 0.0f ), glm::vec2( 0.0f, 0.0f ),  glm::u8vec4( 255 ) ),
+                make_draw_vertex( glm::vec3( 1.0f, -1.0f, 0.0f ), glm::vec2( 1.0f, 0.0f ), glm::u8vec4( 255 ) ),
+                make_draw_vertex( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
+                make_draw_vertex( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
 			},
 			{}
         }
