@@ -8,7 +8,7 @@
 #include <vector>
 #include <unordered_map>
 
-struct application;
+struct game;
 struct rigid_body;
 
 const float INFINITE_MASS = 0.0f;
@@ -157,7 +157,7 @@ public:
 
     physics_world( float mTime, float mTargetDeltaTime );
 
-    void update( application& game );
+    void update( game& g );
 
     void sync_bodies( void );
 

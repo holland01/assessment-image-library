@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "renderer.h"
-#include "debug.h"
 
 #ifdef OP_UNIX
 	#include <unistd.h>
@@ -19,11 +18,19 @@
 #include <glm/gtx/projection.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include "debug_app.h"
+
 void exec_frame( void );
 
 #include "eminput.h"
 
 unsigned int gDebugFlag = 0;
+
+static void draw_group( game& game,
+                 const view_data& vp,
+                 map_tile_list_t& billboards,
+                 map_tile_list_t& walls,
+                 map_tile_list_t& freeSpace );
 
 namespace {
     enum
@@ -55,7 +62,7 @@ namespace {
 }
 
 game::game( uint32_t width, uint32_t height )
-    : application( width, height )
+    : game( width, height )
 {
     billTexture.mip_map( true );
     billTexture.open_file( "asset/mooninite.png" );
@@ -76,6 +83,8 @@ game::game( uint32_t width, uint32_t height )
     make_body( spec, input_client::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
 
     fill_orient_map();
+
+    camera = &player;
 }
 
 void game::fill_orient_map( void )
@@ -114,73 +123,69 @@ void game::fire_gun( void )
     }
 }
 
-static void draw_group( application& game,
-                 const view_data& vp,
-                 map_tile_list_t& billboards,
-                 map_tile_list_t& walls,
-                 map_tile_list_t& freeSpace );
-
-static void draw_hud( const application& game );
-
-static void draw_axes( const application& game, const view_data& vp );
-
-
-
-static void draw_bounds( const application& game, const obb& bounds, const glm::vec3& color, float alpha = 1.0f )
+void game::draw( void )
 {
-    const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
-    const draw_buffer& coloredCube = game.pipeline->draw_buffers().at( "colored_cube" );
-    const view_data& vp = game.camera->view_params();
+    const view_data& vp = camera->view_params();
 
-    singleColor.load_vec4( "color", glm::vec4( color, alpha ) );
-    singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.axes() );
-    coloredCube.render( singleColor );
+    if ( drawAll )
+    {
+        draw_group( *this, vp, gen->mBillboards, gen->mWalls, gen->mFreeSpace );
+    }
+    else
+    {
+        draw_group( *this, vp, billboards, walls, freeSpace );
+    }
+
+    application< game >::draw();
 }
 
-static void draw_hud( const application& game )
+void game::handle_event( const SDL_Event& e )
 {
-    // Clear depth buffer so the reticule renders over anything else it tests
-    // against by default
-    GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
+    application< game >::handle_event( e );
 
-    const shader_program& ssSingleColor = game.pipeline->programs().at( "single_color_ss" );
+    switch ( e.type )
+    {
+        case SDL_KEYDOWN:
+            switch ( e.key.keysym.sym )
+            {
+                case SDLK_r:
+                    reset_map();
+                    break;
+                case SDLK_v:
+                    toggle_culling();
+                    break;
+                case SDLK_c:
+                    if ( camera == &player )
+                    {
+                        drawBounds = ENTITY_GET_BOX( player, ENTITY_BOUNDS_MOVE_COLLIDE );
+                        camera = &spec;
+                    }
+                    else
+                    {
+                        drawBounds = ENTITY_GET_BOX( spec, ENTITY_BOUNDS_MOVE_COLLIDE );
+                        camera = &player;
+                    }
+                    break;
+                case SDLK_b:
+                    gTestFlags ^= DRAW_BILLBOARDS;
+                    break;
 
-    ssSingleColor.bind();
-    ssSingleColor.load_vec4( "color", glm::vec4( 1.0f ) );
+                case SDLK_h:
+                    gTestFlags ^= DRAW_HALFSPACES;
+                    break;
 
-    imm_draw drawer( ssSingleColor );
-
-    // Draw reticule
-    drawer.begin( GL_POINTS );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.end();
-
-    ssSingleColor.release();
-}
-
-static void draw_axes( const application& game, const view_data& vp )
-{
-    const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
-
-    singleColor.bind();
-    singleColor.load_mat4( "modelToView", vp.mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-    singleColor.load_vec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-
-    imm_draw drawer( singleColor );
-
-    const float AXIS_SIZE = 100.0f;
-
-    // Draw coordinate space axes
-    drawer.begin( GL_LINES );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ) );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ) );
-    drawer.end();
-
-    singleColor.release();
+                case SDLK_UP:
+                    gTestFlags ^= DRAW_CANCEL_REGIONS;
+                    break;
+            }
+            break;
+        case SDL_MOUSEBUTTONDOWN:
+            if ( e.button.button == SDL_BUTTON_LEFT )
+            {
+                fire_gun();
+            }
+            break;
+    }
 }
 
 namespace {
@@ -189,7 +194,7 @@ uint32_t regionIter = 0;
 float frameCount = 0.0f;
 
 // For coloring arbitrary amounts of tiles
-glm::mat4 quadTransform(
+glm::mat4 gQuadTransform(
     []( void ) -> glm::mat4
     {
         // Rotate 90 degrees in the x-axis so the quad is on the ground, and then set the y-axis to -1
@@ -200,10 +205,10 @@ glm::mat4 quadTransform(
     }()
 );
 
-void apply_force( application& game, const collision_entity& ce );
+void apply_force( game_app_t& game, const collision_entity& ce );
 
 INLINE bool test_tile_collision(
-    application& game,
+    game& g,
 	collision_entity::ptr_t e,
     const glm::vec3& entityPos,
     entity_bounds_use_flags entFlags,
@@ -214,19 +219,19 @@ INLINE bool test_tile_collision(
 
     if ( glm::distance( entityPos, glm::vec3( t[ 3 ] ) ) < 2.0f )
     {
-        collision_entity ce( game.collision,
+        collision_entity ce(   g.collision,
                                e,
 							   ( collision_entity::ptr_t )tile,
                                entFlags,
                                tileFlags );
 
-        if ( game.collision.EvalCollision( ce ) )
+        if ( g.collision.EvalCollision( ce ) )
         {
-            draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+            debug_draw_bounds( g, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 
             if ( tile->mType != map_tile::BILLBOARD )
             {
-                apply_force( game, ce );
+                apply_force( g, ce );
             }
 
             return true;
@@ -236,20 +241,7 @@ INLINE bool test_tile_collision(
     return false;
 }
 
-void draw_quad( const application& game, const glm::mat4& transform, const glm::vec3& color, float alpha = 1.0f )
-{
-    const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
-    const draw_buffer& billboardBuffer = game.pipeline->draw_buffers().at( "billboard" );
-    const view_data& vp = game.camera->view_params();
-
-    singleColor.bind();
-    singleColor.load_vec4( "color", glm::vec4( color, alpha ) );
-    singleColor.load_mat4( "modelToView", vp.mTransform * transform * quadTransform );
-    billboardBuffer.render( singleColor );
-    singleColor.release();
-}
-
-INLINE void draw_tiles( const application& game,
+INLINE void draw_tiles( const game_app_t& game,
                         const std::vector< const map_tile* >& tiles,
                         const glm::vec3& color, float alpha = 1.0f )
 {
@@ -257,16 +249,16 @@ INLINE void draw_tiles( const application& game,
     {
         const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
 
-        draw_quad( game, box.axes(), color, alpha );
+        debug_draw_quad( game, box.axes() * gQuadTransform, color, alpha );
     }
 }
 
-INLINE void draw_tiles( const application& game, const std::vector< const map_tile* >& tiles, const glm::vec4& color )
+INLINE void draw_tiles( const game_app_t& game, const std::vector< const map_tile* >& tiles, const glm::vec4& color )
 {
     draw_tiles( game, tiles, glm::vec3( color ), color.a );
 }
 
-INLINE void draw_adjacent_tiles( const application& game, const adjacent_region_list_t& adjRegions )
+INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_list_t& adjRegions )
 {
     for ( const adjacent_region& br: adjRegions )
     {
@@ -281,31 +273,16 @@ INLINE void draw_adjacent_tiles( const application& game, const adjacent_region_
     }
 }
 
-INLINE void draw_bounds_tiles( const application& game, const shared_tile_region_t& region )
+INLINE void draw_bounds_tiles( const game_app_t& game, const shared_tile_region_t& region )
 {
-    /*
-    set_blend_mode blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-
-    glm::vec3 color( 1.0f, 0.0f, 0.0f );
-
-    for ( const adjacent_wall& br: region->mWalls )
-    {
-        const obb& box = *ENTITY_PTR_GET_BOX( br.mSource, ENTITY_BOUNDS_AREA_EVAL );
-
-        Draw_Quad( game, box.mAxes, glm::vec3( 0.0f, 1.0f, 0.0f ), 1.0f );
-        Draw_Tiles( game, br.mWalls, color, 1.0f );
-    }
-
-    assert( region->mOrigin );
-*/
     const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
 
-    draw_quad( game, box.axes(), glm::vec3( 1.0f ), 1.0f );
+    debug_draw_quad( game, box.axes(), glm::vec3( 1.0f ), 1.0f );
 
     region->mBoundsVolume->mRoot->draw( *( game.pipeline ), game.camera->view_params() );
 }
 
-INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
+INLINE bool in_adjacent_region_list( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
 {
     for ( const adjacent_region& r: adjRegions )
     {
@@ -318,33 +295,33 @@ INLINE bool InAdjacentRegionList( ref_tile_region_t source, const adjacent_regio
     return false;
 }
 
-bool HasCancelRegions( void )
+bool has_cancel_regions( void )
 {
 	return !!( gTestFlags & DRAW_CANCEL_REGIONS );
 }
 
-void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = false )
+void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
 {
-    for ( uint32_t i = 0; i < game.gen->mRegions.size(); ++i )
+    for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
     {
-        ref_tile_region_t weakRegion = game.gen->mRegions[ i ];
+        ref_tile_region_t weakRegion = g.gen->mRegions[ i ];
         auto region = weakRegion.lock();
         if ( !region )
         {
             continue;
         }
 
-        bool canDraw = game.gen->mRegions[ regionIter ] != region
-                && !InAdjacentRegionList( weakRegion, game.gen->mRegions[ regionIter ]->mAdjacent )
-                && !HasCancelRegions();
+        bool canDraw = g.gen->mRegions[ regionIter ] != region
+                && !in_adjacent_region_list( weakRegion, g.gen->mRegions[ regionIter ]->mAdjacent )
+                && !has_cancel_regions();
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
         // despite being rendered previously, this pass will overwrite
         // following draw pass in the color buffer, which produces inaccurate results.
-        if ( canDraw || ( drawBoundsTiles && !drawAdjacent && !HasCancelRegions() ) )
+        if ( canDraw || ( drawBoundsTiles && !drawAdjacent && !has_cancel_regions() ) )
         {
-            draw_tiles( game, region->mTiles, region->mColor );
+            draw_tiles( g, region->mTiles, region->mColor );
         }
 
         if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
@@ -355,19 +332,19 @@ void Draw_Regions( application& game, bool drawBoundsTiles, bool drawAdjacent = 
 
             if ( drawAdjacent )
             {
-                draw_adjacent_tiles( game, region->mAdjacent );
+                draw_adjacent_tiles( g, region->mAdjacent );
             }
 
             // Draw these last since the adjacent regions take up the most space
             if ( drawBoundsTiles )
             {
-                draw_bounds_tiles( game, region );
+                draw_bounds_tiles( g, region );
             }
         }
     }
 }
 
-void apply_force( application& game, const collision_entity& ce )
+void apply_force( game_app_t& game, const collision_entity& ce )
 {
 	if ( ce.collider->mBody )
     {
@@ -376,22 +353,6 @@ void apply_force( application& game, const collision_entity& ce )
 		game.camera->mBody->apply_force(
 					get_collision_normal( offset, *( ce.collidee->mBody ), *( ce.collider->mBody ) ) );
     }
-}
-
-INLINE void draw_billboard_bounds( const application& game, const view_data& vp, const shader_program& singleColor, const obb& billboardBounds )
-{
-    singleColor.bind();
-    draw_bounds( game, billboardBounds, glm::vec3( 0.5f ), 0.5f );
-
-    singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    singleColor.load_mat4( "modelToView", vp.mTransform * billboardBounds.axes() );
-
-    imm_draw drawer( singleColor );
-
-    drawer.begin( GL_LINES );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f, 0.0f, 3.0f ) );
-    drawer.end();
 }
 
 INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
@@ -405,59 +366,7 @@ INLINE void load_billboard_params( map_tile& tile, const shader_program& billboa
     billboard.load_mat3( "viewOrient", tile.mBody->orientation_mat3() );
 }
 
-INLINE void draw_debug_ray( application& game,
-							imm_draw& d,
-							const obb& bounds,
-							const shader_program& singleColor,
-							const ray& debugRay )
-{
-	singleColor.load_mat4( "modelToView", game.camera->view_params().mTransform );
-
-	singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
-
-	d.begin( GL_LINES );
-	d.vertex( debugRay.p );
-	d.vertex( debugRay.calc_position() );
-	d.end();
-
-	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-
-	d.begin( GL_POINTS );
-	d.vertex( debugRay.p );
-	d.end();
-
-	singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
-
-	d.begin( GL_POINTS );
-	d.vertex( debugRay.calc_position() );
-	d.end();
-
-    obb::maxmin_pair3D_t mm = bounds.maxmin( false );
-
-	singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 1.0f, 1.0f ) );
-
-	d.begin( GL_POINTS );
-	d.vertex( mm.max );
-	d.end();
-
-	singleColor.load_vec4( "color", glm::vec4( 0.0f, 1.0f, 1.0f, 1.0f ) );
-
-	d.begin( GL_POINTS );
-	d.vertex( mm.min );
-	d.end();
-}
-
-INLINE void draw_debug_ray_list( application& game, const obb& bounds, const shader_program& singleColor )
-{
-	imm_draw d( singleColor );
-
-	for ( auto i = debug_raylist_begin(); i != debug_raylist_end(); ++i )
-	{
-		draw_debug_ray( game, d, bounds, singleColor, *i );
-	}
-}
-
-INLINE void test_bullet_collide( application& game, map_tile* billboard, const shader_program& singleColor )
+INLINE void test_bullet_collide( game& game, map_tile* billboard, const shader_program& singleColor )
 {
     if ( game.bullet )
     {
@@ -486,7 +395,7 @@ INLINE void test_bullet_collide( application& game, map_tile* billboard, const s
 
 				ray dbr;
 				debug_get_ray( dbr );
-				draw_debug_ray( game, d, tileBox, singleColor, dbr );
+                debug_draw_debug_ray( game, d, tileBox, dbr );
 
 				GL_CHECK( glPointSize( 10.0f ) );
 
@@ -502,7 +411,7 @@ INLINE void test_bullet_collide( application& game, map_tile* billboard, const s
     }
 }
 
-void process_billboards( application& game, const view_data& vp, map_tile_list_t& billboards )
+void process_billboards( game& game, const view_data& vp, map_tile_list_t& billboards )
 {
     const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
     const shader_program& billboard = game.pipeline->programs().at( "billboard" );
@@ -534,7 +443,7 @@ void process_billboards( application& game, const view_data& vp, map_tile_list_t
 
 		if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
         {
-            draw_billboard_bounds( game, vp, singleColor, *tileBounds );
+            debug_draw_billboard_bounds( game, vp, *tileBounds );
 
 			singleColor.load_mat4( "modelToView", vp.mTransform );
 
@@ -550,7 +459,7 @@ void process_billboards( application& game, const view_data& vp, map_tile_list_t
 
 } // end namespace
 
-static void draw_group( application& game,
+static void draw_group( game& game,
                  const view_data& vp,
                  map_tile_list_t& billboards,
                  map_tile_list_t& walls,
@@ -575,7 +484,7 @@ static void draw_group( application& game,
     {
         for ( const map_tile* tile: walls )
         {
-            draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
+            debug_draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
 
 			if ( gTestFlags & COLLIDE_WALLS )
 			{
@@ -591,7 +500,7 @@ static void draw_group( application& game,
 
     if ( game.bullet )
     {
-        draw_bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+        debug_draw_bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
 
 	if ( gTestFlags & DRAW_BILLBOARDS )
@@ -628,7 +537,7 @@ static void draw_group( application& game,
     }
 
     // Draw the bounds of the camera not currently being used
-    draw_bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
+    debug_draw_bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
 
     singleColor.bind();
 
@@ -637,7 +546,7 @@ static void draw_group( application& game,
 
     if  ( drawAdj || drawBounds )
     {
-        Draw_Regions( game, drawBounds, drawAdj );
+        draw_regions( game, drawBounds, drawAdj );
     }
 
     frameCount += 1.0f;
@@ -656,134 +565,73 @@ static void draw_group( application& game,
     singleColor.release();
 }
 
+namespace {
+    game* game_ptr( void )
+    {
+        return ( game* )( game_app_t::instance() );
+    }
+}
+
 void exec_frame( void )
 {
-    application& game = application::get_instance();
+    game* g = game_ptr();
 
-	game.startTime = get_time();
+    g->startTime = get_time();
 
 #ifdef EMSCRIPTEN
-	if ( !game.running )
+    if ( !g->running )
     {
         emscripten_cancel_main_loop();
         std::exit( 0 );
     }
 #endif
 
-    game.camera->mViewParams.mInverseOrient = game.camera->mBody->orientation_mat4();
+    g->camera->mViewParams.mInverseOrient = g->camera->mBody->orientation_mat4();
 
-    const view_data& vp = game.camera->view_params();
+    const view_data& vp = g->camera->view_params();
 
-    game.frustum.update( vp );
+    g->frustum.update( vp );
 
-	if ( !game.drawAll )
+    if ( !g->drawAll )
 	{
-        game.gen->find_entities( game.billboards, game.walls, game.freeSpace, game.frustum, *( game.camera ) );
+        g->gen->find_entities( g->billboards, g->walls, g->freeSpace, g->frustum, *( g->camera ) );
     };
 
-    game.world.update( game );
+    g->world.update( *g );
 
-    game.draw();
+    g->draw();
 
     // clear bodies which are added in world.Update call,
     // since we only want to integrate bodies which are in view
-    game.world.mTime = get_time() - game.startTime;
+    g->world.mTime = get_time() - g->startTime;
 
-    printf( "FPS: %f\r", 1.0f / game.world.mTime );
+    printf( "FPS: %f\r", 1.0f / g->world.mTime );
 }
 
 // temporary hack to get around the fact that querying for an game
-// instance if an error is hgameening causes problems; we use this flag the exit.
+// instance if an error is happening causes problems; we use this flag the exit.
 static bool* runningPtr = nullptr;
 
 uint32_t exec_game( void )
 {   	
-    application& game = application::get_instance();
-	runningPtr = &game.running;
+    game* g = game_ptr();
+    runningPtr = &g->running;
 
 #ifdef EMSCRIPTEN
 	InitEmInput();
 #else
-	while ( game.running )
+    while ( g->running )
     {
+        GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+
         exec_frame();
 
-		SDL_GL_SwapWindow( game.window );
+        SDL_GL_SwapWindow( g->window );
 
         SDL_Event e;
         while ( SDL_PollEvent( &e ) )
         {
-            switch ( e.type )
-            {
-                case SDL_KEYDOWN:
-                    switch ( e.key.keysym.sym )
-                    {
-                        case SDLK_ESCAPE:
-							SDL_SetRelativeMouseMode( SDL_FALSE );
-							game.running = false;
-                            break;
-                        case SDLK_F1:
-							game.mouseShown = !game.mouseShown;
-							if ( game.mouseShown )
-                            {
-                                SDL_SetRelativeMouseMode( SDL_FALSE );
-                            }
-                            else
-                            {
-                                SDL_SetRelativeMouseMode( SDL_TRUE );
-                            }
-                            break;
-						case SDLK_r:
-                            game.reset_map();
-							break;
-						case SDLK_v:
-                            game.toggle_culling();
-							break;
-						case SDLK_c:
-							if ( game.camera == &game.player )
-							{
-                                game.drawBounds = ENTITY_GET_BOX( game.player, ENTITY_BOUNDS_MOVE_COLLIDE );
-								game.camera = &game.spec;
-							}
-							else
-							{
-                                game.drawBounds = ENTITY_GET_BOX( game.spec, ENTITY_BOUNDS_MOVE_COLLIDE );
-								game.camera = &game.player;
-							}
-							break;
-                        case SDLK_b:
-							gTestFlags ^= DRAW_BILLBOARDS;
-                            break;
-
-                        case SDLK_h:
-							gTestFlags ^= DRAW_HALFSPACES;
-                            break;
-
-                        case SDLK_UP:
-							gTestFlags ^= DRAW_CANCEL_REGIONS;
-                            break;
-
-                        default:
-                            game.camera->eval_key_press( ( input_key ) e.key.keysym.sym );
-                            break;
-                    }
-                    break;
-                case SDL_KEYUP:
-                    game.camera->eval_key_release( ( input_key ) e.key.keysym.sym );
-                    break;
-                case SDL_MOUSEMOTION:
-					if ( !game.mouseShown )
-                    {
-                        game.camera->eval_mouse_move( ( float ) e.motion.xrel, ( float ) e.motion.yrel, false );
-                    }
-                    break;
-                case SDL_MOUSEBUTTONDOWN:
-                    if ( e.button.button == SDL_BUTTON_LEFT )
-                    {
-                        game.fire_gun();
-                    }
-                    break;
-            }
+            g->handle_event( e );
         }
     }
 #endif

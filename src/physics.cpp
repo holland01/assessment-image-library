@@ -309,7 +309,7 @@ namespace {
         }
     }
 
-    INLINE void update_billboards( application& g )
+    INLINE void update_billboards( game& g )
     {
         map_tile_list_t billboards = std::move( g.billboard_list() );
 
@@ -352,22 +352,22 @@ void physics_world::sync_bodies( void )
     }
 }
 
-void physics_world::update( application& game )
+void physics_world::update( game& g )
 {
-    update_billboards( game );
+    update_billboards( g );
 
     mBodies.clear();
-    mBodies.push_back( game.camera );
+    mBodies.push_back( g.camera );
 
-    if ( game.bullet )
+    if ( g.bullet )
     {
-        mBodies.push_back( game.bullet.get() );
+        mBodies.push_back( g.bullet.get() );
     }
 
-    push_bodies( mBodies, std::move( game.wall_list() ) );
-    push_bodies( mBodies, std::move( game.billboard_list() ) );
+    push_bodies( mBodies, std::move( g.wall_list() ) );
+    push_bodies( mBodies, std::move( g.billboard_list() ) );
 
-    game.camera->apply_movement();
+    g.camera->apply_movement();
 
     sync_bodies();
 

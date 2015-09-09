@@ -27,4 +27,3 @@ debug_raylist_iter_t debug_raylist_end( void );
 void debug_raylist_clear( void );
 
 bool debug_raylist_empty( void );
-

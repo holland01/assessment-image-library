@@ -3,7 +3,9 @@
 #include "application.h"
 #include "map.h"
 
-struct game : public application
+using game_app_t = application< game >;
+
+struct game : public application< game >
 {
 private:
     // Is indexed via the addresses of billboards. If an entry is true, then the billboard corresponding to that entry
@@ -31,7 +33,9 @@ public:
 
     game( uint32_t width, uint32_t height );
 
-    void handle_event( const SDL_Event& e );
+    void handle_event( const SDL_Event& e ) override;
+
+    void draw( void ) override;
 
     void reset_map( void );
 

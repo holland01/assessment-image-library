@@ -71,6 +71,8 @@ Product {
         "../src/collision.h",
         "../src/debug.cpp",
         "../src/debug.h",
+        "../src/debug.inl",
+        "../src/debug_app.h",
         "../src/def.h",
         "../src/eminput.h",
         "../src/entity.cpp",
