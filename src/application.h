@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "geom.h"
 #include "input.h"
 #include "debug.h"
@@ -54,7 +53,11 @@ public:
 
     virtual void draw( void );
 
+    virtual void frame( void ) = 0;
+
     virtual void handle_event( const SDL_Event& e );
+
+    virtual void fill_entities( std::vector< entity* >& list ) const = 0;
 
     static child_t* instance( void );
 };
@@ -239,4 +242,3 @@ void application< child_t >::handle_event( const SDL_Event& e )
             break;
     }
 }
-

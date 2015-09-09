@@ -20,6 +20,8 @@
 
 #include "debug_app.h"
 
+#include "application_update.h"
+
 void exec_frame( void );
 
 #include "eminput.h"
@@ -62,7 +64,7 @@ namespace {
 }
 
 game::game( uint32_t width, uint32_t height )
-    : game( width, height )
+    : game_app_t( width, height )
 {
     billTexture.mip_map( true );
     billTexture.open_file( "asset/mooninite.png" );
@@ -123,6 +125,78 @@ void game::fire_gun( void )
     }
 }
 
+namespace {
+    game* game_ptr( void )
+    {
+        return ( game* )( game_app_t::instance() );
+    }
+}
+
+void game::frame( void )
+{
+    application_frame< game > theFrame( *this );
+    UNUSEDPARAM( theFrame );
+
+//!!FIXME: throw this somewhere more logical, like have it managed by the application base class
+#ifdef EMSCRIPTEN
+    if ( !running )
+    {
+        emscripten_cancel_main_loop();
+        std::exit( 0 );
+    }
+#endif
+
+    if ( !drawAll )
+    {
+        gen->find_entities( billboards, walls, freeSpace, frustum, *( camera ) );
+    };
+}
+
+namespace {
+    INLINE void update_billboards( const game& g )
+    {
+        map_tile_list_t billboards = std::move( g.billboard_list() );
+
+        for ( map_tile* t: billboards )
+        {
+            if ( t )
+            {
+                if ( g.billboard_oriented( *t ) )
+                {
+                    t->orient_to( g.camera->view_params().mOrigin );
+                }
+            }
+        }
+    }
+
+}
+
+void game::fill_entities( std::vector< entity* >& list ) const
+{
+    // kinda sorta shouldn't be called from here, but whatever - it works for now.
+    update_billboards( *this );
+
+    map_tile_list_t walllist( std::move( wall_list() ) );
+    map_tile_list_t billboardlist( std::move( billboard_list() ) );
+
+    list.reserve( walllist.size() + billboardlist.size() + 1 );
+
+    if ( bullet )
+    {
+        list.push_back( bullet.get() );
+    }
+
+    for ( entity* e: walllist )
+    {
+        list.push_back( e );
+    }
+
+    for ( entity* e: billboardlist )
+    {
+        list.push_back( e );
+    }
+}
+
 void game::draw( void )
 {
     const view_data& vp = camera->view_params();
@@ -179,6 +253,7 @@ void game::handle_event( const SDL_Event& e )
                     break;
             }
             break;
+
         case SDL_MOUSEBUTTONDOWN:
             if ( e.button.button == SDL_BUTTON_LEFT )
             {
@@ -564,98 +639,3 @@ static void draw_group( game& game,
 
     singleColor.release();
 }
-
-namespace {
-    game* game_ptr( void )
-    {
-        return ( game* )( game_app_t::instance() );
-    }
-}
-
-void exec_frame( void )
-{
-    game* g = game_ptr();
-
-    g->startTime = get_time();
-
-#ifdef EMSCRIPTEN
-    if ( !g->running )
-    {
-        emscripten_cancel_main_loop();
-        std::exit( 0 );
-    }
-#endif
-
-    g->camera->mViewParams.mInverseOrient = g->camera->mBody->orientation_mat4();
-
-    const view_data& vp = g->camera->view_params();
-
-    g->frustum.update( vp );
-
-    if ( !g->drawAll )
-	{
-        g->gen->find_entities( g->billboards, g->walls, g->freeSpace, g->frustum, *( g->camera ) );
-    };
-
-    g->world.update( *g );
-
-    g->draw();
-
-    // clear bodies which are added in world.Update call,
-    // since we only want to integrate bodies which are in view
-    g->world.mTime = get_time() - g->startTime;
-
-    printf( "FPS: %f\r", 1.0f / g->world.mTime );
-}
-
-// temporary hack to get around the fact that querying for an game
-// instance if an error is happening causes problems; we use this flag the exit.
-static bool* runningPtr = nullptr;
-
-uint32_t exec_game( void )
-{   	
-    game* g = game_ptr();
-    runningPtr = &g->running;
-
-#ifdef EMSCRIPTEN
-	InitEmInput();
-#else
-    while ( g->running )
-    {
-        GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
-
-        exec_frame();
-
-        SDL_GL_SwapWindow( g->window );
-
-        SDL_Event e;
-        while ( SDL_PollEvent( &e ) )
-        {
-            g->handle_event( e );
-        }
-    }
-#endif
-
-    return 0;
-}
-
-void flag_exit( void )
-{
-	*runningPtr = false;
-}
-
-float get_time( void )
-{
-	return ( float )SDL_GetTicks() * 0.001f;
-}
-
-// SDL2 defines main as a macro for some reason on Windows
-#ifdef _WIN32
-#	undef main
-#endif
-
-int main( void ) 
-{
-    return exec_game();
-}
-

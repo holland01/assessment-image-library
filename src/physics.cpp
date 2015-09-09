@@ -1,6 +1,6 @@
 #include "physics.h"
 #include "base.h"
-#include "game.h"
+#include "application.h"
 #include <sstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -300,33 +300,6 @@ physics_world::physics_world( float time_, float dt_ )
 {
 }
 
-namespace {
-    INLINE void push_bodies( std::vector< entity* >& entities, map_tile_list_t tiles )
-    {
-        for ( map_tile* t: tiles )
-        {
-            entities.push_back( t );
-        }
-    }
-
-    INLINE void update_billboards( game& g )
-    {
-        map_tile_list_t billboards = std::move( g.billboard_list() );
-
-        for ( map_tile* t: billboards )
-        {
-            if ( t )
-            {
-                if ( g.billboard_oriented( *t ) )
-                {
-                    t->orient_to( g.camera->view_params().mOrigin );
-                }
-            }
-        }
-    }
-
-}
-
 void physics_world::sync_bodies( void )
 {
     float measure = mTargetDeltaTime;
@@ -350,28 +323,6 @@ void physics_world::sync_bodies( void )
         mT += delta;
         mLastMeasureCount++;
     }
-}
-
-void physics_world::update( game& g )
-{
-    update_billboards( g );
-
-    mBodies.clear();
-    mBodies.push_back( g.camera );
-
-    if ( g.bullet )
-    {
-        mBodies.push_back( g.bullet.get() );
-    }
-
-    push_bodies( mBodies, std::move( g.wall_list() ) );
-    push_bodies( mBodies, std::move( g.billboard_list() ) );
-
-    g.camera->apply_movement();
-
-    sync_bodies();
-
-    clear_accum();
 }
 
 void physics_world::clear_accum( void )

@@ -33,9 +33,13 @@ public:
 
     game( uint32_t width, uint32_t height );
 
+    void frame( void ) override;
+
     void handle_event( const SDL_Event& e ) override;
 
     void draw( void ) override;
+
+    void fill_entities( std::vector< entity* >& list ) const override;
 
     void reset_map( void );
 

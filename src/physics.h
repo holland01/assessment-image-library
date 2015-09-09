@@ -7,9 +7,13 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include "entity.h"
 
 struct game;
 struct rigid_body;
+
+template < typename child_t >
+struct application;
 
 const float INFINITE_MASS = 0.0f;
 
@@ -157,7 +161,8 @@ public:
 
     physics_world( float mTime, float mTargetDeltaTime );
 
-    void update( game& g );
+    template < typename child_t >
+    void update( application< child_t >& g );
 
     void sync_bodies( void );
 
