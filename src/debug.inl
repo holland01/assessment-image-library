@@ -28,7 +28,7 @@ INLINE void debug_draw_axes( const application< app_impl_t >& app, const view_da
 
     singleColor.bind();
     singleColor.load_mat4( "modelToView", vp.mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-    singleColor.load_vec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+    singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
 
     imm_draw drawer( singleColor );
 

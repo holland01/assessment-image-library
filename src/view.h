@@ -26,7 +26,7 @@ struct view_data
 
     float       mHeight = 0.0f;
 
-    float		mMoveStep = 0.0f;
+    float		mMoveStep = OP_DEFAULT_MOVE_STEP;
 
     glm::vec3   mForward = glm::vec3( 0.0f );
 

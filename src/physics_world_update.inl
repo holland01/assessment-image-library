@@ -8,7 +8,11 @@ template< typename child_t >
 INLINE void physics_world::update( application< child_t >& app )
 {
     mBodies.clear();
-    mBodies.push_back( app.camera );
+
+    if ( app.camera && app.camera->mBody )
+    {
+        mBodies.push_back( app.camera );
+    }
 
     app.fill_entities( mBodies );
 

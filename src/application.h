@@ -9,9 +9,14 @@
 #include <memory>
 
 template < typename child_t >
+struct application_frame;
+
+template < typename child_t >
 struct application
 {
 protected:
+    friend struct application_frame< child_t >;
+
     static typename std::unique_ptr< child_t > mInstance;
 
 public:
@@ -72,7 +77,7 @@ child_t* application< child_t >::instance( void )
 
     if ( !ch_t::mInstance )
     {
-        ch_t::mInstance.reset( new child_t( 800, 600 ) );
+        ch_t::mInstance.reset( new child_t( 1366, 768 ) );
     }
 
     return ch_t::mInstance.get();

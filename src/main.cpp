@@ -1,5 +1,6 @@
 #include "application.h"
 #include "game.h"
+#include "physics_simulation.h"
 #include "debug_app.h"
 
 // temporary hack to get around the fact that querying for an game
@@ -53,6 +54,6 @@ float get_time( void )
 
 int main( void )
 {
-    return run< game >();
+    return run< physics_simulation >();
 }
 

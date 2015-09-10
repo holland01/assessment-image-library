@@ -173,13 +173,6 @@ void input_client::apply_movement( void )
 
     mViewParams.mLastRot = mViewParams.mCurrRot;
 
-    mViewParams.mForward = forward();
-    mViewParams.mRight = right();
-    mViewParams.mUp = up();
-
-    if ( mKeysPressed[ KEY_IN ] ) mViewParams.mCurrRot.z += mViewParams.mMoveStep;
-    if ( mKeysPressed[ KEY_OUT ] ) mViewParams.mCurrRot.z -= mViewParams.mMoveStep;
-
     mViewParams.mLastOrientation = mViewParams.mOrientation;
     mViewParams.mOrientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( mViewParams.mCurrRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
@@ -187,12 +180,25 @@ void input_client::apply_movement( void )
 
     mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
+    mViewParams.mForward = forward();
+    mViewParams.mRight = right();
+    mViewParams.mUp = up();
+
+    if ( mKeysPressed[ KEY_IN ] ) mViewParams.mCurrRot.z += mViewParams.mMoveStep;
+    if ( mKeysPressed[ KEY_OUT ] ) mViewParams.mCurrRot.z -= mViewParams.mMoveStep;
+
     if ( mKeysPressed[ KEY_FORWARD ] ) add_dir( mViewParams.mForward, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_BACKWARD ] ) add_dir( mViewParams.mForward, -mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_RIGHT ] ) add_dir( mViewParams.mRight, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_LEFT ] ) add_dir( mViewParams.mRight, -mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
+
+    // No need to wait for physics update, so just forward it here
+    if ( !mBody )
+    {
+        sync();
+    }
 }
 
 void input_client::sync( void )
