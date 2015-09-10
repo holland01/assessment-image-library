@@ -463,7 +463,7 @@ struct debug_split_draw
 };
 
 //---------------------------------------------------------------------
-// pipeline_t
+// render_pipeline
 //---------------------------------------------------------------------
 
 struct render_pipeline
@@ -485,12 +485,29 @@ public:
 
     const program_map_t& programs( void ) const { return mPrograms; }
 
+    const shader_program& program( const std::string& prog ) const { return mPrograms.at( prog ); }
+
     const buffer_map_t& draw_buffers( void ) const { return mDrawBuffers; }
 };
 
-//-------------------------------------------------------------------------------------------------
-// buffer_store_t
-//-------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------
+// bind_program
+//---------------------------------------------------------------------
+
+struct bind_program
+{
+private:
+    friend struct render_pipeline;
+
+    static const render_pipeline* mInstance;
+
+    const shader_program& mProgram;
+public:
+    bind_program( const std::string& which );
+
+    ~bind_program( void );
+};
+
 
 //---------------------------------------------------------------------
 // imm_draw_t

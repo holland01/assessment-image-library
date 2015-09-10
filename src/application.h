@@ -3,6 +3,7 @@
 #include "geom.h"
 #include "input.h"
 #include "debug.h"
+#include "collision.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
@@ -47,6 +48,8 @@ public:
     physics_world world;
 
     view_frustum frustum;
+
+    collision_provider collision;
 
     application( uint32_t width, uint32_t height );
 
@@ -141,6 +144,8 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     spec.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
     player.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
 
+    spec.mMode = input_client::MODE_SPEC;
+
     program.load_mat4( "viewToClip", player.view_params().mClipTransform );
     program.release();
 
@@ -155,8 +160,8 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     GL_CHECK( glPointSize( 10.0f ) );
 #endif
 
-    camera = &player;
-    drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
+    camera = &spec;
+    drawBounds = player.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
 
     running = true;
 }

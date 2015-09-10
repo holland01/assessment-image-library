@@ -2,6 +2,12 @@
 #include "view.h"
 #include <stdlib.h>
 
+//-------------------------------------------------------------------------------------------------
+// global
+//-------------------------------------------------------------------------------------------------
+
+imm_draw* gImmDrawer = nullptr;
+
 //-----------------------------------------------------------
 // Shader Util Functions
 //-----------------------------------------------------------
@@ -777,6 +783,8 @@ render_pipeline::render_pipeline( void )
     GL_CHECK( glGenVertexArrays( 1, &mVao ) );
     GL_CHECK( glBindVertexArray( mVao ) );
 #endif
+
+    bind_program::mInstance = this;
 }
 
 render_pipeline::~render_pipeline( void )
@@ -789,4 +797,19 @@ render_pipeline::~render_pipeline( void )
 #endif
 }
 
-imm_draw* gImmDrawer = nullptr;
+//-------------------------------------------------------------------------------------------------
+// bind_program
+//-------------------------------------------------------------------------------------------------
+
+const render_pipeline* bind_program::mInstance = nullptr;
+
+bind_program::bind_program( const std::string& what )
+    : mProgram( mInstance->program( what ) )
+{
+    mProgram.bind();
+}
+
+bind_program::~bind_program( void )
+{
+    mProgram.release();
+}

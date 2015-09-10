@@ -21,8 +21,6 @@ public:
 
     texture billTexture;
 
-    collision_provider collision;
-
     map_tile_list_t billboards;
 
     map_tile_list_t freeSpace;

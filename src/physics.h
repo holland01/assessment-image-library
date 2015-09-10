@@ -80,9 +80,9 @@ public:
 
 	void apply_force_at_point( const glm::vec3& f, const glm::vec3& point );
 
-	void apply_velocity( const glm::vec3& initial );
-
     void apply_torque_from_center( const glm::vec3& f );
+
+    void apply_velocity( const glm::vec3& v );
 
     void integrate( float t );
 
@@ -105,6 +105,8 @@ public:
 	const glm::mat3& iit_world( void ) const { return mIitWorld; }
 
     const glm::vec3& linear_velocity( void ) const { return mLinearVelocity; }
+
+    glm::vec3& linear_velocity( void ) { return mLinearVelocity; }
 
     const glm::vec3& force_accum( void ) const { return mForceAccum; }
 

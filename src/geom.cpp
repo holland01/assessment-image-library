@@ -556,8 +556,6 @@ namespace {
 
 bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
-    normal = glm::vec3( 0.0f );
-
     obb boundsCopy( bounds );
 
     glm::mat4 t( bounds.linear_axes() * bounds.inv_linear_axes() );
@@ -579,6 +577,8 @@ bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
             return false;
         }
     }
+
+    normal = glm::normalize( center() - bounds.center() );
 
     return true;
 }

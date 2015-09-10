@@ -9,6 +9,8 @@ public:
 
     void frame( void ) override;
 
+    void draw( void ) override;
+
     void fill_entities( std::vector< entity* >& entities ) const override;
 };
 
