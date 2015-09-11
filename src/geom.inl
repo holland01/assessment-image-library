@@ -32,7 +32,7 @@ static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, c
 {
 	for ( const glm::vec3& p: points )
 	{
-		float x = glm::dot( p, pln.normal ) - pln.d;
+        float x = glm::dot( p, pln.mNormal ) - pln.mDistance;
 
 		if ( ( *predicate )( x ) )
 		{

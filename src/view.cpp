@@ -68,15 +68,15 @@ void view_frustum::update( const view_data& view )
 
 	//planeLine += 2.0f * view.origin;
 
-	mFrustPlanes[ FRUST_RIGHT ].normal = F_CalcNormal( planeLine, -w );
-	mFrustPlanes[ FRUST_RIGHT ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_RIGHT ].normal );
+	mFrustPlanes[ FRUST_RIGHT ].mNormal = F_CalcNormal( planeLine, -w );
+	mFrustPlanes[ FRUST_RIGHT ].mDistance = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_RIGHT ].mNormal );
 
 	planeLine = -u + v;
 
 	//planeLine += 2.0f * view.origin;
 
-	mFrustPlanes[ FRUST_LEFT  ].normal = F_CalcNormal( planeLine, w );
-	mFrustPlanes[ FRUST_LEFT  ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_LEFT ].normal );
+	mFrustPlanes[ FRUST_LEFT  ].mNormal = F_CalcNormal( planeLine, w );
+	mFrustPlanes[ FRUST_LEFT  ].mDistance = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_LEFT ].mNormal );
 
 	// Z is the initial axis for the horizontal planes
 	fov = glm::atan( tanHalfFovy );
@@ -86,12 +86,12 @@ void view_frustum::update( const view_data& view )
 	w = glm::vec3( inverseOrient[ 0 ] );
 
 	planeLine = -u + v;
-	mFrustPlanes[ FRUST_TOP ].normal = F_CalcNormal( w, planeLine );
-	mFrustPlanes[ FRUST_TOP ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_TOP ].normal );
+	mFrustPlanes[ FRUST_TOP ].mNormal = F_CalcNormal( w, planeLine );
+	mFrustPlanes[ FRUST_TOP ].mDistance = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_TOP ].mNormal );
 
 	planeLine = u + v;
-	mFrustPlanes[ FRUST_BOTTOM ].normal = F_CalcNormal( w, planeLine );
-	mFrustPlanes[ FRUST_BOTTOM ].d = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_BOTTOM ].normal );
+	mFrustPlanes[ FRUST_BOTTOM ].mNormal = F_CalcNormal( w, planeLine );
+	mFrustPlanes[ FRUST_BOTTOM ].mDistance = glm::dot( view.mOrigin + planeLine, mFrustPlanes[ FRUST_BOTTOM ].mNormal );
 }
 #undef F_CalcNormal
 

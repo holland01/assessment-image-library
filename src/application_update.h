@@ -24,15 +24,15 @@ application_frame< child_t >::application_frame( app_t& a )
     const view_data& vp = app.camera->view_params();
 
     app.frustum.update( vp );
+
+    app.world.update( app );
+
+    app.draw();
 }
 
 template< typename child_t >
 application_frame< child_t >::~application_frame( void )
 {
-    app.world.update( app );
-
-    app.draw();
-
     // clear bodies which are added in world.Update call,
     // since we only want to integrate bodies which are in view
     app.world.mTime = get_time() - app.startTime;

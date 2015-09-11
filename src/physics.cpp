@@ -234,7 +234,7 @@ void rigid_body::integrate( float t )
 
     mOrientation = glm::normalize( mOrientation );
 
-    mPosition += mOrientation * ( mLinearVelocity + accel * t );
+    mPosition += mOrientation * mLinearVelocity + accel * t;
 
     inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
 

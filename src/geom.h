@@ -49,9 +49,18 @@ bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 );
 
 struct plane
 {
-    float       d = 0.0f;
-    glm::vec3   normal = glm::vec3( 0.0f );
-    glm::vec3   point = glm::vec3( 0.0f );
+    float       mDistance;
+    glm::vec3   mNormal;
+    glm::vec3   mPoint;
+
+    plane( float d = 0.0f,
+           glm::vec3 normal = glm::vec3( 0.0f ),
+           glm::vec3 point = glm::vec3( 0.0f ) )
+        : mDistance( d ),
+          mNormal( std::move( normal ) ),
+          mPoint( std::move( point ) )
+    {
+    }
 };
 
 //-------------------------------------------------------------------------------------------------------

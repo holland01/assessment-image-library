@@ -167,11 +167,11 @@ const float DISTANCE_THRESH = 0.03125f;
 
 glm::vec3 plane_project( const glm::vec3& origin, const plane& p )
 {
-    glm::vec3 originToP( p.point - origin );
+    glm::vec3 originToP( p.mPoint - origin );
 
-    float dist = glm::dot( originToP, p.normal );
+    float dist = glm::dot( originToP, p.mNormal );
 
-    return std::move( glm::vec3( origin + p.normal * dist ) );
+    return std::move( glm::vec3( origin + p.mNormal * dist ) );
 }
 
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 )
@@ -548,7 +548,7 @@ namespace {
         obb::pointset3D_t a0 = std::move( source.face_project( facePlane, a ) );
         obb::pointset3D_t b0 = std::move( source.face_project( facePlane, b ) );
 
-        cardinal_plane cp = glm::ext::best_cardinal_plane( facePlane.normal );
+        cardinal_plane cp = glm::ext::best_cardinal_plane( facePlane.mNormal );
 
         return pointset_intersects( cp, a0, b0 );
     }
@@ -686,33 +686,33 @@ void obb::face_plane( face_type face, plane& thePlane ) const
     {
         case obb::FACE_TOP:
             p = corner( CORNER_MAX );
-            thePlane.normal = glm::vec3( 0.0f, 1.0f, 0.0f );
+            thePlane.mNormal = glm::vec3( 0.0f, 1.0f, 0.0f );
             break;
         case obb::FACE_RIGHT:
             p = corner( CORNER_MAX );
-            thePlane.normal = glm::vec3( 1.0f, 0.0f, 0.0f );
+            thePlane.mNormal = glm::vec3( 1.0f, 0.0f, 0.0f );
             break;
         case obb::FACE_FRONT:
             p = corner( CORNER_NEAR_UP_RIGHT );
-            thePlane.normal = glm::vec3( 0.0f, 0.0f, 1.0f );
+            thePlane.mNormal = glm::vec3( 0.0f, 0.0f, 1.0f );
             break;
         case obb::FACE_LEFT:
             p = corner( CORNER_NEAR_UP_LEFT );
-            thePlane.normal = glm::vec3( -1.0f, 0.0f, 0.0f );
+            thePlane.mNormal = glm::vec3( -1.0f, 0.0f, 0.0f );
             break;
         case obb::FACE_BACK:
             p = corner( CORNER_FAR_UP_LEFT );
-            thePlane.normal = glm::vec3( 0.0f, 0.0f, -1.0f );
+            thePlane.mNormal = glm::vec3( 0.0f, 0.0f, -1.0f );
             break;
         case obb::FACE_BOTTOM:
             p = corner( CORNER_NEAR_DOWN_RIGHT );
-            thePlane.normal = glm::vec3( 0.0f, -1.0f, 0.0f );
+            thePlane.mNormal = glm::vec3( 0.0f, -1.0f, 0.0f );
             break;
     }
 
-    thePlane.normal = glm::normalize( linear_axes() * thePlane.normal );
-    thePlane.point = p;
-    thePlane.d = glm::dot( p, thePlane.normal );
+    thePlane.mNormal = glm::normalize( linear_axes() * thePlane.mNormal );
+    thePlane.mPoint = p;
+    thePlane.mDistance = glm::dot( p, thePlane.mNormal );
 }
 
 void obb::color( const glm::vec4& color_ )
