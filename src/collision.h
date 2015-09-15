@@ -25,8 +25,8 @@ struct collision_entity
     const uint32_t colliderUseFlags;
     const uint32_t collideeUseFlags;
 
-	ptr_t collider;
-	ptr_t collidee;
+    ptr_t mEntityA;
+    ptr_t mEntityB;
 
     bool colliding = false;
     glm::vec3 normal = glm::vec3( 0.0f );
@@ -36,8 +36,8 @@ struct collision_entity
     const collision_provider& provider;
 
     collision_entity( const collision_provider& provider,
-						ptr_t collider = nullptr,
-						ptr_t collidee = nullptr,
+                        ptr_t mEntityA = nullptr,
+                        ptr_t mEntityB = nullptr,
                         const uint32_t colliderBoundsUseFlags = ENTITY_BOUNDS_ALL,
                         const uint32_t collideeBoundsUseFlags = ENTITY_BOUNDS_ALL );
 };
@@ -62,9 +62,9 @@ struct collision_provider
     std::vector< collision_face_table_t >   halfSpaceTable;
     std::vector< halfspace >             halfSpaces;
 
-    uint32_t GenHalfSpace( const obb& bounds, collision_face face ); // returns the index of the half space in halfSpaces
+    uint32_t gen_half_space( const obb& bounds, collision_face face ); // returns the index of the half space in halfSpaces
 
-    bool EvalCollision( collision_entity& ce ) const;
+    bool eval_collision( collision_entity& ce ) const;
 };
 
 

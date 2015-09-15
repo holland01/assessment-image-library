@@ -204,7 +204,7 @@ INLINE void obb::center( const glm::vec3& position )
 	mAxes[ 3 ] = glm::vec4( position, 1.0f );
 }
 
-INLINE void obb::orientation( const glm::mat3& orient )
+INLINE void obb::linear_axes( const glm::mat3& orient )
 {
 	mAxes[ 0 ] = glm::vec4( orient[ 0 ], 0.0f );
 	mAxes[ 1 ] = glm::vec4( orient[ 1 ], 0.0f );

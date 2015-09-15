@@ -480,25 +480,25 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
 
         if ( mTiles[ left ].mType != map_tile::WALL && ( wall->mX - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )mCollision.GenHalfSpace( box, COLLISION_FACE_LEFT );
+            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_LEFT );
             hasHalfSpace = true;
         }
 
         if ( mTiles[ forward ].mType != map_tile::WALL && ( wall->mZ - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )mCollision.GenHalfSpace( box, COLLISION_FACE_FORWARD );
+            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_FORWARD );
             hasHalfSpace = true;
         }
 
         if ( mTiles[ right ].mType != map_tile::WALL && ( wall->mX + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )mCollision.GenHalfSpace( box, COLLISION_FACE_RIGHT );
+            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_RIGHT );
             hasHalfSpace = true;
         }
 
         if ( mTiles[ back ].mType != map_tile::WALL && ( wall->mZ + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )mCollision.GenHalfSpace( box, COLLISION_FACE_BACK );
+            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_BACK );
             hasHalfSpace = true;
         }
 

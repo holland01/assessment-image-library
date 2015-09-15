@@ -545,8 +545,8 @@ namespace {
         plane facePlane;
         source.face_plane( face, facePlane );
 
-        obb::pointset3D_t a0 = std::move( source.face_project( facePlane, a ) );
-        obb::pointset3D_t b0 = std::move( source.face_project( facePlane, b ) );
+        obb::pointset3D_t a0( std::move( source.face_project( facePlane, a ) ) );
+        obb::pointset3D_t b0( std::move( source.face_project( facePlane, b ) ) );
 
         cardinal_plane cp = glm::ext::best_cardinal_plane( facePlane.mNormal );
 
@@ -558,13 +558,9 @@ bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
 {
     obb boundsCopy( bounds );
 
-    glm::mat4 t( bounds.linear_axes() * bounds.inv_linear_axes() );
-    t[ 3 ] = glm::vec4( bounds.center(), 1.0f );
-
-    boundsCopy.axes( t );
-
     obb thisCopy( *this );
-    thisCopy.orientation( bounds.inv_linear_axes() * thisCopy.linear_axes() );
+
+    thisCopy.linear_axes( bounds.linear_axes() * thisCopy.linear_axes() );
 
     pointlist3D_t thisPoints, otherPoints;
     thisCopy.points( thisPoints );

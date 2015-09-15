@@ -35,7 +35,7 @@ namespace {
 					o = std::move( glm::mat3( e.scale_transform() ) * o );
 				}
 
-				box->orientation( std::move( o ) );
+                box->linear_axes( std::move( o ) );
             }
         },
 
@@ -148,6 +148,8 @@ const bounds_primitive* entity::query_bounds( uint32_t flags ) const
 namespace {
     const  uint32_t NUM_ENTITY_BOUNDS_PRIM_TYPES = 3;
 
+    // Why don't we just iterate over the list instead of forcing 4 iterations when only
+    // one or two may be necessary...?
     std::array< uint32_t, NUM_ENTITY_BOUNDS_PRIM_TYPES + 1 > gEntBoundsPrims =
     {{
         ENTITY_BOUNDS_ALL,
@@ -210,7 +212,7 @@ void entity::orient_to( const glm::vec3& v )
             mBody->orientation( orient );
             break;
         case entity::BOUNDS_DEPENDENT:
-            bounds->orientation( orient );
+            bounds->linear_axes( orient );
             break;
     }
 

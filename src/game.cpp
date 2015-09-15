@@ -300,7 +300,7 @@ INLINE bool test_tile_collision(
                                entFlags,
                                tileFlags );
 
-        if ( g.collision.EvalCollision( ce ) )
+        if ( g.collision.eval_collision( ce ) )
         {
             debug_draw_bounds( g, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 
@@ -421,12 +421,12 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
 
 void apply_force( game_app_t& game, const collision_entity& ce )
 {
-	if ( ce.collider->mBody )
+    if ( ce.mEntityB->mBody )
     {
 		glm::vec3 offset( ce.normal * ce.interpenDepth );
 
 		game.camera->mBody->apply_force(
-					get_collision_normal( offset, *( ce.collidee->mBody ), *( ce.collider->mBody ) ) );
+                    get_collision_normal( offset, *( ce.mEntityA->mBody ), *( ce.mEntityB->mBody ) ) );
     }
 }
 

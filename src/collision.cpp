@@ -38,10 +38,10 @@ namespace {
     collision_fn_table_t gLookupCollisionTable =
     {{
         // HALFSPACE
-        []( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee )
+        []( collision_entity& e, const bounds_primitive* pa, const bounds_primitive* pb )
         {
-            const obb& a = *( collider->to_box() );
-            const primitive_lookup& b = *( collidee->to_lookup() );
+            const obb& a = *( pa->to_box() );
+            const primitive_lookup& b = *( pb->to_lookup() );
 
             if ( b.index < 0 )
             {
@@ -72,7 +72,7 @@ namespace {
 
             if ( e.colliding )
             {
-                const obb& bounds = *ENTITY_PTR_GET_BOX( e.collidee, ENTITY_BOUNDS_AREA_EVAL );
+                const obb& bounds = *ENTITY_PTR_GET_BOX( e.mEntityA, ENTITY_BOUNDS_AREA_EVAL );
 
                 calc_interpen_depth( e, a, bounds );
 
@@ -105,14 +105,14 @@ namespace {
 
             // BOUNDS_BOUNDS
             []( collision_entity& e,
-                const bounds_primitive* collider,
-                const bounds_primitive* collidee )
+                const bounds_primitive* pa,
+                const bounds_primitive* pb )
             {
-                assert( collider->type == BOUNDS_PRIM_BOX );
-                assert( collidee->type == BOUNDS_PRIM_BOX );
+                assert( pa->type == BOUNDS_PRIM_BOX );
+                assert( pb->type == BOUNDS_PRIM_BOX );
 
-                const obb& a = *( collider->to_box() );
-                const obb& b = *( collidee->to_box() );
+                const obb& a = *( pa->to_box() );
+                const obb& b = *( pb->to_box() );
 
                 e.colliding = a.intersects( e.normal, b );
 
@@ -137,16 +137,16 @@ namespace {
 // collision_entity_t
 //-------------------------------------------------------------------------------------------------------
 
-collision_entity::collision_entity( const collision_provider& provider_,
-										ptr_t a_,
-										ptr_t b_,
-										const uint32_t colliderBoundsUseFlags,
-										const uint32_t collideeBoundsUseFlags )
+collision_entity::collision_entity(const collision_provider& provider_,
+                                        ptr_t a_,
+                                        ptr_t b_,
+                                        const uint32_t colliderBoundsUseFlags,
+                                        const uint32_t collideeBoundsUseFlags )
     :
       colliderUseFlags( colliderBoundsUseFlags ),
       collideeUseFlags( collideeBoundsUseFlags ),
-      collider( a_ ),
-      collidee( b_ ),
+      mEntityA( a_ ),
+      mEntityB( b_ ),
       colliding( false ),
       normal( 0.0f ),
       provider( provider_ )
@@ -157,7 +157,7 @@ collision_entity::collision_entity( const collision_provider& provider_,
 // collision_provider_t
 //-------------------------------------------------------------------------------------------------------
 
-uint32_t collision_provider::GenHalfSpace( const obb& bounds, collision_face face )
+uint32_t collision_provider::gen_half_space( const obb& bounds, collision_face face )
 {
     std::array< glm::vec3, NUM_COLLISION_FACES > halfSpaceNormals =
     {{
@@ -175,15 +175,15 @@ uint32_t collision_provider::GenHalfSpace( const obb& bounds, collision_face fac
     return index;
 }
 
-bool collision_provider::EvalCollision( collision_entity& ce ) const
+bool collision_provider::eval_collision( collision_entity& ce ) const
 {
-    const bounds_primitive* collider = ce.collider->query_bounds( ce.colliderUseFlags );
-    const bounds_primitive* collidee = ce.collidee->query_bounds( ce.collideeUseFlags );
+    const bounds_primitive* a = ce.mEntityA->query_bounds( ce.colliderUseFlags );
+    const bounds_primitive* b = ce.mEntityB->query_bounds( ce.collideeUseFlags );
 
-    assert( collider );
-    assert( collidee );
+    assert( a );
+    assert( b );
 
-    gCollisionTable[ collider->type ][ collidee->type ]( ce, collider, collidee );
+    gCollisionTable[ a->type ][ b->type ]( ce, a, b );
 
     return ce.colliding;
 }

@@ -238,7 +238,7 @@ void input_client::sync( void )
         assert( b );
 
         b->center( mViewParams.mOrigin );
-        b->orientation( glm::mat3( mViewParams.mInverseOrient ) );
+        b->linear_axes( glm::mat3( mViewParams.mInverseOrient ) );
 
         set_view_transform( mViewParams.mOrientation );
 	}

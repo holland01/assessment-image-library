@@ -7,6 +7,8 @@ using namespace std;
 #define GROUND_MASS 10000.0f
 
 namespace {
+    const glm::vec4 G_TAG_COLOR( 0.0f, 0.0f, 1.0f, 1.0f );
+
     vector< entity* > gEnts = []( void ) -> vector< entity* >
     {
         vector< entity* > ents;
@@ -15,8 +17,8 @@ namespace {
 
         entity* box0 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
                                    glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-        box0->mBody->position( glm::vec3( 0.0f, 100.0f, 0.0f ) );
-        box0->mBody->mass( 50.0f );
+        box0->mBody->position( glm::vec3( -10.0f, 100.0f, 0.0f ) );
+        box0->mBody->mass( 500.0f );
         box0->mBody->linear_damping( 0.3f );
         box0->mBody->angular_damping( 0.5f );
         box0->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
@@ -24,11 +26,16 @@ namespace {
 
         ents.push_back( box0 );
 
-        entity* box1 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
-                                   glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
-        box1->mBody->position( glm::vec3( 2.0f, 100.0f, 0.0f ) );
-        box1->mBody->mass( 50.0f );
+        entity* box1 = new entity( entity::BODY_DEPENDENT,
+                                   new rigid_body( flags ),
+                                   G_TAG_COLOR );
+        box1->mBody->position( glm::vec3( 0.0f, 100.0f, 0.0f ) );
+        box1->mBody->mass( 200.0f );
+        box1->mBody->linear_damping( 0.3f );
+        box1->mBody->angular_damping( 0.5f );
         box1->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
+        box1->mBody->iit_local( get_block_inertia( glm::vec3( 1.0f ), box1->mBody->mass() ) );
+
         ents.push_back( box1 );
 
         entity* groundPlane = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
@@ -69,9 +76,9 @@ namespace {
     public:
         test_force( const collision_entity& ce )
         {
-            glm::vec3 relavel( ce.collider->mBody->linear_velocity() - ce.collidee->mBody->linear_velocity() );
+            glm::vec3 relavel( ce.mEntityA->mBody->linear_velocity() - ce.mEntityB->mBody->linear_velocity() );
 
-            glm::vec3 resolveDir( glm::normalize( ce.normal ) );
+            glm::vec3 resolveDir( ce.normal );
 
             float closingVelocity = glm::dot( relavel, resolveDir );
 
@@ -80,30 +87,30 @@ namespace {
                 return;
             }
 
-            const float restitution = 3.0f;
+            const float restitution = 0.1f;
 
             float impulse = -( 1.0f + restitution ) * closingVelocity;
             float denom = 0.0f;
 
-            if ( ce.collider->mBody->mass() != INFINITE_MASS )
+            if ( ce.mEntityB->mBody->mass() != INFINITE_MASS )
             {
-                denom += ce.collider->mBody->inv_mass();
+                denom += ce.mEntityB->mBody->inv_mass();
             }
 
-            if ( ce.collidee->mBody->mass() != INFINITE_MASS )
+            if ( ce.mEntityA->mBody->mass() != INFINITE_MASS )
             {
-                denom += ce.collidee->mBody->inv_mass();
+                denom += ce.mEntityA->mBody->inv_mass();
             }
 
             impulse /= denom;
 
             glm::vec3 imp( impulse * resolveDir );
 
-            glm::vec3 impa( ce.collider->mBody->inv_mass() * imp );
-            glm::vec3 impb( ce.collidee->mBody->inv_mass() * imp );
+            glm::vec3 impa( ce.mEntityB->mBody->inv_mass() * imp );
+            glm::vec3 impb( ce.mEntityA->mBody->inv_mass() * imp );
 
-            ce.collider->mBody->linear_velocity() += impa;
-            ce.collidee->mBody->linear_velocity() -= impb;
+            ce.mEntityB->mBody->linear_velocity() += impa;
+            ce.mEntityA->mBody->linear_velocity() -= impb;
         }
     };
 
@@ -112,7 +119,7 @@ namespace {
     public:
         spring_force( collision_entity& ce, float restLength, float springConstant )
         {
-            glm::vec3 theForce( ce.collider->mBody->position() - ce.collidee->mBody->position() );
+            glm::vec3 theForce( ce.mEntityB->mBody->position() - ce.mEntityA->mBody->position() );
 
             float mag = glm::length( theForce );
             mag = glm::abs( mag - restLength );
@@ -128,7 +135,7 @@ physics_simulation::physics_simulation( uint32_t w, uint32_t h )
 {
     camera = &spec;
     camera->mViewParams.mMoveStep = 0.01f;
-    camera->position( glm::vec3( 0.0f, 0.0f, 10.0f ) );
+    camera->position( glm::vec3( 0.0f, 10.0f, 100.0f ) );
 }
 
 void physics_simulation::frame( void )
@@ -148,7 +155,7 @@ void physics_simulation::draw( void )
     {
         if ( !gFire )
         {
-            return e->mBody->mass() != 100.0f;
+            return e->mColor != G_TAG_COLOR;
         }
         else
         {
@@ -158,9 +165,9 @@ void physics_simulation::draw( void )
 
     auto apply_gravity = [ emit_pred ]( entity* e )
     {
-        if ( gDoIt && e->mBody->mass() != INFINITE_MASS && emit_pred( e ) )
+        if ( gDoIt && emit_pred( e ) )
         {
-            e->mBody->apply_force( glm::vec3( 0.0f, -0.1f, 0.0f ) );
+            e->mBody->apply_force( glm::vec3( 0.0f, -9.8f, 0.0f ) );
         }
     };
 
@@ -175,9 +182,9 @@ void physics_simulation::draw( void )
 
             collision_entity ce( collision, e, e1 );
 
-            if ( collision.EvalCollision( ce ) )
+            if ( collision.eval_collision( ce ) )
             {
-                ce.normal = ce.collider->mBody->position() - ce.collidee->mBody->position();
+                ce.normal = glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() );
 
                 test_force tf( ce );
             }

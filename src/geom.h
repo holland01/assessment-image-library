@@ -328,7 +328,7 @@ public:
 
     void            center( const glm::vec3& position );
 
-    void            orientation( const glm::mat3& orient );
+    void            linear_axes( const glm::mat3& orient );
 
     const glm::vec4& operator[]( uint32_t i ) const;
 
