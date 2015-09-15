@@ -12,6 +12,8 @@ public:
     void draw( void ) override;
 
     void fill_entities( std::vector< entity* >& entities ) const override;
+
+    void handle_event( const SDL_Event& e ) override;
 };
 
 using physics_app_t = application< physics_simulation >;

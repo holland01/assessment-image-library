@@ -1046,7 +1046,7 @@ void map_tile_generator::tile( map_tile& tile, int32_t pass )
 
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
-        tile.mSize = 1.0f;
+        tile.mSize = glm::vec3( 1.0f );
 
         tile.set( get_tile_transform( tile ) );
 	}

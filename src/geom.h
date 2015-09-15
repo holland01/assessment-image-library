@@ -288,7 +288,7 @@ public:
 		CORNER_MAX = 7
 	};
 
-    obb( const glm::mat4& mAxes = glm::mat4( 1.0f ) );
+    obb( const glm::mat4& axes = glm::mat4( 1.0f ) );
 
     obb( obb&& m );
 

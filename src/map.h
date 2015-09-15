@@ -93,7 +93,6 @@ public:
 
     map_tile_type mType;
     int32_t mX, mZ, mHalfSpaceIndex;
-    float mSize; // does not bear any relation to index lookup in the table at all.
 
     map_tile( void );
 

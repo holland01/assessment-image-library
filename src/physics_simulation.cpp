@@ -4,6 +4,8 @@
 
 using namespace std;
 
+#define GROUND_MASS 10000.0f
+
 namespace {
     vector< entity* > gEnts = []( void ) -> vector< entity* >
     {
@@ -11,9 +13,10 @@ namespace {
 
         uint32_t flags = rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
 
-        entity* box0 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-        box0->mBody->position( glm::vec3( 0.0f, 10.0f, 0.0f ) );
-        box0->mBody->mass( 100.0f );
+        entity* box0 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
+                                   glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+        box0->mBody->position( glm::vec3( 0.0f, 100.0f, 0.0f ) );
+        box0->mBody->mass( 50.0f );
         box0->mBody->linear_damping( 0.3f );
         box0->mBody->angular_damping( 0.5f );
         box0->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
@@ -21,11 +24,24 @@ namespace {
 
         ents.push_back( box0 );
 
-        entity* box1 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ), glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
-        box1->mBody->position( glm::vec3( 0.0f ) );
-        box1->mBody->mass( 110.0f );
+        entity* box1 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
+                                   glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+        box1->mBody->position( glm::vec3( 2.0f, 100.0f, 0.0f ) );
+        box1->mBody->mass( 50.0f );
         box1->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
         ents.push_back( box1 );
+
+        entity* groundPlane = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
+                                          glm::vec4( 0.0f, 0.4f, 0.0f, 1.0f ) );
+        groundPlane->mBody->position( glm::vec3( 0.0f ) );
+        groundPlane->mBody->mass( INFINITE_MASS );
+        groundPlane->add_bounds( ENTITY_BOUNDS_ALL,
+                                 new obb() );
+
+        groundPlane->mSize = glm::vec3( 100.0f, 1.0f, 100.0f );
+        groundPlane->sync_options( ENTITY_SYNC_APPLY_SCALE );
+
+        ents.push_back( groundPlane );
 
         return std::move( ents );
     }();
@@ -33,16 +49,19 @@ namespace {
     struct force
     {
     protected:
-        glm::vec3 mForce;
+        glm::vec3 mForce, mFriction;
 
-        vector< collision_entity* > mEntityList;
+        std::vector< collision_entity* > mEntityList;
 
     public:
         force( void )
-            : mForce( 0.0f )
+            : mForce( 0.0f ),
+              mFriction( 0.0f )
         {}
 
-        glm::vec3 operator()( void ) const { return mForce; }
+        glm::vec3 force_vec( void ) const { return mForce; }
+
+        glm::vec3 friction( void ) const { return mFriction; }
     };
 
     struct test_force : public force
@@ -50,19 +69,41 @@ namespace {
     public:
         test_force( const collision_entity& ce )
         {
-            float closingVelocity = glm::dot( ce.collidee->mBody->linear_velocity() -
-                                              ce.collider->mBody->linear_velocity(),
-                                              ce.normal );
+            glm::vec3 relavel( ce.collider->mBody->linear_velocity() - ce.collidee->mBody->linear_velocity() );
 
-            float massDiff = ce.collidee->mBody->mass() - ce.collider->mBody->mass();
+            glm::vec3 resolveDir( glm::normalize( ce.normal ) );
 
-            glm::vec3 f( ce.normal * massDiff );
+            float closingVelocity = glm::dot( relavel, resolveDir );
 
-            glm::vec3 v( ce.collider->mBody->linear_velocity() * -closingVelocity );
+            if ( closingVelocity > 0.0f )
+            {
+                return;
+            }
 
-            glm::vec3 fv( f + v );
+            const float restitution = 3.0f;
 
-            mForce = std::move( fv * 0.1f );
+            float impulse = -( 1.0f + restitution ) * closingVelocity;
+            float denom = 0.0f;
+
+            if ( ce.collider->mBody->mass() != INFINITE_MASS )
+            {
+                denom += ce.collider->mBody->inv_mass();
+            }
+
+            if ( ce.collidee->mBody->mass() != INFINITE_MASS )
+            {
+                denom += ce.collidee->mBody->inv_mass();
+            }
+
+            impulse /= denom;
+
+            glm::vec3 imp( impulse * resolveDir );
+
+            glm::vec3 impa( ce.collider->mBody->inv_mass() * imp );
+            glm::vec3 impb( ce.collidee->mBody->inv_mass() * imp );
+
+            ce.collider->mBody->linear_velocity() += impa;
+            ce.collidee->mBody->linear_velocity() -= impb;
         }
     };
 
@@ -80,17 +121,6 @@ namespace {
             mForce = glm::normalize( theForce ) * -mag;
         }
     };
-
-    struct gravity_plane
-    {
-        plane mPlane;
-        float mPull;
-
-        gravity_plane( void )
-            : mPull( -9.8f )
-        {
-        }
-    };
 }
 
 physics_simulation::physics_simulation( uint32_t w, uint32_t h )
@@ -106,42 +136,59 @@ void physics_simulation::frame( void )
     application_frame< physics_simulation > theFrame( *this );
 }
 
-static bool gDoIt = true;
-
+namespace {
+    bool gDoIt = true;
+    bool gFire = false;
+}
 void physics_simulation::draw( void )
 {
     bind_program program( "single_color" );
 
-    collision_entity ce( collision, gEnts[ 0 ], gEnts[ 1 ] );
-
-    //spring_force sf( ce, 9.0f, 1.0f );
-
-    if ( collision.EvalCollision( ce ) )
+    auto emit_pred = []( entity* e ) -> bool
     {
-        //gDoIt = false;
+        if ( !gFire )
+        {
+            return e->mBody->mass() != 100.0f;
+        }
+        else
+        {
+            return true;
+        }
+    };
 
-        gEnts[ 0 ]->mColor = glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
-        gEnts[ 1 ]->mColor = glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f );
-
-        ce.normal = ce.collider->mBody->position() - ce.collidee->mBody->position();
-
-        test_force tf( ce );
-
-        gEnts[ 0 ]->mBody->apply_force( tf() );
-    }
-    else if ( gDoIt )
+    auto apply_gravity = [ emit_pred ]( entity* e )
     {
-        gEnts[ 0 ]->mBody->apply_force_at_local_point( glm::vec3( 0.0f, -0.5f, 0.0f ),
-                                                       glm::vec3( 0.0f, 0.0f, 0.0f ) );
-    }
+        if ( gDoIt && e->mBody->mass() != INFINITE_MASS && emit_pred( e ) )
+        {
+            e->mBody->apply_force( glm::vec3( 0.0f, -0.1f, 0.0f ) );
+        }
+    };
 
-    for ( auto e: gEnts )
+    for ( entity* e: gEnts )
     {
+        for ( entity* e1: gEnts )
+        {
+            if ( e == e1 )
+            {
+                continue;
+            }
+
+            collision_entity ce( collision, e, e1 );
+
+            if ( collision.EvalCollision( ce ) )
+            {
+                ce.normal = ce.collider->mBody->position() - ce.collidee->mBody->position();
+
+                test_force tf( ce );
+            }
+
+            apply_gravity( e );
+            apply_gravity( e1 );
+        }
+
         const obb& bounds = *ENTITY_PTR_GET_BOX( e, ENTITY_BOUNDS_ALL );
         debug_draw_bounds( *this, bounds, glm::vec3( e->mColor ), e->mColor.a );
     }
-
-
 
     application< physics_simulation >::draw();
 }
@@ -150,3 +197,19 @@ void physics_simulation::fill_entities( std::vector< entity* >& entities ) const
 {
     entities.insert( entities.end(), gEnts.begin(), gEnts.end() );
 }
+
+void physics_simulation::handle_event( const SDL_Event& e )
+{
+    physics_app_t::handle_event( e );
+
+    if ( e.type ==  SDL_KEYDOWN )
+    {
+        switch ( e.key.keysym.sym )
+        {
+            case SDLK_v:
+                gFire = !gFire;
+                break;
+        }
+    }
+}
+

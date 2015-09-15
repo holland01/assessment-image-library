@@ -114,7 +114,7 @@ void game::fire_gun( void )
         debug_set_flag( false );
         bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body() ) );
 
-        bullet->mSize = 0.1f;
+        bullet->mSize = glm::vec3( 0.1f );
         bullet->sync_options( ENTITY_SYNC_APPLY_SCALE );
 
         bullet->mBody->orientation( camera->mBody->orientation_mat3() );

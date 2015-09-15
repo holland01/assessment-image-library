@@ -169,7 +169,10 @@ bool input_client::eval_key_release( input_key key )
 
 void input_client::apply_movement( void )
 {
-    NormalizeRotation( mViewParams.mCurrRot );
+    if ( mMode == MODE_PLAY )
+    {
+        NormalizeRotation( mViewParams.mCurrRot );
+    }
 
     mViewParams.mLastRot = mViewParams.mCurrRot;
 

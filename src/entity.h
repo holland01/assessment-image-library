@@ -69,7 +69,7 @@ public:
 
     glm::vec4 mColor;
 
-    float mSize;
+    glm::vec3 mSize;
 
     std::shared_ptr< rigid_body > mBody;
 
@@ -79,7 +79,7 @@ public:
 
     virtual void sync( void );
 
-	glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), glm::vec3( mSize ) ); }
+    glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 
     void add_bounds( uint32_t usageFlags, bounds_primitive* mBounds );
 
