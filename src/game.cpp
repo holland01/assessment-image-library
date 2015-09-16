@@ -421,12 +421,17 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
 
 void apply_force( game_app_t& game, const collision_entity& ce )
 {
+    assert( false && "need to rewrite for contact list usage" );
+
+    UNUSEDPARAM( game );
+
     if ( ce.mEntityB->mBody )
     {
-		glm::vec3 offset( ce.normal * ce.interpenDepth );
 
-		game.camera->mBody->apply_force(
-                    get_collision_normal( offset, *( ce.mEntityA->mBody ), *( ce.mEntityB->mBody ) ) );
+        //glm::vec3 offset( ce.normal * ce.interpenDepth );
+
+        //game.camera->mBody->apply_force(
+          //          get_collision_normal( offset, *( ce.mEntityA->mBody ), *( ce.mEntityB->mBody ) ) );
     }
 }
 

@@ -15,7 +15,7 @@
 
 namespace {
 
-    void calc_interpen_depth( collision_entity& e, const obb& a, const obb& b )
+    void calc_interpen_depth( contact& e, const obb& a, const obb& b )
     {
 		glm::vec3 normal( ( b.center() - a.center() ) );
 
@@ -29,7 +29,7 @@ namespace {
 
 		glm::vec3 depth( r.d * r.t );
 
-        e.interpenDepth = glm::length( normal - depth );
+        e.mInterpenDepth = glm::length( normal - depth );
     }
 
     using collision_entity_fn_t = std::function< void( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee ) >;
@@ -45,37 +45,33 @@ namespace {
 
             if ( b.index < 0 )
             {
-                e.colliding = false;
+                e.mColliding = false;
                 return;
             }
 
-            const collision_face_table_t& table = e.provider.halfSpaceTable[ b.index ];
+            const collision_face_table_t& table = e.mProvider.halfSpaceTable[ b.index ];
 
             for ( int32_t i: table )
             {
                 if ( i >= 0 )
                 {
-                    const halfspace& hs = e.provider.halfSpaces[ i ];
+                    const halfspace& hs = e.mProvider.halfSpaces[ i ];
 
-                    if ( a.intersects( e.normal, hs ) )
+                    contact::list_t contacts;
+
+                    if ( a.intersects( contacts, hs ) )
                     {
-                        if ( glm::length( e.normal ) < 1.0f )
-                        {
-                            e.normal = glm::normalize( e.normal );
-                        }
+                        // TODO: calc depths here
 
-                        e.colliding = true;
+                         //const obb& bounds = *ENTITY_PTR_GET_BOX( e.mEntityA, ENTITY_BOUNDS_AREA_EVAL );
+
+                         //calc_interpen_depth( e, a, bounds );
+
+
+                        e.mColliding = true;
                         break;
                     }
                 }
-            }
-
-            if ( e.colliding )
-            {
-                const obb& bounds = *ENTITY_PTR_GET_BOX( e.mEntityA, ENTITY_BOUNDS_AREA_EVAL );
-
-                calc_interpen_depth( e, a, bounds );
-
             }
         },
         DUMMY_LAMBDA,
@@ -114,11 +110,16 @@ namespace {
                 const obb& a = *( pa->to_box() );
                 const obb& b = *( pb->to_box() );
 
-                e.colliding = a.intersects( e.normal, b );
+                contact::list_t contacts;
 
-                if ( e.colliding )
+                e.mColliding = a.intersects( contacts, b );
+
+                if ( e.mColliding )
                 {
-                    calc_interpen_depth( e, a, b );
+                    for ( auto& c: contacts )
+                    {
+                        calc_interpen_depth( c, a, b );
+                    }
                 }
             },
             gDoLookupFn,
@@ -137,19 +138,18 @@ namespace {
 // collision_entity_t
 //-------------------------------------------------------------------------------------------------------
 
-collision_entity::collision_entity(const collision_provider& provider_,
+collision_entity::collision_entity(     const collision_provider& provider_,
                                         ptr_t a_,
                                         ptr_t b_,
                                         const uint32_t colliderBoundsUseFlags,
                                         const uint32_t collideeBoundsUseFlags )
     :
-      colliderUseFlags( colliderBoundsUseFlags ),
-      collideeUseFlags( collideeBoundsUseFlags ),
+      mEntityAUseFlags( colliderBoundsUseFlags ),
+      mEntityBUseFlags( collideeBoundsUseFlags ),
       mEntityA( a_ ),
       mEntityB( b_ ),
-      colliding( false ),
-      normal( 0.0f ),
-      provider( provider_ )
+      mColliding( false ),
+      mProvider( provider_ )
 {
 }
 
@@ -177,13 +177,13 @@ uint32_t collision_provider::gen_half_space( const obb& bounds, collision_face f
 
 bool collision_provider::eval_collision( collision_entity& ce ) const
 {
-    const bounds_primitive* a = ce.mEntityA->query_bounds( ce.colliderUseFlags );
-    const bounds_primitive* b = ce.mEntityB->query_bounds( ce.collideeUseFlags );
+    const bounds_primitive* a = ce.mEntityA->query_bounds( ce.mEntityAUseFlags );
+    const bounds_primitive* b = ce.mEntityB->query_bounds( ce.mEntityBUseFlags );
 
     assert( a );
     assert( b );
 
     gCollisionTable[ a->type ][ b->type ]( ce, a, b );
 
-    return ce.colliding;
+    return ce.mColliding;
 }

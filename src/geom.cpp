@@ -165,15 +165,6 @@ namespace geom {
 
 const float DISTANCE_THRESH = 0.03125f;
 
-glm::vec3 plane_project( const glm::vec3& origin, const plane& p )
-{
-    glm::vec3 originToP( p.mPoint - origin );
-
-    float dist = glm::dot( originToP, p.mNormal );
-
-    return std::move( glm::vec3( origin + p.mNormal * dist ) );
-}
-
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 )
 {
 	glm::vec3 crossDir( glm::cross( r0.d, r1.d ) );
@@ -294,8 +285,11 @@ halfspace& halfspace::operator=( halfspace c )
     return *this;
 }
 
-bool halfspace::test_bounds( glm::vec3& normal, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
+bool halfspace::test_bounds( contact::list_t& contacts, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
 {
+    UNUSEDPARAM( contacts );
+    assert( false && "NEED TO TAKE CARE OF CONTACT NORMALS" );
+
 #if GLM_ARCH == GLM_ARCH_PURE
     geom::intersect_comp_t test( origin, extents, srcOrigin, srcExtents );
     normal = std::move( extents[ 2 ] );
@@ -304,7 +298,7 @@ bool halfspace::test_bounds( glm::vec3& normal, const glm::mat3& srcExtents, con
     geom::simd_intersect_convert_t c( {{ origin, srcOrigin }}, {{ extents, srcExtents }} );
     geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 
-    normal = std::move( glm::vec3( glm::vec4_cast( c.matrices[ 0 ][ 2 ] ) ) );
+    // normal = std::move( glm::vec3( glm::vec4_cast( c.matrices[ 0 ][ 2 ] ) ) );
 #endif // GLM_ARCH_PURE
 
     if ( !test.ValidateDistance() )
@@ -503,88 +497,121 @@ bool obb::range( glm::vec3 v, bool inversed ) const
         && glm::all( glm::lessThanEqual( v, mm.max ) );
 }
 
-using cardinal_plane = glm::ext::cardinal_plane;
+using cardinal_plane_normal_t = glm::ext::cardinal_plane_normal;
 
 namespace {
 
-    // returns true if a intersects b
-    bool pointset_intersects( cardinal_plane planeType,
-                              const obb::pointset3D_t& a,
-                              const obb::pointset3D_t& b )
+    glm::vec3 fetch_point( const point_project_pair& ppp )
     {
-        obb::pointset3D_t cardinalB;
-        for ( const auto& p: b )
+        return ppp.mProjected;
+    }
+
+    // Returns true if a intersects b
+    bool pointset_intersects( cardinal_plane_normal_t planeType,
+                              contact::list_t& contacts,
+                              const obb::pointset3D_t& aPointsProj,
+                              const obb::pointset3D_t& bPointsProj )
+    {
+        UNUSEDPARAM( contacts );
+
+        uint32_t axis0 = ( ( uint32_t ) planeType + 1 ) % 3;
+        uint32_t axis1 = ( ( uint32_t ) planeType + 2 ) % 3;
+
+        // The algorithm to compute the max and min of b's cardinal points
+        // is dependent on vector lengths and distances bounded by bPointsProj
+        glm::ext::vec3_maxmin_pair_t mm =
+                glm::ext::maxmin_from_list< obb::pointset3D_t, point_project_pair >( bPointsProj, fetch_point );
+
+        bool success = false;
+
+        // In order to determine whether or not there's in intersection
+        // between aPointsProj and bPointsProj, we use max and min tests
+        // for the axes of the points NOT corresponding to planeType.
+
+        // For example, if the YZ plane is the cardinal plane whose normal
+        // is most perpendicular to the normal of the face we've projected onto,
+        // then we don't involve a comparison for the x-values of the points
+        // within this set, as they could produce false positives.
+        for ( auto i = aPointsProj.begin(); i != aPointsProj.end(); ++i )
         {
-            cardinalB.insert( glm::ext::project_cardinal( p, planeType ) );
-        }
-
-        uint32_t axis0 = ( ( uint32_t )planeType + 1 ) % 3;
-        uint32_t axis1 = ( ( uint32_t )planeType + 2 ) % 3;
-
-        glm::ext::vec3_maxmin_pair_t mm = glm::ext::maxmin_from_list( cardinalB );
-
-        for ( auto i = a.begin(); i != a.end(); ++i )
-        {
-            const glm::vec3 u( glm::ext::project_cardinal( *i, planeType ) );
+            const glm::vec3& u = ( *i ).mProjected;
 
             if ( glm::ext::range( u, mm.min, mm.max, axis0 )
                  && glm::ext::range( u, mm.min, mm.max, axis1 ) )
             {
-                return true;
+                contact c;
+
+                c.mPoint = ( ( *i ).mWorldPointRef );
+
+                contacts.push_back( std::move( c ) );
+
+                success = true;
             }
         }
 
-        return false;
+        return success;
     }
 
     bool face_intersects( obb::face_type face,
-                          const obb& source,
-                          const obb::pointlist3D_t& a,
-                          const obb::pointlist3D_t& b )
+                          contact::list_t& contacts,
+                          const obb& bBounds,
+                          const obb::pointlist3D_t& aPoints,
+                          const obb::pointlist3D_t& bPoints )
     {
         plane facePlane;
-        source.face_plane( face, facePlane );
+        bBounds.face_plane( face, facePlane );
 
-        obb::pointset3D_t a0( std::move( source.face_project( facePlane, a ) ) );
-        obb::pointset3D_t b0( std::move( source.face_project( facePlane, b ) ) );
+        // Perform a projection for both point sets, since we need to be comparing in the same plane
+        // in order to know that our tests are accurate
+        obb::pointset3D_t a0( std::move( bBounds.face_project( facePlane, aPoints ) ) );
+        obb::pointset3D_t b0( std::move( bBounds.face_project( facePlane, bPoints ) ) );
 
-        cardinal_plane cp = glm::ext::best_cardinal_plane( facePlane.mNormal );
+        // Find the cardinal plane which is most parallel to the face plane's normal; this
+        // allows us to omit a comparison for one of the points' components.
+        cardinal_plane_normal_t cp = glm::ext::best_cardinal_plane_normal( facePlane.mNormal );
 
-        return pointset_intersects( cp, a0, b0 );
+        return pointset_intersects( cp, contacts, a0, b0 );
     }
 }
 
-bool obb::intersects( glm::vec3& normal, const obb& bounds ) const
+bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
     obb boundsCopy( bounds );
 
     obb thisCopy( *this );
 
-    thisCopy.linear_axes( bounds.linear_axes() * thisCopy.linear_axes() );
+    // Normalize to irradicate any scaling
+    glm::quat orient( glm::normalize( glm::quat_cast( bounds.linear_axes() ) ) );
+
+    thisCopy.linear_axes( glm::mat3_cast( orient ) * thisCopy.linear_axes() );
 
     pointlist3D_t thisPoints, otherPoints;
     thisCopy.points( thisPoints );
     boundsCopy.points( otherPoints );
 
+    // Project the points from this OBB onto each face plane of the bounds
+    // we're testing this OBB against
     for ( int32_t i = 0; i < 6; ++i )
     {
-        if ( !face_intersects( ( face_type )i, boundsCopy, thisPoints, otherPoints ) )
+        if ( !face_intersects( ( face_type )i,
+                               contacts,
+                               boundsCopy,
+                               thisPoints,
+                               otherPoints ) )
         {
             return false;
         }
     }
 
-    normal = glm::normalize( center() - bounds.center() );
-
     return true;
 }
 
-bool obb::intersects( glm::vec3& normal, const halfspace& halfSpace ) const
+bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) const
 {
     glm::mat3 t( mAxes );
     glm::vec3 origin( mAxes[ 3 ] );
 
-    if ( halfSpace.test_bounds( normal, t, origin ) )
+    if ( halfSpace.test_bounds( contacts, t, origin ) )
 	{
 		return true;
 	}
@@ -666,10 +693,28 @@ obb::pointset3D_t obb::face_project( const plane& facePlane, const pointlist3D_t
 {
     pointset3D_t projected;
 
+    std::vector< point_project_pair > replace;
+
+    replace.reserve( sourcePoints.size() );
+
     for ( const auto& p: sourcePoints )
     {
-        projected.insert( plane_project( p, facePlane ) );
+        point_project_pair ppp( facePlane, p );
+
+        auto i = projected.find( ppp );
+
+        if ( i != projected.end() && ppp.closer_than( *i ) )
+        {
+            replace.push_back( ppp );
+        }
+
+        projected.insert( std::move( ppp ) );
     }
+
+    std::vector< point_project_pair > tmp( projected.begin(), projected.end() );
+
+    projected = std::move( obb::pointset3D_t( replace.begin(), replace.end() ) );
+    projected.insert( tmp.begin(), tmp.end() );
 
     return std::move( projected );
 }
@@ -707,7 +752,7 @@ void obb::face_plane( face_type face, plane& thePlane ) const
     }
 
     thePlane.mNormal = glm::normalize( linear_axes() * thePlane.mNormal );
-    thePlane.mPoint = p;
+    thePlane.mReferencePoint = p;
     thePlane.mDistance = glm::dot( p, thePlane.mNormal );
 }
 

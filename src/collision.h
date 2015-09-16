@@ -2,6 +2,7 @@
 
 #include "def.h"
 #include "entity.h"
+#include "collision_contact.h"
 #include <stdint.h>
 #include <memory>
 #include <vector>
@@ -22,24 +23,23 @@ struct collision_entity
 {
 	using ptr_t = entity*;
 
-    const uint32_t colliderUseFlags;
-    const uint32_t collideeUseFlags;
+    const uint32_t mEntityAUseFlags;
+    const uint32_t mEntityBUseFlags;
 
     ptr_t mEntityA;
     ptr_t mEntityB;
 
-    bool colliding = false;
-    glm::vec3 normal = glm::vec3( 0.0f );
+    std::vector< contact > mContacts;
 
-    float interpenDepth = 0.0f;
+    bool mColliding = false;
 
-    const collision_provider& provider;
+    const collision_provider& mProvider;
 
-    collision_entity( const collision_provider& provider,
-                        ptr_t mEntityA = nullptr,
-                        ptr_t mEntityB = nullptr,
-                        const uint32_t colliderBoundsUseFlags = ENTITY_BOUNDS_ALL,
-                        const uint32_t collideeBoundsUseFlags = ENTITY_BOUNDS_ALL );
+    collision_entity(   const collision_provider& provider,
+                        ptr_t entA = nullptr,
+                        ptr_t entB = nullptr,
+                        const uint32_t entityAUseFlags = ENTITY_BOUNDS_ALL,
+                        const uint32_t entityBUseFlags = ENTITY_BOUNDS_ALL );
 };
 
 //-------------------------------------------------------------------------------------------------------

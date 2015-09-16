@@ -74,11 +74,11 @@ namespace {
     struct test_force : public force
     {
     public:
-        test_force( const collision_entity& ce )
+        test_force( const glm::vec3& normal, const collision_entity& ce )
         {
             glm::vec3 relavel( ce.mEntityA->mBody->linear_velocity() - ce.mEntityB->mBody->linear_velocity() );
 
-            glm::vec3 resolveDir( ce.normal );
+            glm::vec3 resolveDir( normal );
 
             float closingVelocity = glm::dot( relavel, resolveDir );
 
@@ -184,9 +184,9 @@ void physics_simulation::draw( void )
 
             if ( collision.eval_collision( ce ) )
             {
-                ce.normal = glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() );
+                glm::vec3 normal( glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() ) );
 
-                test_force tf( ce );
+                test_force tf( normal, ce );
             }
 
             apply_gravity( e );

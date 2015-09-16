@@ -3,6 +3,8 @@
 #include "def.h"
 #include "renderer.h"
 #include "glm_ext.hpp"
+#include "collision_contact.h"
+#include "geom_plane.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,7 +15,6 @@
 #include <stack>
 #include <unordered_set>
 
-struct plane;
 struct ray;
 
 static const glm::vec3 G_DIR_RIGHT( 1.0f, 0.0f, 0.0f );
@@ -38,30 +39,7 @@ static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, c
 
 static INLINE float triple_product( const glm::vec3& a, const glm::vec3& b, const glm::vec3& c );
 
-glm::vec3 plane_project( const glm::vec3& origin, const plane& p );
-
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 );
-
-
-//-------------------------------------------------------------------------------------------------------
-// plane_t
-//-------------------------------------------------------------------------------------------------------
-
-struct plane
-{
-    float       mDistance;
-    glm::vec3   mNormal;
-    glm::vec3   mPoint;
-
-    plane( float d = 0.0f,
-           glm::vec3 normal = glm::vec3( 0.0f ),
-           glm::vec3 point = glm::vec3( 0.0f ) )
-        : mDistance( d ),
-          mNormal( std::move( normal ) ),
-          mPoint( std::move( point ) )
-    {
-    }
-};
 
 //-------------------------------------------------------------------------------------------------------
 // ray_t
@@ -244,13 +222,15 @@ struct halfspace : public bounds_primitive
     halfspace( const halfspace& c );
     halfspace& operator=( halfspace c );
 
-    bool test_bounds( glm::vec3& normal, const glm::mat3& extents, const glm::vec3& origin ) const;
+    bool test_bounds( contact::list_t& contacts, const glm::mat3& extents, const glm::vec3& origin ) const;
     void draw( imm_draw& drawer ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------
 // obb
 //-------------------------------------------------------------------------------------------------------
+
+struct point_project_pair;
 
 struct obb : public bounds_primitive
 {
@@ -260,7 +240,7 @@ private:
 public:
     glm::vec4 mColor;
 
-    using pointset3D_t = std::unordered_set< glm::vec3 >;
+    using pointset3D_t = std::unordered_set< point_project_pair >;
 
     using pointlist3D_t = std::array< glm::vec3, 8 >;
 
@@ -341,9 +321,9 @@ public:
     // pass isTransformed = "true" if v has already been transformed relative to the linear inverse of this bounds
     bool			range( glm::vec3 v, bool isTransformed ) const;
 
-    bool			intersects( glm::vec3& normal, const obb& bounds ) const;
+    bool			intersects( contact::list_t& contacts, const obb& bounds ) const;
 
-    bool			intersects( glm::vec3& normal, const halfspace& halfSpace ) const;
+    bool			intersects( contact::list_t& contacts, const halfspace& halfSpace ) const;
 
 	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 
