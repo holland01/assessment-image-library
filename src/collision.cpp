@@ -15,21 +15,23 @@
 
 namespace {
 
-    void calc_interpen_depth( contact& e, const obb& a, const obb& b )
+    contact calc_interpen_depth( const contact& e, const obb& a, const obb& b )
     {
-		glm::vec3 normal( ( b.center() - a.center() ) );
+        glm::vec3 normal( ( e.mPoint - a.center() ) );
 
         ray r( a.center(), normal );
         if ( !b.ray_intersection( r, false ) )
 		{
             debug_set_flag( true );
             debug_set_ray( r );
-            return;
 		}
 
 		glm::vec3 depth( r.d * r.t );
 
-        e.mInterpenDepth = glm::length( normal - depth );
+        return std::move( contact( e.mPoint,
+                                   std::move( b.center() - a.center() ),
+                                   //std::move( b.center() - e.mPoint ),
+                                   glm::length( normal - depth ) ) );
     }
 
     using collision_entity_fn_t = std::function< void( collision_entity& e, const bounds_primitive* collider, const bounds_primitive* collidee ) >;
@@ -110,16 +112,20 @@ namespace {
                 const obb& a = *( pa->to_box() );
                 const obb& b = *( pb->to_box() );
 
-                contact::list_t contacts;
+                contact::list_t internal, external;
 
-                e.mColliding = a.intersects( contacts, b );
+                e.mColliding = a.intersects( internal, b );
 
-                if ( e.mColliding )
+                if ( !internal.empty() )
                 {
-                    for ( auto& c: contacts )
+                    external.reserve( internal.size() );
+
+                    for ( const auto& c: internal )
                     {
-                        calc_interpen_depth( c, a, b );
+                        external.insert( calc_interpen_depth( c, a, b ) );
                     }
+
+                    e.mContacts = std::move( external );
                 }
             },
             gDoLookupFn,

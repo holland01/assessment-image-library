@@ -90,6 +90,8 @@ public:
 
     std::string info( void ) const;
 
+    bool is_static( void ) const { return mInvMass == INFINITE_MASS; }
+
     float mass( void ) const;
 
     float inv_mass( void ) const;
@@ -115,6 +117,10 @@ public:
     glm::vec3 linear_acceleration( void ) const { return force_accum() * inv_mass(); }
 
     glm::vec3 angular_acceleration( void ) const { return mIitWorld * torque_accum(); }
+
+    const glm::vec3& angular_velocity( void ) const { return mAngularVelocity; }
+
+    glm::vec3& angular_velocity( void ) { return mAngularVelocity; }
 
     void mass( float m );
 

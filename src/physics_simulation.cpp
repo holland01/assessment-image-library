@@ -9,7 +9,7 @@ using namespace std;
 namespace {
     const glm::vec4 G_TAG_COLOR( 0.0f, 0.0f, 1.0f, 1.0f );
 
-    vector< entity* > gEnts = []( void ) -> vector< entity* >
+    vector< entity* > gen_entities( void )
     {
         vector< entity* > ents;
 
@@ -17,10 +17,10 @@ namespace {
 
         entity* box0 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
                                    glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-        box0->mBody->position( glm::vec3( -10.0f, 100.0f, 0.0f ) );
-        box0->mBody->mass( 500.0f );
-        box0->mBody->linear_damping( 0.3f );
-        box0->mBody->angular_damping( 0.5f );
+        box0->mBody->position( glm::vec3( -10.0f, 500.0f, 0.0f ) );
+        box0->mBody->mass( 100.0f );
+        box0->mBody->linear_damping( 0.01f );
+        box0->mBody->angular_damping( 0.01f );
         box0->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
         box0->mBody->iit_local( get_block_inertia( glm::vec3( 1.0f ), box0->mBody->mass() ) );
 
@@ -51,7 +51,9 @@ namespace {
         ents.push_back( groundPlane );
 
         return std::move( ents );
-    }();
+    }
+
+    vector< entity* > gEnts = gen_entities();
 
     struct force
     {
@@ -71,14 +73,25 @@ namespace {
         glm::vec3 friction( void ) const { return mFriction; }
     };
 
+    INLINE float calc_mass_comp( const collision_entity::ptr_t entity )
+    {
+        if ( entity->mBody->mass() != INFINITE_MASS )
+        {
+            return entity->mBody->inv_mass();
+        }
+
+        return 0.0f;
+    }
+
     struct test_force : public force
     {
     public:
-        test_force( const glm::vec3& normal, const collision_entity& ce )
+        test_force( const physics_world& world, const contact& c, const collision_entity& ce )
         {
-            glm::vec3 relavel( ce.mEntityA->mBody->linear_velocity() - ce.mEntityB->mBody->linear_velocity() );
+            glm::vec3 resolveDir( glm::normalize( c.mNormal ) );
 
-            glm::vec3 resolveDir( normal );
+            glm::vec3 relavel( ce.mEntityB->mBody->linear_velocity() - ce.mEntityA->mBody->linear_velocity() );
+            relavel -= c.mNormal * c.mInterpenDepth * world.mTargetDeltaTime;
 
             float closingVelocity = glm::dot( relavel, resolveDir );
 
@@ -87,30 +100,39 @@ namespace {
                 return;
             }
 
-            const float restitution = 0.1f;
+            const float restitution = 1.0f;
 
-            float impulse = -( 1.0f + restitution ) * closingVelocity;
-            float denom = 0.0f;
+            float impulseNum = -( 1.0f + restitution ) * closingVelocity;
+            float denom = ce.mEntityA->mBody->inv_mass() + ce.mEntityB->mBody->inv_mass();
 
-            if ( ce.mEntityB->mBody->mass() != INFINITE_MASS )
-            {
-                denom += ce.mEntityB->mBody->inv_mass();
-            }
+            glm::vec3 relaPointA( c.mPoint - ce.mEntityA->mBody->position() );
+            glm::vec3 rra( glm::cross( relaPointA, resolveDir ) );
+            glm::vec3 rrra( glm::cross( ce.mEntityA->mBody->iit_world() * rra, relaPointA ) );
 
-            if ( ce.mEntityA->mBody->mass() != INFINITE_MASS )
-            {
-                denom += ce.mEntityA->mBody->inv_mass();
-            }
+            glm::vec3 relaPointB( c.mPoint - ce.mEntityB->mBody->position() );
+            glm::vec3 rrb( glm::cross( relaPointB, resolveDir ) );
+            glm::vec3 rrrb( glm::cross( ce.mEntityB->mBody->iit_world() * rrb, relaPointB ) );
 
-            impulse /= denom;
+            float t0 = glm::dot( rrrb + rrra, resolveDir );
+
+            denom += t0;
+
+            float impulse = impulseNum / denom;
 
             glm::vec3 imp( impulse * resolveDir );
+            glm::vec3 impb( ce.mEntityB->mBody->inv_mass() * imp );
 
-            glm::vec3 impa( ce.mEntityB->mBody->inv_mass() * imp );
-            glm::vec3 impb( ce.mEntityA->mBody->inv_mass() * imp );
+            if ( !ce.mEntityA->mBody->is_static() )
+            {
+                glm::vec3 impa( ce.mEntityA->mBody->inv_mass() * imp );
+                ce.mEntityA->mBody->linear_velocity() -= impa;
 
-            ce.mEntityB->mBody->linear_velocity() += impa;
-            ce.mEntityA->mBody->linear_velocity() -= impb;
+                glm::vec3 angMom( ce.mEntityA->mBody->angular_velocity() * ce.mEntityA->mBody->mass() );
+                angMom += glm::normalize( glm::cross( relaPointA, imp ) );
+
+                ce.mEntityA->mBody->angular_velocity() = ce.mEntityA->mBody->iit_world() * angMom;
+            }
+            ce.mEntityB->mBody->linear_velocity() += impb;
         }
     };
 
@@ -134,7 +156,7 @@ physics_simulation::physics_simulation( uint32_t w, uint32_t h )
     : physics_app_t( w, h )
 {
     camera = &spec;
-    camera->mViewParams.mMoveStep = 0.01f;
+    camera->mViewParams.mMoveStep = 0.1f;
     camera->position( glm::vec3( 0.0f, 10.0f, 100.0f ) );
 }
 
@@ -184,9 +206,11 @@ void physics_simulation::draw( void )
 
             if ( collision.eval_collision( ce ) )
             {
-                glm::vec3 normal( glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() ) );
-
-                test_force tf( normal, ce );
+                for ( const contact& c: ce.mContacts )
+                {
+                    //glm::vec3 normal( glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() ) );
+                    test_force tf( world, c, ce );
+                }
             }
 
             apply_gravity( e );
@@ -215,6 +239,10 @@ void physics_simulation::handle_event( const SDL_Event& e )
         {
             case SDLK_v:
                 gFire = !gFire;
+                break;
+            case SDLK_r:
+                gEnts = std::move( gen_entities() );
+                gFire = false;
                 break;
         }
     }

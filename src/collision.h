@@ -14,7 +14,7 @@ struct halfspace;
 struct obb;
 
 //-------------------------------------------------------------------------------------------------------
-// collision_entity_t
+// collision_entity
 //-------------------------------------------------------------------------------------------------------
 
 struct collision_provider;
@@ -29,7 +29,7 @@ struct collision_entity
     ptr_t mEntityA;
     ptr_t mEntityB;
 
-    std::vector< contact > mContacts;
+    contact::list_t mContacts;
 
     bool mColliding = false;
 
@@ -39,11 +39,11 @@ struct collision_entity
                         ptr_t entA = nullptr,
                         ptr_t entB = nullptr,
                         const uint32_t entityAUseFlags = ENTITY_BOUNDS_ALL,
-                        const uint32_t entityBUseFlags = ENTITY_BOUNDS_ALL );
+                        const uint32_t entityBUseFlags = ENTITY_BOUNDS_ALL  );
 };
 
 //-------------------------------------------------------------------------------------------------------
-// collision_provider_t
+// collision_provider
 //-------------------------------------------------------------------------------------------------------
 
 enum collision_face

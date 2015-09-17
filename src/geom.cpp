@@ -1,7 +1,7 @@
 #include "debug.h"
 #include "geom.h"
 #include "bvh.h"
-#include "stl_ext.hpp"
+#include "geom_point_project_pair.h"
 #include <array>
 #include <string.h>
 #include <glm/gtx/projection.hpp>
@@ -488,7 +488,7 @@ bool obb::range( glm::vec3 v, bool inversed ) const
 {
     if ( !inversed )
     {
-        v = std::move( inv_linear_axes() * v );
+        v = std::move( inv_orient() * v );
     }
 
     obb::maxmin_pair3D_t mm = std::move( maxmin( true ) );
@@ -509,18 +509,19 @@ namespace {
     // Returns true if a intersects b
     bool pointset_intersects( cardinal_plane_normal_t planeType,
                               contact::list_t& contacts,
+                              const obb& a,
+                              const obb& b,
                               const obb::pointset3D_t& aPointsProj,
                               const obb::pointset3D_t& bPointsProj )
     {
-        UNUSEDPARAM( contacts );
-
         uint32_t axis0 = ( ( uint32_t ) planeType + 1 ) % 3;
         uint32_t axis1 = ( ( uint32_t ) planeType + 2 ) % 3;
 
         // The algorithm to compute the max and min of b's cardinal points
         // is dependent on vector lengths and distances bounded by bPointsProj
         glm::ext::vec3_maxmin_pair_t mm =
-                glm::ext::maxmin_from_list< obb::pointset3D_t, point_project_pair >( bPointsProj, fetch_point );
+                glm::ext::maxmin_from_list< obb::pointset3D_t, point_project_pair >( bPointsProj,
+                                                                                     fetch_point );
 
         bool success = false;
 
@@ -539,11 +540,11 @@ namespace {
             if ( glm::ext::range( u, mm.min, mm.max, axis0 )
                  && glm::ext::range( u, mm.min, mm.max, axis1 ) )
             {
-                contact c;
-
-                c.mPoint = ( ( *i ).mWorldPointRef );
-
-                contacts.push_back( std::move( c ) );
+                if ( glm::distance( ( *i ).mWorldPointRef, b.center() )
+                     < glm::distance( a.center(), b.center() ) )
+                {
+                    contacts.insert( std::move( contact( ( *i ).mWorldPointRef ) ) );
+                }
 
                 success = true;
             }
@@ -554,23 +555,24 @@ namespace {
 
     bool face_intersects( obb::face_type face,
                           contact::list_t& contacts,
-                          const obb& bBounds,
+                          const obb& a,
+                          const obb& b,
                           const obb::pointlist3D_t& aPoints,
                           const obb::pointlist3D_t& bPoints )
     {
         plane facePlane;
-        bBounds.face_plane( face, facePlane );
+        b.face_plane( face, facePlane );
 
         // Perform a projection for both point sets, since we need to be comparing in the same plane
         // in order to know that our tests are accurate
-        obb::pointset3D_t a0( std::move( bBounds.face_project( facePlane, aPoints ) ) );
-        obb::pointset3D_t b0( std::move( bBounds.face_project( facePlane, bPoints ) ) );
+        obb::pointset3D_t a0( std::move( b.face_project( facePlane, aPoints ) ) );
+        obb::pointset3D_t b0( std::move( b.face_project( facePlane, bPoints ) ) );
 
         // Find the cardinal plane which is most parallel to the face plane's normal; this
         // allows us to omit a comparison for one of the points' components.
         cardinal_plane_normal_t cp = glm::ext::best_cardinal_plane_normal( facePlane.mNormal );
 
-        return pointset_intersects( cp, contacts, a0, b0 );
+        return pointset_intersects( cp, contacts, a, b, a0, b0 );
     }
 }
 
@@ -595,10 +597,14 @@ bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
     {
         if ( !face_intersects( ( face_type )i,
                                contacts,
+                               thisCopy,
                                boundsCopy,
                                thisPoints,
                                otherPoints ) )
         {
+            // Contacts may have been added already
+            // but all face tests must succeed for a successful collision
+            contacts.clear();
             return false;
         }
     }
@@ -624,7 +630,7 @@ bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) co
 // then make sure the ray will be within the bounds of the three faces;
 bool obb::ray_intersection( ray& r, bool earlyOut ) const
 {
-    glm::mat3 i( inv_linear_axes() );
+    glm::mat3 i( inv_orient() );
     ray tmp( i * r.p, i * r.d, r.t );
     r = tmp;
 
@@ -659,7 +665,7 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 		r.t = maxT[ mi ];
         glm::vec3 rp( r.calc_position() );
 
-        return range( rp, true );
+        //return range( rp, true );
 
         int32_t i0 = ( mi + 1 ) % 3;
         int32_t i1 = ( mi + 2 ) % 3;
@@ -680,7 +686,7 @@ obb::maxmin_pair3D_t obb::maxmin( bool inverse ) const
 
     if ( inverse )
     {
-        glm::mat3 i( inv_linear_axes() );
+        glm::mat3 i( inv_orient() );
 
         mm.max = i * mm.max;
         mm.min = i * mm.min;

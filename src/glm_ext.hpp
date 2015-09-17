@@ -143,3 +143,37 @@ INLINE vec3_maxmin_pair_t maxmin_from_list( const list_type& list, maxmin_fetch_
 } // ext
 
 } // glm
+
+//
+// STL specializations
+//
+
+namespace std {
+
+template <> struct hash< glm::vec3 >
+{
+    size_t operator()( const glm::vec3& x ) const
+    {
+        size_t a = size_t( glm::length( x ) );
+
+        return std::hash< size_t >()( a );
+    }
+};
+
+template<> struct equal_to< glm::vec3 >
+{
+    bool operator()( const glm::vec3& lhs, const glm::vec3& rhs ) const
+    {
+        return lhs == rhs;
+    }
+};
+
+template<> struct less< glm::vec3 >
+{
+    bool operator()( const glm::vec3& lhs, const glm::vec3& rhs ) const
+    {
+        return glm::all( glm::lessThan( lhs, rhs ) );
+    }
+};
+
+}

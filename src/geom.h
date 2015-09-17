@@ -296,6 +296,8 @@ public:
 
     glm::mat3       inv_linear_axes( void ) const { return std::move( glm::mat3( glm::inverse( axes() ) ) ); }
 
+    glm::mat3       inv_orient( void ) const { return std::move( glm::mat3_cast( glm::normalize( glm::inverse( glm::quat_cast( linear_axes() ) ) ) ) ); }
+
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
     void            points( pointlist3D_t& points ) const;

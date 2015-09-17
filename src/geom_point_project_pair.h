@@ -3,7 +3,7 @@
 #include "geom_plane.h"
 
 //-------------------------------------------------------------------------------------------------------
-// point_proj_pair
+// point_project_pair
 //-------------------------------------------------------------------------------------------------------
 
 struct point_project_pair
@@ -25,6 +25,10 @@ struct point_project_pair
     bool closer_than( const point_project_pair& x ) const;
 };
 
+//
+// Overloads for STL containers
+//
+
 // We only compare projected and plane values so that if two
 // point_project_pairs hold the same plane and projected values, but have
 // differing world points, they'll still be considered the same within an STL set
@@ -44,3 +48,34 @@ INLINE bool point_project_pair::closer_than( const point_project_pair& x ) const
     return *this == x && glm::abs( mDistToPlane ) < glm::abs( x.mDistToPlane );
 }
 
+//
+// STL specializations
+//
+
+namespace std {
+
+template<> struct hash< point_project_pair >
+{
+    size_t operator()( const point_project_pair& x ) const
+    {
+        return hash< glm::vec3 >()( x.mProjected );
+    }
+};
+
+template<> struct equal_to< point_project_pair >
+{
+    bool operator()( const point_project_pair& lhs, const point_project_pair& rhs ) const
+    {
+        return lhs == rhs;
+    }
+};
+
+template<> struct less< point_project_pair >
+{
+    bool operator()( const point_project_pair& lhs, const point_project_pair& rhs ) const
+    {
+        return lhs < rhs;
+    }
+};
+
+}

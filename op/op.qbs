@@ -104,7 +104,6 @@ Product {
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",
-        "../src/stl_ext.hpp",
         "../src/view.cpp",
         "../src/view.h",
     ]
