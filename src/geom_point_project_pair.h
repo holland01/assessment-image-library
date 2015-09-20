@@ -22,6 +22,7 @@ struct point_project_pair
     {
     }
 
+	// Compares this distance to the plane to x's distance to the plane
     bool closer_than( const point_project_pair& x ) const;
 };
 
