@@ -296,11 +296,13 @@ public:
 
     glm::mat3       inv_linear_axes( void ) const { return std::move( glm::mat3( glm::inverse( axes() ) ) ); }
 
+	glm::mat3		orientation( void ) const { return std::move( glm::mat3_cast( glm::normalize( glm::quat_cast( linear_axes() ) ) ) ); }
+
     glm::mat3       inv_orient( void ) const { return std::move( glm::mat3_cast( glm::normalize( glm::inverse( glm::quat_cast( linear_axes() ) ) ) ) ); }
 
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
-    void            points( pointlist3D_t& points ) const;
+	void            get_world_space_points( pointlist3D_t& get_world_space_points ) const;
 
     pointset3D_t    face_project( const plane& facePlane, const pointlist3D_t& sourcePoints ) const;
 

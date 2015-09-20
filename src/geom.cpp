@@ -574,40 +574,116 @@ namespace {
 
         return pointset_intersects( cp, contacts, a, b, a0, b0 );
     }
+
+	struct sat_intersection_test
+	{
+		const glm::vec3& mToCenter;
+		const glm::vec3& mExtentsA;
+		const glm::vec3& mExtentsB;
+		const glm::mat3& mAxesA;
+		const glm::mat3& mAxesB;
+
+		sat_intersection_test( const glm::vec3& toCenter,
+							   const glm::vec3& extentsA,
+							   const glm::vec3& extentsB,
+							   const glm::mat3& axesA,
+							   const glm::mat3& axesB )
+			: mToCenter( toCenter ),
+			  mExtentsA( extentsA ),
+			  mExtentsB( extentsB ),
+			  mAxesA( axesA ),
+			  mAxesB( axesB )
+		{
+		}
+	};
+
+	bool has_separating_axis( const glm::vec3& axis, const sat_intersection_test& test )
+	{
+		auto project_onto_axis = [ &axis ]( const glm::mat3& linAxes, const glm::vec3& extents ) -> float
+		{
+			glm::vec3 s( glm::dot( axis, linAxes[ 0 ] ),
+						glm::dot( axis, linAxes[ 1 ] ),
+						glm::dot( axis, linAxes[ 2 ] ) );
+
+			return glm::dot( extents, glm::abs( s ) );
+		};
+
+		float aproj = project_onto_axis( test.mAxesA, test.mExtentsA );
+		float bproj = project_onto_axis( test.mAxesB, test.mExtentsB );
+
+		float centerProj = glm::abs( glm::dot( axis, test.mToCenter ) );
+
+		return centerProj > ( aproj + bproj );
+	}
+
+#define TEST_SEPARATING_AXIS( axis ) if ( has_separating_axis( ( axis ), test ) ) return false;
+	bool has_intersection( const sat_intersection_test& test )
+	{
+		TEST_SEPARATING_AXIS( test.mAxesA[ 0 ] )
+		TEST_SEPARATING_AXIS( test.mAxesA[ 1 ] )
+		TEST_SEPARATING_AXIS( test.mAxesA[ 2 ] )
+
+		TEST_SEPARATING_AXIS( test.mAxesB[ 0 ] )
+		TEST_SEPARATING_AXIS( test.mAxesB[ 1 ] )
+		TEST_SEPARATING_AXIS( test.mAxesB[ 2 ] )
+
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 0 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 1 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 2 ] ) )
+
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 0 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 1 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 2 ] ) )
+
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 0 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 1 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 2 ] ) )
+
+		return true;
+	}
+#undef TEST_SEPARATING_AXIS
 }
+
 
 bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
-    obb boundsCopy( bounds );
+	{
+		glm::vec3 toCenter( bounds.center() - center() );
+		glm::vec3 extentsA( size() * 0.5f );
+		glm::vec3 extentsB( bounds.size() * 0.5f );
+		glm::mat3 axesA( std::move( orientation() ) );
+		glm::mat3 axesB( std::move( bounds.orientation() ) );
 
-    obb thisCopy( *this );
+		sat_intersection_test test( toCenter, extentsA, extentsB,
+									axesA, axesB );
 
-    // Normalize to irradicate any scaling
-    glm::quat orient( glm::normalize( glm::quat_cast( bounds.linear_axes() ) ) );
+		if ( !has_intersection( test ) )
+		{
+			return false;
+		}
+	}
 
-    thisCopy.linear_axes( glm::mat3_cast( orient ) * thisCopy.linear_axes() );
+	pointlist3D_t points;
+	get_world_space_points( points );
 
-    pointlist3D_t thisPoints, otherPoints;
-    thisCopy.points( thisPoints );
-    boundsCopy.points( otherPoints );
+	const glm::vec3 bCenter( bounds.center() );
 
-    // Project the points from this OBB onto each face plane of the bounds
-    // we're testing this OBB against
-    for ( int32_t i = 0; i < 6; ++i )
-    {
-        if ( !face_intersects( ( face_type )i,
-                               contacts,
-                               thisCopy,
-                               boundsCopy,
-                               thisPoints,
-                               otherPoints ) )
-        {
-            // Contacts may have been added already
-            // but all face tests must succeed for a successful collision
-            contacts.clear();
-            return false;
-        }
-    }
+	for ( uint32_t f = 0; f < 6; ++f )
+	{
+		face_type face = ( face_type )f;
+
+		plane Plane;
+		bounds.face_plane( face, Plane );
+
+		for ( const auto& p: points )
+		{
+			if ( Plane.has_point( p ) )
+			{
+				contact c( p, bCenter - p );
+				contacts.insert( std::move( c ) );
+			}
+		}
+	}
 
     return true;
 }

@@ -182,7 +182,7 @@ INLINE bool obb::range_z( const glm::vec3& v ) const
 #endif
 }
 
-INLINE void obb::points( pointlist3D_t& points ) const
+INLINE void obb::get_world_space_points( pointlist3D_t& points ) const
 {
 	points[ 0 ] = corner( ( corner_type ) 0 );
 	points[ 1 ] = corner( ( corner_type ) 1 );

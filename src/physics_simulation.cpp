@@ -208,7 +208,6 @@ void physics_simulation::draw( void )
             {
                 for ( const contact& c: ce.mContacts )
                 {
-                    //glm::vec3 normal( glm::normalize( ce.mEntityA->mBody->position() - ce.mEntityB->mBody->position() ) );
                     test_force tf( world, c, ce );
                 }
             }
