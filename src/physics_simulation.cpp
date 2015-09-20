@@ -105,35 +105,22 @@ namespace {
             float impulseNum = -( 1.0f + restitution ) * closingVelocity;
             float denom = ce.mEntityA->mBody->inv_mass() + ce.mEntityB->mBody->inv_mass();
 
-            glm::vec3 relaPointA( c.mPoint - ce.mEntityA->mBody->position() );
-            glm::vec3 rra( glm::cross( relaPointA, resolveDir ) );
-            glm::vec3 rrra( glm::cross( ce.mEntityA->mBody->iit_world() * rra, relaPointA ) );
-
-            glm::vec3 relaPointB( c.mPoint - ce.mEntityB->mBody->position() );
-            glm::vec3 rrb( glm::cross( relaPointB, resolveDir ) );
-            glm::vec3 rrrb( glm::cross( ce.mEntityB->mBody->iit_world() * rrb, relaPointB ) );
-
-            float t0 = glm::dot( rrrb + rrra, resolveDir );
-
-            denom += t0;
-
             float impulse = impulseNum / denom;
 
             glm::vec3 imp( impulse * resolveDir );
-            glm::vec3 impb( ce.mEntityB->mBody->inv_mass() * imp );
 
             if ( !ce.mEntityA->mBody->is_static() )
             {
                 glm::vec3 impa( ce.mEntityA->mBody->inv_mass() * imp );
                 ce.mEntityA->mBody->linear_velocity() -= impa;
-
-                glm::vec3 angMom( ce.mEntityA->mBody->angular_velocity() * ce.mEntityA->mBody->mass() );
-                angMom += glm::normalize( glm::cross( relaPointA, imp ) );
-
-                ce.mEntityA->mBody->angular_velocity() = ce.mEntityA->mBody->iit_world() * angMom;
             }
-            ce.mEntityB->mBody->linear_velocity() += impb;
-        }
+
+			if ( !ce.mEntityB->mBody->is_static() )
+			{
+				glm::vec3 impb( ce.mEntityB->mBody->inv_mass() * imp );
+				ce.mEntityB->mBody->linear_velocity() += impb;
+			}
+		}
     };
 
     struct spring_force : public force

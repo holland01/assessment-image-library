@@ -29,8 +29,7 @@ namespace {
 		glm::vec3 depth( r.d * r.t );
 
         return std::move( contact( e.mPoint,
-                                   std::move( b.center() - a.center() ),
-                                   //std::move( b.center() - e.mPoint ),
+								   e.mNormal,
                                    glm::length( normal - depth ) ) );
     }
 

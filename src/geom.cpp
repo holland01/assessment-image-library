@@ -679,7 +679,8 @@ bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 		{
 			if ( Plane.has_point( p ) )
 			{
-				contact c( p, bCenter - p );
+				glm::vec3 normal( glm::normalize( bCenter - p ) );
+				contact c( p, std::move( normal ) );
 				contacts.insert( std::move( c ) );
 			}
 		}
