@@ -207,11 +207,10 @@ halfspace::halfspace( void )
 {
 }
 
-halfspace::halfspace( const glm::mat3& extents_, const glm::vec3& origin_, float distance_ )
+halfspace::halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance_ )
     : bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
-      extents( extents_ ),
-	  origin( origin_ ),
-	  distance( distance_ )
+	  mT( axes, origin ),
+	  mDistance( distance_ )
 {
 }
 
@@ -225,14 +224,15 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	glm::vec3 boundsSize( bounds.extents() );
 
     // normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
-    extents[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
-    extents[ 1 ] = glm::normalize( upAxis ) * boundsSize[ 1 ];
-    extents[ 2 ] = normal * 0.1f;
+	mT.mAxes[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
+	mT.mAxes[ 1 ] = glm::normalize( upAxis ) * boundsSize[ 1 ];
+	mT.mAxes[ 2 ] = normal * 0.1f;
 
-    // FIXME: scaling the normal by the boundsSize as a vector operation seems
-    // a little odd. Maybe something like boundsOrigin + glm::normalize( normal )
-    // would be better.
-    glm::vec3 faceCenter( std::move( boundsOrigin + normal * boundsSize * 0.5f ) );
+	// normal is assumed to be a cardinal (positive or negative) axis, so multiplying
+	// by boundsSizes will distribute the intended length along the appropriate component, where as all others will be zero
+	// as before. We then transform the scaled normal, since scaling before transformation will keep the length preserved (as opposed to after).
+	glm::vec3 faceCenter( bounds.axes() * glm::normalize( normal ) * boundsSize );
+	faceCenter += boundsOrigin; // offset by boundsOrigin since we need its worldSpace position
 
     // TODO: take into account ALL points
     std::array< corner_t, 4 > lowerPoints =
@@ -245,30 +245,30 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 
     for ( corner_t face: lowerPoints )
     {
-        glm::vec3 point( bounds.corner( ( corner_t ) face ) );
+		glm::vec3 point( bounds.axes() * bounds.corner( ( corner_t ) face ) );
         glm::vec3 pointToCenter( faceCenter - point );
 
         // Not in same plane; move on
-        if ( triple_product( pointToCenter, extents[ 0 ], extents[ 1 ] ) != 0.0f )
+		if ( triple_product( pointToCenter, mT.mAxes[ 0 ], mT.mAxes[ 1 ] ) != 0.0f )
         {
             continue;
         }
 
         // Half space axes will be outside of the bounds; move on
-        if ( !bounds.range( point + extents[ 0 ], false ) || !bounds.range( point + extents[ 1 ], false ) )
+		if ( !bounds.range( point + mT.mAxes[ 0 ], false ) || !bounds.range( point + mT.mAxes[ 1 ], false ) )
         {
             continue;
         }
 
-        origin = point;
+		mT.mOrigin = point;
         break;
     }
 
-    distance = glm::dot( extents[ 2 ], origin );
+	mDistance = glm::dot( mT.mAxes[ 2 ], mT.mOrigin );
 }
 
 halfspace::halfspace( const halfspace& c )
-    : halfspace( c.extents, c.origin, c.distance )
+	: halfspace( c.mT.mAxes, c.mT.mOrigin, c.mDistance )
 {
 }
 
@@ -276,58 +276,32 @@ halfspace& halfspace::operator=( halfspace c )
 {
     if ( this != &c )
     {
-        extents = c.extents;
-        origin = c.origin;
-        distance = c.distance;
+		mT = c.mT;
+		mDistance = c.mDistance;
     }
 
     return *this;
 }
 
-bool halfspace::test_bounds( contact::list_t& contacts, const glm::mat3& srcExtents, const glm::vec3& srcOrigin ) const
+bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
     UNUSEDPARAM( contacts );
-    assert( false && "NEED TO TAKE CARE OF CONTACT NORMALS" );
-
-#if GLM_ARCH == GLM_ARCH_PURE
-    geom::intersect_comp_t test( origin, extents, srcOrigin, srcExtents );
-    normal = std::move( extents[ 2 ] );
-
-#else
-    geom::simd_intersect_convert_t c( {{ origin, srcOrigin }}, {{ extents, srcExtents }} );
-    geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
-
-    // normal = std::move( glm::vec3( glm::vec4_cast( c.matrices[ 0 ][ 2 ] ) ) );
-#endif // GLM_ARCH_PURE
-
-    if ( !test.ValidateDistance() )
-    {
-        return false;
-    }
-
-	if ( test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, test.srcExtents ) ) return true;
-    if ( test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, test.srcExtents ) ) return true;
-    if ( test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, test.srcExtents ) ) return true;
-
-    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
-    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
-    if ( test.TestIntersection( test.srcOrigin, test.srcExtents[ 0 ], test.origin, test.extents ) ) return true;
-
-	return false;
+	UNUSEDPARAM( bounds );
+	assert( false && "NEED TO IMPLEMENT" );
 }
 
 void halfspace::draw( imm_draw& drawer ) const
 {
     drawer.begin( GL_LINES );
 
-    drawer.vertex( origin );
-    drawer.vertex( origin + extents[ 0 ] );
+	drawer.vertex( origin() );
+	drawer.vertex( origin() + axes()[ 0 ] );
 
-    drawer.vertex( origin );
-    drawer.vertex( origin + extents[ 1 ] );
+	drawer.vertex( origin() );
+	drawer.vertex( origin() + axes()[ 1 ] );
 
-    drawer.vertex( origin );
-    drawer.vertex( origin + extents[ 2 ] * 2.0f );
+	drawer.vertex( origin() );
+	drawer.vertex( origin() + axes()[ 2 ] * 2.0f );
 
     drawer.end();
 }
@@ -613,7 +587,7 @@ namespace {
 	}
 
 #define TEST_SEPARATING_AXIS( axis, index ) if ( !eval_axis( ( index ), test, ( axis ) ) ) return false;
-	bool has_intersection( const sat_intersection_test& test )
+	bool has_intersection( sat_intersection_test& test )
 	{
 		TEST_SEPARATING_AXIS( test.mA.mAxes[ 0 ], 0 )
 		TEST_SEPARATING_AXIS( test.mA.mAxes[ 1 ], 1 )
@@ -681,7 +655,7 @@ bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 
 bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) const
 {
-	if ( halfSpace.test_bounds( contacts, axes(), origin() ) )
+	if ( halfSpace.intersects( contacts, *this ) )
 	{
 		return true;
 	}

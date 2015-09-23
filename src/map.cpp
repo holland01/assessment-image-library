@@ -749,8 +749,8 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         }
 
         // Find the direction we need to move in...
-        const glm::vec3& e1 = mCollision.halfSpaces[ hst[ i ] ].extents[ 2 ] * 10.0f;
-        const glm::vec3& e2 = mCollision.halfSpaces[ hst[ j ] ].extents[ 2 ] * 10.0f;
+		const glm::vec3& e1 = mCollision.halfSpaces[ hst[ i ] ].axes()[ 2 ] * 10.0f;
+		const glm::vec3& e2 = mCollision.halfSpaces[ hst[ j ] ].axes()[ 2 ] * 10.0f;
 
         int32_t zp, xp;
 

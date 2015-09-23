@@ -160,19 +160,25 @@ struct obb;
 
 struct halfspace : public bounds_primitive
 {
-	glm::mat3 extents;
-	glm::vec3 origin;
-	float distance;
+private:
+	transform_data mT;
+	float mDistance;
 
+public:
     halfspace( void );
-    halfspace( const glm::mat3& extents, const glm::vec3& origin, float distance );
+	halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance );
     halfspace( const obb& bounds, const glm::vec3& normal );
 
     halfspace( const halfspace& c );
     halfspace& operator=( halfspace c );
 
-    bool test_bounds( contact::list_t& contacts, const glm::mat3& extents, const glm::vec3& origin ) const;
-    void draw( imm_draw& drawer ) const;
+	const glm::mat3& axes( void ) const { return mT.mAxes; }
+
+	const glm::vec3& origin( void ) const { return mT.mOrigin; }
+
+	bool intersects( contact::list_t& contacts, const obb& bounds ) const;
+
+	void draw( imm_draw& drawer ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------
