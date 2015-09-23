@@ -55,7 +55,7 @@ INLINE void debug_draw_bounds( const application< app_impl_t >& app, const obb& 
     const view_data& vp = app.camera->view_params();
 
     singleColor.load_vec4( "color", glm::vec4( color, alpha ) );
-    singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.axes() );
+    singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.world_transform() );
     coloredCube.render( singleColor );
 }
 
@@ -70,7 +70,7 @@ INLINE void debug_draw_billboard_bounds( const application< app_impl_t >& app,
     debug_draw_bounds( app, billboardBounds, glm::vec3( 0.5f ), 0.5f );
 
     singleColor.load_vec4( "color", glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    singleColor.load_mat4( "modelToView", vp.mTransform * billboardBounds.axes() );
+    singleColor.load_mat4( "modelToView", vp.mTransform * billboardBounds.world_transform() );
 
     imm_draw drawer( singleColor );
 

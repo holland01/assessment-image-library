@@ -1,6 +1,5 @@
 #include "debug.h"
 #include "geom.h"
-#include "bvh.h"
 #include "geom_point_project_pair.h"
 #include <array>
 #include <string.h>
@@ -221,9 +220,9 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 {
     using corner_t = obb::corner_type;
 
-    glm::vec3 upAxis( bounds[ 1 ] );
-    glm::vec3 boundsOrigin( bounds[ 3 ] );
-    glm::vec3 boundsSize( bounds.size() );
+	glm::vec3 upAxis( bounds.axes()[ 1 ] );
+	glm::vec3 boundsOrigin( bounds.origin() );
+	glm::vec3 boundsSize( bounds.extents() );
 
     // normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
     extents[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
@@ -337,45 +336,25 @@ void halfspace::draw( imm_draw& drawer ) const
 // bounding_box_t
 //-------------------------------------------------------------------------------------------------------
 
-obb::obb( const glm::mat4& transform_ )
+obb::obb( glm::mat3 transform_ )
     : bounds_primitive( BOUNDS_PRIM_BOX ),
-      mAxes( transform_),
+	  mT( std::move( transform_ ) ),
       mColor( glm::vec4( 1.0f ) )
 {
 }
 
 obb::obb( obb&& m )
     : bounds_primitive( m ),
-      mAxes( std::move( m.mAxes ) ),
+	  mT( std::move( m.mT ) ),
       mColor( std::move( m.mColor ) )
 {
 }
 
 obb::obb( const obb& c )
     : bounds_primitive( c ),
-      mAxes( c.mAxes ),
+	  mT( c.mT ),
       mColor( c.mColor )
 {}
-
-glm::vec3 obb::center( void ) const
-{
-   return glm::vec3( mAxes[ 3 ] );
-}
-
-glm::vec3 obb::size( void ) const
-{
-    return corner( CORNER_MAX ) - corner( CORNER_MIN );
-}
-
-glm::vec3 obb::radius( void ) const
-{
-    return corner( CORNER_MAX ) - glm::vec3( mAxes[ 3 ] );
-}
-
-glm::vec3 obb::corner( corner_type index ) const
-{
-    return glm::vec3( mAxes * glm::vec4( corner_identity( index ), 1.0f ) );
-}
 
 // Iterate through the identity
 // corners and compute a direction
@@ -390,9 +369,9 @@ void obb::edges_from_corner( corner_type index, glm::mat3& edges ) const
 {
     glm::vec3 origin( corner( index ) );
 
-    glm::mat3 transform3( mAxes );
-
 	int32_t edgeCount = 0;
+
+	glm::mat3 ax( mT.scaled_axes() );
 
 	for ( int32_t i = 0; i < 7; ++i )
 	{
@@ -405,9 +384,9 @@ void obb::edges_from_corner( corner_type index, glm::mat3& edges ) const
 
 		float edgeLen = glm::length( edge );
 
-		float dx = glm::abs( glm::dot( edge, transform3[ 0 ] ) );
-		float dy = glm::abs( glm::dot( edge, transform3[ 1 ] ) );
-		float dz = glm::abs( glm::dot( edge, transform3[ 2 ] ) );
+		float dx = glm::abs( glm::dot( edge, ax[ 0 ] ) );
+		float dy = glm::abs( glm::dot( edge, ax[ 1 ] ) );
+		float dz = glm::abs( glm::dot( edge, ax[ 2 ] ) );
 
 		// if any of the dot products are 1, then the rest are 0.
 		// If none of them are one, then we don't have an edge
@@ -460,9 +439,7 @@ bool obb::encloses( const obb& box ) const
     geom::intersect_comp_t test( va, ma, vb, mb );
 
 #else
-    geom::simd_intersect_convert_t c( {{  glm::vec3( mAxes[ 3 ] ), glm::vec3( box.mAxes[ 3 ] ) }},
-    {{  glm::mat3( mAxes ), glm::mat3( box.mAxes ) }} );
-
+	geom::simd_intersect_convert_t c( {{ origin(), box.origin() }}, {{ axes(), box.axes() }} );
     geom::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 #endif
 
@@ -488,7 +465,7 @@ bool obb::range( glm::vec3 v, bool inversed ) const
 {
     if ( !inversed )
     {
-        v = std::move( inv_orient() * v );
+		v = std::move( inv_axes() * v );
     }
 
     obb::maxmin_pair3D_t mm = std::move( maxmin( true ) );
@@ -540,8 +517,8 @@ namespace {
             if ( glm::ext::range( u, mm.min, mm.max, axis0 )
                  && glm::ext::range( u, mm.min, mm.max, axis1 ) )
             {
-                if ( glm::distance( ( *i ).mWorldPointRef, b.center() )
-                     < glm::distance( a.center(), b.center() ) )
+				if ( glm::distance( ( *i ).mWorldPointRef, b.origin() )
+					 < glm::distance( a.origin(), b.origin() ) )
                 {
                     contacts.insert( std::move( contact( ( *i ).mWorldPointRef ) ) );
                 }
@@ -578,26 +555,27 @@ namespace {
 	struct sat_intersection_test
 	{
 		const glm::vec3& mToCenter;
-		const glm::vec3& mExtentsA;
-		const glm::vec3& mExtentsB;
-		const glm::mat3& mAxesA;
-		const glm::mat3& mAxesB;
+		const transform_data& mA;
+		const transform_data& mB;
+
+		uint32_t mBestSingleAxisSPIndex;
+		uint32_t mSmallestPenetrationIndex;
+		float mSmallestPenetration;
 
 		sat_intersection_test( const glm::vec3& toCenter,
-							   const glm::vec3& extentsA,
-							   const glm::vec3& extentsB,
-							   const glm::mat3& axesA,
-							   const glm::mat3& axesB )
+							   const transform_data& a,
+							   const transform_data& b )
 			: mToCenter( toCenter ),
-			  mExtentsA( extentsA ),
-			  mExtentsB( extentsB ),
-			  mAxesA( axesA ),
-			  mAxesB( axesB )
+			  mA( a ),
+			  mB( b ),
+			  mBestSingleAxisSPIndex( 0 ),
+			  mSmallestPenetrationIndex( 0 ),
+			  mSmallestPenetration( FLT_MAX )
 		{
 		}
 	};
 
-	bool has_separating_axis( const glm::vec3& axis, const sat_intersection_test& test )
+	float penetration_depth( const glm::vec3& axis, const sat_intersection_test& test )
 	{
 		auto project_onto_axis = [ &axis ]( const glm::mat3& linAxes, const glm::vec3& extents ) -> float
 		{
@@ -608,65 +586,77 @@ namespace {
 			return glm::dot( extents, glm::abs( s ) );
 		};
 
-		float aproj = project_onto_axis( test.mAxesA, test.mExtentsA );
-		float bproj = project_onto_axis( test.mAxesB, test.mExtentsB );
+		float aproj = project_onto_axis( test.mA.mAxes, test.mA.mExtents );
+		float bproj = project_onto_axis( test.mB.mAxes, test.mB.mExtents );
 
 		float centerProj = glm::abs( glm::dot( axis, test.mToCenter ) );
 
-		return centerProj > ( aproj + bproj );
+		return ( aproj + bproj ) - centerProj;
 	}
 
-#define TEST_SEPARATING_AXIS( axis ) if ( has_separating_axis( ( axis ), test ) ) return false;
+	bool eval_axis( uint32_t index, sat_intersection_test& test, const glm::vec3& axis )
+	{
+		float depth = penetration_depth( axis, test );
+
+		if ( depth < 0.0f )
+		{
+			return false;
+		}
+
+		if ( depth < test.mSmallestPenetration )
+		{
+			test.mSmallestPenetrationIndex = index;
+			test.mSmallestPenetration = depth;
+		}
+
+		return true;
+	}
+
+#define TEST_SEPARATING_AXIS( axis, index ) if ( !eval_axis( ( index ), test, ( axis ) ) ) return false;
 	bool has_intersection( const sat_intersection_test& test )
 	{
-		TEST_SEPARATING_AXIS( test.mAxesA[ 0 ] )
-		TEST_SEPARATING_AXIS( test.mAxesA[ 1 ] )
-		TEST_SEPARATING_AXIS( test.mAxesA[ 2 ] )
+		TEST_SEPARATING_AXIS( test.mA.mAxes[ 0 ], 0 )
+		TEST_SEPARATING_AXIS( test.mA.mAxes[ 1 ], 1 )
+		TEST_SEPARATING_AXIS( test.mA.mAxes[ 2 ], 2 )
 
-		TEST_SEPARATING_AXIS( test.mAxesB[ 0 ] )
-		TEST_SEPARATING_AXIS( test.mAxesB[ 1 ] )
-		TEST_SEPARATING_AXIS( test.mAxesB[ 2 ] )
+		TEST_SEPARATING_AXIS( test.mB.mAxes[ 0 ], 3 )
+		TEST_SEPARATING_AXIS( test.mB.mAxes[ 1 ], 4 )
+		TEST_SEPARATING_AXIS( test.mB.mAxes[ 2 ], 5 )
 
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 0 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 1 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 0 ], test.mAxesB[ 2 ] ) )
+		test.mBestSingleAxisSPIndex = test.mSmallestPenetrationIndex;
 
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 0 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 1 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 1 ], test.mAxesB[ 2 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 0 ], test.mB.mAxes[ 0 ] ), 6 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 0 ], test.mB.mAxes[ 1 ] ), 7 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 0 ], test.mB.mAxes[ 2 ] ), 8 )
 
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 0 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 1 ] ) )
-		TEST_SEPARATING_AXIS( glm::cross( test.mAxesA[ 2 ], test.mAxesB[ 2 ] ) )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 1 ], test.mB.mAxes[ 0 ] ), 9 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 1 ], test.mB.mAxes[ 1 ] ), 10 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 1 ], test.mB.mAxes[ 2 ] ), 11 )
+
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 2 ], test.mB.mAxes[ 0 ] ), 12 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 2 ], test.mB.mAxes[ 1 ] ), 13 )
+		TEST_SEPARATING_AXIS( glm::cross( test.mA.mAxes[ 2 ], test.mB.mAxes[ 2 ] ), 14 )
 
 		return true;
 	}
 #undef TEST_SEPARATING_AXIS
 }
 
-
 bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
+	glm::vec3 toCenter( bounds.origin() - origin() );
+
+	sat_intersection_test test( toCenter, mT, bounds.mT );
+
+	if ( !has_intersection( test ) )
 	{
-		glm::vec3 toCenter( bounds.center() - center() );
-		glm::vec3 extentsA( size() * 0.5f );
-		glm::vec3 extentsB( bounds.size() * 0.5f );
-		glm::mat3 axesA( std::move( orientation() ) );
-		glm::mat3 axesB( std::move( bounds.orientation() ) );
-
-		sat_intersection_test test( toCenter, extentsA, extentsB,
-									axesA, axesB );
-
-		if ( !has_intersection( test ) )
-		{
-			return false;
-		}
+		return false;
 	}
 
 	pointlist3D_t points;
 	get_world_space_points( points );
 
-	const glm::vec3 bCenter( bounds.center() );
+	const glm::vec3 bCenter( bounds.origin() );
 
 	for ( uint32_t f = 0; f < 6; ++f )
 	{
@@ -691,10 +681,7 @@ bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 
 bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) const
 {
-    glm::mat3 t( mAxes );
-    glm::vec3 origin( mAxes[ 3 ] );
-
-    if ( halfSpace.test_bounds( contacts, t, origin ) )
+	if ( halfSpace.test_bounds( contacts, axes(), origin() ) )
 	{
 		return true;
 	}
@@ -707,7 +694,7 @@ bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) co
 // then make sure the ray will be within the bounds of the three faces;
 bool obb::ray_intersection( ray& r, bool earlyOut ) const
 {
-    glm::mat3 i( inv_orient() );
+	glm::mat3 i( inv_axes() );
     ray tmp( i * r.p, i * r.d, r.t );
     r = tmp;
 
@@ -763,7 +750,7 @@ obb::maxmin_pair3D_t obb::maxmin( bool inverse ) const
 
     if ( inverse )
     {
-        glm::mat3 i( inv_orient() );
+		glm::mat3 i( inv_axes() );
 
         mm.max = i * mm.max;
         mm.min = i * mm.min;
@@ -834,7 +821,7 @@ void obb::face_plane( face_type face, plane& thePlane ) const
             break;
     }
 
-    thePlane.mNormal = glm::normalize( linear_axes() * thePlane.mNormal );
+	thePlane.mNormal = glm::normalize( axes() * thePlane.mNormal );
     thePlane.mReferencePoint = p;
     thePlane.mDistance = glm::dot( p, thePlane.mNormal );
 }

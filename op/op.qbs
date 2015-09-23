@@ -86,6 +86,7 @@ Product {
         "../src/geom.inl",
         "../src/geom_plane.h",
         "../src/geom_point_project_pair.h",
+        "../src/geom_transform_data.h",
         "../src/glm_ext.hpp",
         "../src/input.cpp",
         "../src/input.h",

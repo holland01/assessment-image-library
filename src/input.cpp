@@ -237,8 +237,8 @@ void input_client::sync( void )
         obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
         assert( b );
 
-        b->center( mViewParams.mOrigin );
-        b->linear_axes( glm::mat3( mViewParams.mInverseOrient ) );
+        b->origin( mViewParams.mOrigin );
+        b->axes( glm::mat3( mViewParams.mInverseOrient ) );
 
         set_view_transform( mViewParams.mOrientation );
 	}

@@ -42,8 +42,6 @@ struct quad_hierarchy
 
         void update( entity_list_t mEntities, const glm::mat4& rootTransform = glm::mat4( 1.0f ) );
 
-		obb bounds( const glm::mat4& root ) const { return std::move( obb( root * mLocalBounds.axes() ) ); }
-
 		bool destroy( void ) const { return mShouldDestroy; }
 
         bool world_transform_valid( const glm::mat4& t ) const;
@@ -60,7 +58,7 @@ struct quad_hierarchy
 
 INLINE bool quad_hierarchy::node::world_transform_valid( const glm::mat4& t ) const
 {
-    glm::mat4 m( mWorldBounds.axes() * t );
+	glm::mat4 m( mWorldBounds.world_transform() * t );
     float d = glm::determinant( glm::mat3( m ) );
     return d >= 1.0f;
 }

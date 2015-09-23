@@ -140,6 +140,16 @@ INLINE vec3_maxmin_pair_t maxmin_from_list( const list_type& list, maxmin_fetch_
     return std::move( pair );
 }
 
+INLINE glm::mat3 scale( const glm::mat3& m, const glm::vec3& size )
+{
+	glm::mat3 s( m );
+	s[ 0 ] *= size[ 0 ];
+	s[ 1 ] *= size[ 1 ];
+	s[ 2 ] *= size[ 2 ];
+
+	return std::move( s );
+}
+
 } // ext
 
 } // glm

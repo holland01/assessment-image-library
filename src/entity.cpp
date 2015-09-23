@@ -26,7 +26,7 @@ namespace {
 
             if ( box )
             {
-                box->center( body->position() );
+                box->origin( body->position() );
 
                 glm::mat3 o( body->orientation_mat3() );
 
@@ -35,7 +35,7 @@ namespace {
 					o = std::move( glm::mat3( e.scale_transform() ) * o );
 				}
 
-                box->linear_axes( std::move( o ) );
+                box->axes( std::move( o ) );
             }
         },
 
@@ -67,7 +67,7 @@ namespace {
 
             if ( body )
             {
-				body->set( box->axes() );
+                body->set( box->world_transform() );
             }
         },
 
@@ -212,7 +212,7 @@ void entity::orient_to( const glm::vec3& v )
             mBody->orientation( orient );
             break;
         case entity::BOUNDS_DEPENDENT:
-            bounds->linear_axes( orient );
+            bounds->axes( orient );
             break;
     }
 

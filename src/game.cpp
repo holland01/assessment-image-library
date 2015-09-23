@@ -324,7 +324,7 @@ INLINE void draw_tiles( const game_app_t& game,
     {
         const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
 
-        debug_draw_quad( game, box.axes() * gQuadTransform, color, alpha );
+		debug_draw_quad( game, box.world_transform() * gQuadTransform, color, alpha );
     }
 }
 
@@ -352,7 +352,7 @@ INLINE void draw_bounds_tiles( const game_app_t& game, const shared_tile_region_
 {
     const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
 
-    debug_draw_quad( game, box.axes(), glm::vec3( 1.0f ), 1.0f );
+	debug_draw_quad( game, box.world_transform(), glm::vec3( 1.0f ), 1.0f );
 
     region->mBoundsVolume->mRoot->draw( *( game.pipeline ), game.camera->view_params() );
 }
@@ -439,7 +439,7 @@ INLINE void load_billboard_params( map_tile& tile, const shader_program& billboa
 {
     const obb& bounds = *( tile.query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box() );
 
-    glm::vec3 boundsOrigin( bounds[ 3 ] );
+	glm::vec3 boundsOrigin( bounds.origin() );
 
     billboard.load_vec3( "origin", boundsOrigin );
 
@@ -527,7 +527,7 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
 
 			singleColor.load_mat4( "modelToView", vp.mTransform );
 
-			halfspace hs( glm::mat3( tileBounds->axes() ), tileBounds->center(), 0.0f );
+			halfspace hs( glm::mat3( tileBounds->axes() ), tileBounds->origin(), 0.0f );
 			singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
 			hs.draw( d );
         }

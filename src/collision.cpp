@@ -17,9 +17,9 @@ namespace {
 
     contact calc_interpen_depth( const contact& e, const obb& a, const obb& b )
     {
-        glm::vec3 normal( ( e.mPoint - a.center() ) );
+        glm::vec3 normal( ( e.mPoint - a.origin() ) );
 
-        ray r( a.center(), normal );
+        ray r( a.origin(), normal );
         if ( !b.ray_intersection( r, false ) )
 		{
             debug_set_flag( true );

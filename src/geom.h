@@ -5,6 +5,7 @@
 #include "glm_ext.hpp"
 #include "collision_contact.h"
 #include "geom_plane.h"
+#include "geom_transform_data.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -88,57 +89,6 @@ struct ray
 };
 
 //-------------------------------------------------------------------------------------------------------
-// transform_t
-//-------------------------------------------------------------------------------------------------------
-
-struct transform_stack
-{
-protected:
-    glm::vec3 mScale;
-
-    glm::vec3 mRotation;
-
-    glm::vec3 mTranslation;
-
-    glm::mat4 mTop;
-
-    std::stack< glm::mat4 > mMatStack;
-
-public:
-    transform_stack( void );
-
-    void push( void );
-
-    void pop( void );
-
-    const glm::mat4& peek( void ) const;
-
-    void scale( const glm::vec3& s );
-
-    void rotation( const glm::vec3& r );
-
-    void translation( const glm::vec3& t );
-
-    void apply_scale( void );
-
-    void apply_rotation( void );
-
-    void apply_translation( void );
-
-    void apply_scale( const glm::vec3& s );
-
-    void apply_rotation( const glm::vec3& r );
-
-    void apply_translation( const glm::vec3& t );
-
-    glm::mat3 scale( void ) const;
-
-    glm::mat3 rotation( void ) const;
-
-    glm::mat4 translation( void ) const;
-};
-
-//-------------------------------------------------------------------------------------------------------
 // bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
@@ -148,7 +98,6 @@ enum bounds_primtype
     BOUNDS_PRIM_LOOKUP,
     NUM_BOUNDS_PRIMTYPE
 };
-
 
 struct primitive_lookup;
 struct obb;
@@ -235,7 +184,7 @@ struct point_project_pair;
 struct obb : public bounds_primitive
 {
 private:
-    glm::mat4 mAxes;
+	transform_data mT;
 
 public:
     glm::vec4 mColor;
@@ -268,7 +217,7 @@ public:
 		CORNER_MAX = 7
 	};
 
-    obb( const glm::mat4& axes = glm::mat4( 1.0f ) );
+	obb( glm::mat3 axes = glm::mat3( 1.0f ) );
 
     obb( obb&& m );
 
@@ -278,27 +227,21 @@ public:
 
     bool			encloses( const obb& box ) const;
 
-    glm::vec3       center( void ) const;
+	const glm::vec3& origin( void ) const { return mT.mOrigin; }
 
-    glm::vec3       size( void ) const;
+	const glm::vec3& extents( void ) const { return mT.mExtents; }
 
     glm::vec3       radius( void ) const;
 
     glm::vec3       corner( corner_type index ) const;
 
-    glm::vec3       corner_identity( corner_type index ) const;
+	glm::mat4		world_transform( void ) const { return std::move( mT.world_transform() ); }
 
-    const glm::mat4& axes( void ) const;
+	const glm::mat3& axes( void ) const { return mT.mAxes; }
 
-    void            axes( const glm::mat4& m ) { mAxes = m; }
+	void            axes( const glm::mat3 m ) { mT.mAxes = std::move( m ); }
 
-    glm::mat3       linear_axes( void ) const { return std::move( glm::mat3( axes() ) ); }
-
-    glm::mat3       inv_linear_axes( void ) const { return std::move( glm::mat3( glm::inverse( axes() ) ) ); }
-
-	glm::mat3		orientation( void ) const { return std::move( glm::mat3_cast( glm::normalize( glm::quat_cast( linear_axes() ) ) ) ); }
-
-    glm::mat3       inv_orient( void ) const { return std::move( glm::mat3_cast( glm::normalize( glm::inverse( glm::quat_cast( linear_axes() ) ) ) ) ); }
+	glm::mat3		inv_axes( void ) const { return std::move( glm::inverse( axes() ) ); }
 
     void			edges_from_corner( corner_type index, glm::mat3& edges ) const;
 
@@ -310,17 +253,7 @@ public:
 
     void			color( const glm::vec4& mColor );
 
-    void            center( const glm::vec3& position );
-
-    void            linear_axes( const glm::mat3& orient );
-
-    const glm::vec4& operator[]( uint32_t i ) const;
-
-    bool			range_x( const glm::vec3& v ) const;
-
-    bool			range_y( const glm::vec3& v ) const;
-
-    bool			range_z( const glm::vec3& v ) const;
+	void            origin( const glm::vec3& position );
 
     // pass isTransformed = "true" if v has already been transformed relative to the linear inverse of this bounds
     bool			range( glm::vec3 v, bool isTransformed ) const;
@@ -333,5 +266,31 @@ public:
 
     maxmin_pair3D_t maxmin( bool inverse ) const;
 };
+
+INLINE glm::vec3 obb::corner( corner_type index ) const
+{
+	return std::move( glm::vec3(
+		( ( int32_t ) index & 1 ) ? 1.0f : -1.0f,
+		( ( int32_t ) index & 2 ) ? 1.0f : -1.0f,
+		( ( int32_t ) index & 4 ) ? 1.0f : -1.0f
+	) );
+}
+
+INLINE void obb::get_world_space_points( pointlist3D_t& points ) const
+{
+	points[ 0 ] = corner( ( corner_type ) 0 );
+	points[ 1 ] = corner( ( corner_type ) 1 );
+	points[ 2 ] = corner( ( corner_type ) 2 );
+	points[ 3 ] = corner( ( corner_type ) 3 );
+	points[ 4 ] = corner( ( corner_type ) 4 );
+	points[ 5 ] = corner( ( corner_type ) 5 );
+	points[ 6 ] = corner( ( corner_type ) 6 );
+	points[ 7 ] = corner( ( corner_type ) 7 );
+}
+
+INLINE void obb::origin( const glm::vec3& position )
+{
+	mT.mOrigin = position;
+}
 
 #include "geom.inl"
