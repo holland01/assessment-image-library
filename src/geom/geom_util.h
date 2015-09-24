@@ -1,6 +1,14 @@
-//-------------------------------------------------------------------------------------------------------
-// util
-//-------------------------------------------------------------------------------------------------------
+#pragma once
+
+#include "_geom_local.h"
+#include "plane.h"
+#include <glm/gtc/matrix_transform.hpp>
+
+static const glm::vec3 G_DIR_RIGHT( 1.0f, 0.0f, 0.0f );
+static const glm::vec3 G_DIR_UP( 0.0f, 1.0f, 0.0f );
+static const glm::vec3 G_DIR_FORWARD( 0.0f, 0.0f, -1.0f );
+
+const float DISTANCE_THRESH = 0.03125f;
 
 // rightAxis can be thought of as an initial axis with which the angle will originate from,
 // dir is the terminating axis ending the angle, and backAxis is the axis which is orthogonal to the rightAxis
@@ -32,7 +40,7 @@ static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, c
 {
 	for ( const glm::vec3& p: points )
 	{
-        float x = glm::dot( p, pln.mNormal ) - pln.mDistance;
+		float x = glm::dot( p, pln.mNormal ) - pln.mDistance;
 
 		if ( ( *predicate )( x ) )
 		{
@@ -48,38 +56,5 @@ static INLINE float triple_product( const glm::vec3& a, const glm::vec3& b, cons
 	return glm::dot( a, glm::cross( b, c ) );
 }
 
-//-------------------------------------------------------------------------------------------------------
-// bounds_primitive_t
-//-------------------------------------------------------------------------------------------------------
-
-INLINE primitive_lookup* bounds_primitive::to_lookup( void )
-{
-	assert( type == BOUNDS_PRIM_LOOKUP );
-	return ( primitive_lookup* ) this;
-}
-
-INLINE const primitive_lookup* bounds_primitive::to_lookup( void ) const
-{
-	assert( type == BOUNDS_PRIM_LOOKUP );
-	return ( const primitive_lookup* ) this;
-}
-
-
-INLINE obb* bounds_primitive::to_box( void )
-{
-	assert( type == BOUNDS_PRIM_BOX );
-	return ( obb* ) this;
-}
-
-INLINE const obb* bounds_primitive::to_box( void ) const
-{
-	assert( type == BOUNDS_PRIM_BOX );
-	return ( const obb* ) this;
-}
-
-INLINE halfspace* bounds_primitive::to_halfspace( void )
-{
-	assert( type == BOUNDS_PRIM_BOX );
-	return ( halfspace* ) this;
-}
+bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 );
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "def.h"
-#include "glm_ext.hpp"
+#include "../def.h"
+#include "../glm_ext.hpp"
 
 struct transform_data
 {

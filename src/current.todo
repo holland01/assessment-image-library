@@ -1,0 +1,6 @@
+//
+// TODO list for current tasks yet to be finished
+//
+
+* Separate geometry into different modules, in its own folder ( #issue 38 )
+* Fix all problems in the failed assertion areas. ( Uncreated issue )

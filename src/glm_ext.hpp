@@ -2,10 +2,50 @@
 
 #include "def.h"
 #include <glm/glm.hpp>
-#include <glm/vec3.hpp>
+#include <glm/gtx/simd_mat4.hpp>
+#include <glm/gtx/simd_vec4.hpp>
 #include <stdint.h>
+#include <utility>
+#include <functional>
 
 namespace glm {
+
+#if GLM_ARCH != GLM_ARCH_PURE
+INLINE void mat3_to_simd( glm::simdMat4& out, const glm::mat3& in )
+{
+	out[ 0 ] = glm::simdVec4( in[ 0 ], 0.0f );
+	out[ 1 ] = glm::simdVec4( in[ 1 ], 0.0f );
+	out[ 2 ] = glm::simdVec4( in[ 2 ], 0.0f );
+	out[ 3 ] = glm::simdVec4( 0.0f );
+}
+
+bool operator==
+(
+	glm::simdVec4 const & a,
+	glm::simdVec4 const & b
+)
+{
+	__m128 data = _mm_cmpeq_ps( a.Data, b.Data );
+
+	__m64 hi, lo;
+	_mm_storeh_pi( &hi, data );
+	_mm_storel_pi( &lo, data );
+
+	long long h64 = _m_to_int64( hi );
+	long long l64 = _m_to_int64( lo );
+
+	return ( ( l64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 ) && ( ( h64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 );
+}
+
+bool operator!=
+(
+	glm::simdVec4 const & a,
+	glm::simdVec4 const & b
+)
+{
+	return !( a == b );
+}
+#endif // GLM_ARCH != GLM_ARCH_PURE
 
 namespace ext {
 
@@ -150,9 +190,9 @@ INLINE glm::mat3 scale( const glm::mat3& m, const glm::vec3& size )
 	return std::move( s );
 }
 
-} // ext
+} // namespace ext
 
-} // glm
+} // namespace glm
 
 //
 // STL specializations
