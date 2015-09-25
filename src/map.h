@@ -4,7 +4,7 @@
 #include "entity.h"
 #include "collision.h"
 #include "physics.h"
-#include "geom.h"
+#include "geom/geom.h"
 #include "renderer.h"
 #include "bvh.h"
 

@@ -27,9 +27,9 @@ void quad_hierarchy::update( entity_list_t entities )
     mRoot->update( std::move( entities ), glm::mat4( 1.0f ) );
 }
 
-quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb bounds_, const glm::mat4& parentAxes )
+quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb bounds_, const transform_data& parentAxes )
     : mLocalBounds( std::move( bounds_ ) ),
-	  //mWorldBounds( parentAxes * mLocalBounds.axes() ),
+	  mWorldBounds( parentAxes ),
       mShouldDestroy( false )
 {
 	UNUSEDPARAM( parentAxes );
@@ -63,21 +63,13 @@ void quad_hierarchy::node::make_child( const uint32_t curDepth,
                                        const uint8_t index,
                                        const glm::vec3& offset )
 {
-    glm::mat4 s( glm::scale( glm::mat4( 1.0f ), quadSize ) );
-    glm::mat4 t( glm::translate( glm::mat4( 1.0f ), offset ) );
-    glm::mat4 m( t * s );
+	transform_data localTrans( glm::mat3( 1.0f ), quadSize, offset );
+	obb localBounds( localTrans );
 
-	UNUSEDPARAM( m );
-	UNUSEDPARAM( curDepth );
-	UNUSEDPARAM( index );
-	UNUSEDPARAM( maxDepth );
-	assert( false && "fix this shit: OBB refactor" );
-/*
-    mChildren[ index ].reset( new node( curDepth + 1,
-                                        maxDepth,
-                                        std::move( obb( m ) ),
-                                        mWorldBounds.axes() ) );
-										*/
+	mChildren[ index ].reset( new node( curDepth + 1,
+										maxDepth,
+										std::move( localBounds ),
+										localTrans.transform_to( mWorldBounds.trans_data() ) ) );
 }
 
 bool quad_hierarchy::node::leaf( void ) const
@@ -87,12 +79,7 @@ bool quad_hierarchy::node::leaf( void ) const
 
 void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp, const glm::mat4& rootTransform ) const
 {
-	UNUSEDPARAM( pl );
-	UNUSEDPARAM( vp );
-	UNUSEDPARAM( rootTransform );
-	assert( false && "fix this shit: OBB refactor" );
-	/*
-    glm::mat4 t( rootTransform * mLocalBounds.axes() );
+	glm::mat4 t( rootTransform * mLocalBounds.world_transform() );
 
     if ( leaf() )
     {
@@ -115,7 +102,7 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
             const obb& bounds = *ENTITY_PTR_GET_BOX( e, ENTITY_BOUNDS_AREA_EVAL );
 
             singleColor.load_vec4( "color", color );
-            singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.axes() );
+			singleColor.load_mat4( "modelToView",  vp.mTransform * bounds.world_transform() );
             coloredCube.render( singleColor );
         }
 
@@ -129,7 +116,6 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
             n->draw( pl, vp, t );
         }
     }
-	*/
 }
 
 void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const glm::mat4& rootTransform )
@@ -138,20 +124,22 @@ void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const
 	assert( false && "fix this shit: OBB refactor" );
     UNUSEDPARAM( entities );
 
-/*
     if ( leaf() )
     {
         this->mEntities = std::move( entities );
         return;
     }
 
-    glm::mat4 t( rootTransform * mLocalBounds.axes() );
+	glm::mat4 t( rootTransform * mLocalBounds.world_transform() );
 
     std::array< quad_hierarchy::entity_list_t, 4 > subregions;
 
     for( uint32_t i = 0; i < 4; ++i )
     {
-        const obb childBounds( std::move( mChildren[ i ]->bounds( t ) ) );
+		transform_data tt( mChildren[ i ]
+						   ->mLocalBounds.trans_data().transform_to( mWorldBounds.trans_data() ) );
+
+		const obb childBounds( std::move( obb( tt ) ) );
 
         for ( auto e = entities.begin(); e != entities.end(); )
         {
@@ -178,5 +166,4 @@ void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const
     {
         mChildren[ i ]->update( std::move( subregions[ i ] ), t );
     }
-	*/
 }

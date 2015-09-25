@@ -1,6 +1,6 @@
 #include "entity.h"
 #include "physics.h"
-#include "geom.h"
+#include "geom/geom.h"
 
 namespace {
 

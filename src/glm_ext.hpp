@@ -19,7 +19,7 @@ INLINE void mat3_to_simd( glm::simdMat4& out, const glm::mat3& in )
 	out[ 3 ] = glm::simdVec4( 0.0f );
 }
 
-bool operator==
+INLINE bool operator==
 (
 	glm::simdVec4 const & a,
 	glm::simdVec4 const & b
@@ -37,7 +37,7 @@ bool operator==
 	return ( ( l64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 ) && ( ( h64 ^ 0xFFFFFFFFFFFFFFFF ) == 0 );
 }
 
-bool operator!=
+INLINE bool operator!=
 (
 	glm::simdVec4 const & a,
 	glm::simdVec4 const & b
@@ -45,6 +45,7 @@ bool operator!=
 {
 	return !( a == b );
 }
+
 #endif // GLM_ARCH != GLM_ARCH_PURE
 
 namespace ext {

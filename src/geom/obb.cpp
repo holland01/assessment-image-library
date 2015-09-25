@@ -4,9 +4,15 @@
 #include "geom.h"
 #include "point_project_pair.h"
 
-obb::obb( glm::mat3 transform_ )
+obb::obb( const glm::mat4& tt )
 	: bounds_primitive( BOUNDS_PRIM_BOX ),
-	  mT( std::move( transform_ ) ),
+	  mT(  )
+{
+}
+
+obb::obb( transform_data t )
+	: bounds_primitive( BOUNDS_PRIM_BOX ),
+	  mT( std::move( t ) ),
 	  mColor( glm::vec4( 1.0f ) )
 {
 }

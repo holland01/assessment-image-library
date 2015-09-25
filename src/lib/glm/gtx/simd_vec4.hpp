@@ -568,11 +568,11 @@ namespace detail
 
     ///! Compare two simdVec4s for equality
     /// @see gtx_simd_vec4
-    GLM_FUNC_QUALIFIER bool operator== (detail::fvec4SIMD const & a, detail::fvec4SIMD const & b);
+    bool operator== (detail::fvec4SIMD const & a, detail::fvec4SIMD const & b);
 
     ///! Compare two simdVec4s for inequality
     /// @see gtx_simd_vec4
-    GLM_FUNC_QUALIFIER bool operator!= (detail::fvec4SIMD const & a, detail::fvec4SIMD const & b);
+    bool operator!= (detail::fvec4SIMD const & a, detail::fvec4SIMD const & b);
 
 	/// @}
 }//namespace glm

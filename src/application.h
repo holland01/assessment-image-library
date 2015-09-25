@@ -1,6 +1,6 @@
 #pragma once
 
-#include "geom.h"
+#include "geom/geom.h"
 #include "input.h"
 #include "debug.h"
 #include "collision.h"

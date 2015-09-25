@@ -1,5 +1,5 @@
 #include "debug.h"
-#include "geom.h"
+#include "geom/geom.h"
 #include "application.h"
 #include "view.h"
 #include "renderer.h"

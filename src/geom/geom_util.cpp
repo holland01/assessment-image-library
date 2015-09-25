@@ -1,4 +1,5 @@
 #include "geom_util.h"
+#include "ray.h"
 
 bool test_ray_ray( const ray& r0, const ray& r1, float& t0, float& t1 )
 {

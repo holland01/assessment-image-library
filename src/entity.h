@@ -1,6 +1,6 @@
 #pragma once
 
-#include "geom.h"
+#include "geom/geom.h"
 #include <memory>
 #include <glm/vec4.hpp>
 #include <glm/gtc/matrix_transform.hpp>

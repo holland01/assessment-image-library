@@ -1,5 +1,5 @@
 #include "collision.h"
-#include "geom.h"
+#include "geom/geom.h"
 #include "entity.h"
 #include "debug.h"
 #include <glm/glm.hpp>
@@ -62,13 +62,6 @@ namespace {
 
                     if ( a.intersects( contacts, hs ) )
                     {
-                        // TODO: calc depths here
-
-                         //const obb& bounds = *ENTITY_PTR_GET_BOX( e.mEntityA, ENTITY_BOUNDS_AREA_EVAL );
-
-                         //calc_interpen_depth( e, a, bounds );
-
-
                         e.mColliding = true;
                         break;
                     }

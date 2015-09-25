@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../def.h"
 #include "transform_data.h"
 #include "../collision_contact.h"
@@ -43,7 +45,9 @@ public:
 		CORNER_MAX = 7
 	};
 
-	obb( glm::mat3 axes = glm::mat3( 1.0f ) );
+	obb( const glm::mat4& t );
+
+	obb( transform_data t = transform_data() );
 
 	obb( obb&& m );
 
@@ -62,6 +66,8 @@ public:
 	glm::vec3       corner( corner_type index ) const;
 
 	glm::mat4		world_transform( void ) const { return std::move( mT.world_transform() ); }
+
+	const transform_data& trans_data( void ) const { return mT; }
 
 	const glm::mat3& axes( void ) const { return mT.mAxes; }
 

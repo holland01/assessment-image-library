@@ -2,7 +2,7 @@
 
 #include "def.h"
 #include "entity.h"
-#include "geom.h"
+#include "geom/geom.h"
 #include <vector>
 
 //-------------------------------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ struct quad_hierarchy
 
         std::array< ptr_t, NODE_COUNT > mChildren;
 
-        node( uint32_t curDepth, const uint32_t maxDepth, obb mLocalBounds, const glm::mat4& parentAxes = glm::mat4( 1.0f ) );
+		node( uint32_t curDepth, const uint32_t maxDepth, obb mLocalBounds, const transform_data& parentAxes = transform_data() );
 
         void make_child( const uint32_t curDepth, const uint32_t maxDepth, const uint8_t index, const glm::vec3& offset );
 

@@ -15,6 +15,60 @@ sat_intersection_test::sat_intersection_test( const glm::vec3& toCenter,
 {
 }
 
+//------------------------------------------------------------
+
+intersect_comp_t::intersect_comp_t(
+	const vec_t& origin_,
+	const mat_t& extents_,
+	const vec_t& srcOrigin_,
+	const mat_t& srcExtents_ )
+	: origin( origin_ ),
+	  srcOrigin( srcOrigin_ ),
+	  extents( extents_ ),
+	  srcExtents( srcExtents_ ),
+	  sizeLength( glm::length( extents[ 0 ] + extents[ 1 ] + extents[ 2 ] ) ),
+	  sourcePoints( {{
+		srcOrigin_ + srcExtents_[ 0 ],
+		srcOrigin_ + srcExtents_[ 1 ],
+		srcOrigin_ + srcExtents_[ 2 ]
+	  }} )
+
+{}
+
+bool intersect_comp_t::ValidateDistance( void )
+{
+	if ( glm::distance( origin, sourcePoints[ 0 ] ) > sizeLength ) return false;
+	if ( glm::distance( origin, sourcePoints[ 1 ] ) > sizeLength ) return false;
+	if ( glm::distance( origin, sourcePoints[ 2 ] ) > sizeLength ) return false;
+
+	return true;
+}
+
+bool intersect_comp_t::TestIntersection( const vec_t& p0, const vec_t& d0, const vec_t& origin_, const mat_t& extents_ )
+{
+	vec_t a( origin_ + extents_[ 0 ] ),
+		  b( origin_ + extents_[ 1 ] ),
+		  c( origin_ + extents_[ 2 ] );
+
+	vec_t ax( a - p0 );
+	vec_t ay( b - p0 );
+	vec_t az( c - p0 );
+
+	vec_t dx( glm::proj( ax, d0 ) );
+	vec_t dy( glm::proj( ay, d0 ) );
+	vec_t dz( glm::proj( az, d0 ) );
+
+	float dlen = glm::length( d0 );
+
+	if ( glm::length( dx ) > dlen ) return false;
+	if ( glm::length( dy ) > dlen ) return false;
+	if ( glm::length( dz ) > dlen ) return false;
+
+	return true;
+}
+
+//------------------------------------------------------------
+
 float penetration_depth( const glm::vec3& axis, const sat_intersection_test& test )
 {
 	auto project_onto_axis = [ &axis ]( const glm::mat3& linAxes, const glm::vec3& extents ) -> float
