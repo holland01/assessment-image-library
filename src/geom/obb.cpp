@@ -4,9 +4,9 @@
 #include "geom.h"
 #include "point_project_pair.h"
 
-obb::obb( const glm::mat4& tt )
+obb::obb( glm::mat4&& tt )
 	: bounds_primitive( BOUNDS_PRIM_BOX ),
-	  mT(  )
+	  mT( std::move( tt ) )
 {
 }
 

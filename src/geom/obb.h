@@ -45,7 +45,7 @@ public:
 		CORNER_MAX = 7
 	};
 
-	obb( const glm::mat4& t );
+	obb( glm::mat4&& t );
 
 	obb( transform_data t = transform_data() );
 
@@ -110,14 +110,16 @@ INLINE glm::vec3 obb::corner( corner_type index ) const
 
 INLINE void obb::get_world_space_points( pointlist3D_t& points ) const
 {
-	points[ 0 ] = corner( ( corner_type ) 0 );
-	points[ 1 ] = corner( ( corner_type ) 1 );
-	points[ 2 ] = corner( ( corner_type ) 2 );
-	points[ 3 ] = corner( ( corner_type ) 3 );
-	points[ 4 ] = corner( ( corner_type ) 4 );
-	points[ 5 ] = corner( ( corner_type ) 5 );
-	points[ 6 ] = corner( ( corner_type ) 6 );
-	points[ 7 ] = corner( ( corner_type ) 7 );
+	transformer T( mT );
+
+	points[ 0 ] = std::move( T( corner( ( corner_type ) 0 ) ) );
+	points[ 1 ] = std::move( T( corner( ( corner_type ) 1 ) ) );
+	points[ 2 ] = std::move( T( corner( ( corner_type ) 2 ) ) );
+	points[ 3 ] = std::move( T( corner( ( corner_type ) 3 ) ) );
+	points[ 4 ] = std::move( T( corner( ( corner_type ) 4 ) ) );
+	points[ 5 ] = std::move( T( corner( ( corner_type ) 5 ) ) );
+	points[ 6 ] = std::move( T( corner( ( corner_type ) 6 ) ) );
+	points[ 7 ] = std::move( T( corner( ( corner_type ) 7 ) ) );
 }
 
 INLINE void obb::origin( const glm::vec3& position )

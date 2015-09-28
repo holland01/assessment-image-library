@@ -8,7 +8,7 @@ struct application_frame
 {
     using app_t = application< child_t >;
 
-    app_t& app;
+	app_t& mApp;
 
     application_frame( app_t& a );
 
@@ -17,17 +17,17 @@ struct application_frame
 
 template< typename child_t >
 application_frame< child_t >::application_frame( app_t& a )
-    : app( a )
+	: mApp( a )
 {
-    app.startTime = get_time();
+	mApp.startTime = get_time();
 
-    const view_data& vp = app.camera->view_params();
+	const view_data& vp = mApp.camera->view_params();
 
-    app.frustum.update( vp );
+	mApp.frustum.update( vp );
 
-    app.world.update( app );
+	mApp.world.update( mApp );
 
-    app.draw();
+	mApp.draw();
 }
 
 template< typename child_t >
@@ -35,9 +35,9 @@ application_frame< child_t >::~application_frame( void )
 {
     // clear bodies which are added in world.Update call,
     // since we only want to integrate bodies which are in view
-    app.world.mTime = get_time() - app.startTime;
+	mApp.world.mTime = get_time() - mApp.startTime;
 
-    printf( "FPS: %f\r", 1.0f / app.world.mTime );
+	printf( "FPS: %f\r", 1.0f / mApp.world.mTime );
 }
 
 #endif // APPLICATION_UPDATE_INL

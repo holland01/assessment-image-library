@@ -32,9 +32,6 @@ quad_hierarchy::node::node( uint32_t curDepth, const uint32_t maxDepth, obb boun
 	  mWorldBounds( parentAxes ),
       mShouldDestroy( false )
 {
-	UNUSEDPARAM( parentAxes );
-	assert( false && "the issue with the world/local bounds transformations needs to be fixed to properly take into account the addition of the transform_data struct" );
-
 	float d = glm::determinant( mWorldBounds.axes() );
 
     mShouldDestroy = d < 16.0f;
@@ -120,10 +117,6 @@ void quad_hierarchy::node::draw( const render_pipeline& pl, const view_data& vp,
 
 void quad_hierarchy::node::update( quad_hierarchy::entity_list_t entities, const glm::mat4& rootTransform )
 {
-	UNUSEDPARAM( rootTransform );
-	assert( false && "fix this shit: OBB refactor" );
-    UNUSEDPARAM( entities );
-
     if ( leaf() )
     {
         this->mEntities = std::move( entities );

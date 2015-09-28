@@ -135,7 +135,6 @@ namespace {
 void game::frame( void )
 {
     application_frame< game > theFrame( *this );
-    UNUSEDPARAM( theFrame );
 
 //!!FIXME: throw this somewhere more logical, like have it managed by the application base class
 #ifdef EMSCRIPTEN

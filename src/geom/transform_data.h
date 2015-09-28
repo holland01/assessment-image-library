@@ -11,10 +11,12 @@ namespace {
 		return std::move( glm::mat3_cast( glm::normalize( glm::quat_cast( t ) ) ) );
 	}
 
-	// remove rotation ( sort of )
 	INLINE glm::vec3 convert_extents( const glm::mat4& t )
 	{
-		 return glm::ceil( glm::vec3( t[ 0 ][ 0 ], t[ 1 ][ 1 ], t[ 2 ][ 2 ] ) );
+		glm::vec3 min( t[ 3 ] - t[ 0 ] - t[ 1 ] - t[ 2 ] );
+		glm::vec3 max( t[ 3 ] + t[ 0 ] + t[ 1 ] + t[ 2 ] );
+
+		return ( max - min ) * 0.5f;
 	}
 }
 
@@ -62,4 +64,22 @@ INLINE transform_data transform_data::transform_to( const transform_data& dest )
 	return std::move( transform_data( dest.mAxes * mAxes,
 									  dest.mExtents * mExtents,
 									  dest.mOrigin + mOrigin ) );
+}
+
+struct transformer
+{
+	const transform_data& mData;
+	glm::mat3 mScaledAx;
+
+	transformer( const transform_data& d )
+		: mData( d ),
+		  mScaledAx( std::move( mData.scaled_axes() ) )
+	{}
+
+	glm::vec3 operator()( const glm::vec3& v ) const;
+};
+
+INLINE glm::vec3 transformer::operator()( const glm::vec3& v ) const
+{
+	return std::move( mScaledAx * v + mData.mOrigin );
 }

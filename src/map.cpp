@@ -295,10 +295,9 @@ namespace {
         pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
         pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
 
-		assert( false && "fix this shit: OBB refactor" );
         glm::mat4 t( glm::translate( glm::mat4( 1.0f ), pos ) * glm::scale( glm::mat4( 1.0f ), size ) );
-		UNUSEDPARAM( t );
-		return obb(); // was originally obb( t ) - since the addition of transform_data, this needs to be ammended (change is for compiler's sake)
+
+		return obb( t );
     }
 
     void PurgeFromAdjacent( std::vector< shared_tile_region_t >& regions, const shared_tile_region_t& target )
@@ -401,8 +400,6 @@ void map_tile::set( const glm::mat4& transform )
 {
 	mBody.reset( new rigid_body( rigid_body::RESET_FORCE_ACCUM ) );
 
-	assert( false && "fix this shit: OBB refactor" );
-
     switch ( mType )
     {
         case map_tile::BILLBOARD:
@@ -411,7 +408,7 @@ void map_tile::set( const glm::mat4& transform )
             mBody->mass( 100.0f );
 
 
-			add_bounds( ENTITY_BOUNDS_ALL, new obb() ); // was originally obb( transform ); replace with transform_data instance
+			add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
 
             break;
 
@@ -421,13 +418,13 @@ void map_tile::set( const glm::mat4& transform )
                 add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
                            new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
 
-				add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb() ); // was originally obb( transform ); replace with transform_data instance
+				add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb( transform ) );
 
                 mBody->mass( 10.0f );
             }
             else
             {
-				add_bounds( ENTITY_BOUNDS_ALL, new obb() ); // was originally obb( transform ); replace with transform_data instance
+				add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
             }
 
             mDepType = entity::BOUNDS_DEPENDENT;
@@ -1277,9 +1274,6 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
             }
 
             int32_t index = TileModIndex( x, z );
-
-            map_tile* t = &mTiles[ index ];
-            UNUSEDPARAM( t );
 
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 

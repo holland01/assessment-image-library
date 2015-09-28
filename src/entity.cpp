@@ -191,7 +191,7 @@ void entity::orient_to( const glm::vec3& v )
         return;
     }
 
-    glm::vec3 boundsOrigin( bounds->axes()[ 3 ] );
+	glm::vec3 boundsOrigin( bounds->origin() );
 
     glm::vec3 dir( v - boundsOrigin );
     dir.y = 0.0f;
