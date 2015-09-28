@@ -35,9 +35,6 @@ struct transform_data
     {
     }
 
-	// Hacky means of converting a mat4 to a
-	// transform_data format. Use this ctor
-	// only if you know what you're doing...
 	transform_data( const glm::mat4& t )
 		: mAxes( convert_axes( t ) ),
 		  mExtents( convert_extents( t ) ),
@@ -45,12 +42,36 @@ struct transform_data
 	{
 	}
 
+	transform_data( transform_data&& m )
+		: mAxes( std::move( m.mAxes ) ),
+		  mExtents( std::move( m.mExtents ) ),
+		  mOrigin( std::move( m.mOrigin ) )
+	{
+	}
+
+	transform_data& operator=( transform_data&& m );
+
+	transform_data( const transform_data& c ) = default;
+	transform_data& operator=( transform_data& c ) = default;
+
     glm::mat4 world_transform( void ) const;
 
     glm::mat3 scaled_axes( void ) const { return std::move( glm::ext::scale( mAxes, mExtents ) ); }
 
 	transform_data transform_to( const transform_data& dest ) const;
 };
+
+INLINE transform_data& transform_data::operator=( transform_data&& m )
+{
+	if ( this != &m )
+	{
+		mOrigin = std::move( m.mOrigin );
+		mAxes = std::move( m.mAxes );
+		mExtents = std::move( m.mExtents );
+	}
+
+	return *this;
+}
 
 INLINE glm::mat4 transform_data::world_transform( void ) const
 {

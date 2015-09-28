@@ -94,6 +94,11 @@ INLINE bool range( const glm::vec3& v, const glm::vec3& min, const glm::vec3& ma
 	return min[ i ] <= v[ i ] && v[ i ] <= max[ i ];
 }
 
+INLINE bool bound_range_max( float x, float min, float max )
+{
+	return min <= x && x < max;
+}
+
 INLINE glm::mat3 project_cardinal( const glm::mat3& m, index_t normalAxis )
 {
     glm::mat3 copy( m );

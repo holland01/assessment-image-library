@@ -44,19 +44,19 @@ namespace {
             const obb& a = *( pa->to_box() );
             const primitive_lookup& b = *( pb->to_lookup() );
 
-            if ( b.index < 0 )
+			if ( b.mIndex < 0 )
             {
                 e.mColliding = false;
                 return;
             }
 
-            const collision_face_table_t& table = e.mProvider.halfSpaceTable[ b.index ];
+			const collision_face_table_t& table = e.mProvider.mHalfSpaceTable[ b.mIndex ];
 
             for ( int32_t i: table )
             {
                 if ( i >= 0 )
                 {
-                    const halfspace& hs = e.mProvider.halfSpaces[ i ];
+					const halfspace& hs = e.mProvider.mHalfSpaces[ i ];
 
                     contact::list_t contacts;
 
@@ -75,8 +75,8 @@ namespace {
     collision_entity_fn_t gDoLookupFn = []( collision_entity& e,
         const bounds_primitive* cer, const bounds_primitive* cee )
     {
-        assert( cee->type == BOUNDS_PRIM_LOOKUP );
-        gLookupCollisionTable[ cee->to_lookup()->lookupType ]( e, cer, cee );
+		assert( cee->mType == BOUNDS_PRIM_LOOKUP );
+		gLookupCollisionTable[ cee->to_lookup()->mLookupType ]( e, cer, cee );
     };
 
     std::array< collision_fn_table_t, NUM_BOUNDS_PRIMTYPE > gCollisionTable =
@@ -98,8 +98,8 @@ namespace {
                 const bounds_primitive* pa,
                 const bounds_primitive* pb )
             {
-                assert( pa->type == BOUNDS_PRIM_BOX );
-                assert( pb->type == BOUNDS_PRIM_BOX );
+				assert( pa->mType == BOUNDS_PRIM_BOX );
+				assert( pb->mType == BOUNDS_PRIM_BOX );
 
                 const obb& a = *( pa->to_box() );
                 const obb& b = *( pb->to_box() );
@@ -165,10 +165,8 @@ uint32_t collision_provider::gen_half_space( const obb& bounds, collision_face f
         glm::vec3( 0.0f, 0.0f, 1.0f )
     }};
 
-    uint32_t index = ( int32_t ) halfSpaces.size();
-
-    halfspace hs( bounds, halfSpaceNormals[ face ] );
-    halfSpaces.push_back( std::move( hs ) );
+	uint32_t index = ( int32_t ) mHalfSpaces.size();
+	mHalfSpaces.push_back( halfspace( bounds, halfSpaceNormals[ face ] ) );
 
     return index;
 }
@@ -181,7 +179,7 @@ bool collision_provider::eval_collision( collision_entity& ce ) const
     assert( a );
     assert( b );
 
-    gCollisionTable[ a->type ][ b->type ]( ce, a, b );
+	gCollisionTable[ a->mType ][ b->mType ]( ce, a, b );
 
     return ce.mColliding;
 }

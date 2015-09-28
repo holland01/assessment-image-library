@@ -170,11 +170,11 @@ void entity::sync( void )
             switch ( mDepType )
             {
                 case entity::BOUNDS_DEPENDENT:
-					gSyncBoundsDepTable[ prim->type ]( *this, prim, mBody.get() );
+					gSyncBoundsDepTable[ prim->mType ]( *this, prim, mBody.get() );
                     break;
 
                 case entity::BODY_DEPENDENT:
-					gSyncBodyDepTable[ prim->type ]( *this, prim, mBody.get() );
+					gSyncBodyDepTable[ prim->mType ]( *this, prim, mBody.get() );
                     break;
             }
         }

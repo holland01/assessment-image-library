@@ -19,11 +19,18 @@ private:
 
 public:
 	halfspace( void );
+
 	halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance );
+
 	halfspace( const obb& bounds, const glm::vec3& normal );
 
 	halfspace( const halfspace& c );
+
 	halfspace& operator=( halfspace c );
+
+	halfspace( halfspace&& m );
+
+	halfspace& operator=( halfspace&& m );
 
 	const glm::mat3& axes( void ) const { return mT.mAxes; }
 

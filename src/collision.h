@@ -59,8 +59,8 @@ using collision_face_table_t = std::array< int32_t, NUM_COLLISION_FACES >; // in
 
 struct collision_provider
 {
-    std::vector< collision_face_table_t >   halfSpaceTable;
-    std::vector< halfspace >             halfSpaces;
+	std::vector< collision_face_table_t >   mHalfSpaceTable;
+	std::vector< halfspace >             mHalfSpaces;
 
     uint32_t gen_half_space( const obb& bounds, collision_face face ); // returns the index of the half space in halfSpaces
 

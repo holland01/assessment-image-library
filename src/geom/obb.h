@@ -65,6 +65,8 @@ public:
 
 	glm::vec3       corner( corner_type index ) const;
 
+	glm::vec3		world_corner( corner_type index ) const;
+
 	glm::mat4		world_transform( void ) const { return std::move( mT.world_transform() ); }
 
 	const transform_data& trans_data( void ) const { return mT; }
@@ -106,6 +108,13 @@ INLINE glm::vec3 obb::corner( corner_type index ) const
 		( ( int32_t ) index & 2 ) ? 1.0f : -1.0f,
 		( ( int32_t ) index & 4 ) ? 1.0f : -1.0f
 	) );
+}
+
+INLINE glm::vec3 obb::world_corner( corner_type index ) const
+{
+	transformer T( mT );
+
+	return std::move( T( std::move( corner( index ) ) ) );
 }
 
 INLINE void obb::get_world_space_points( pointlist3D_t& points ) const

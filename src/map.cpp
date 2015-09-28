@@ -64,17 +64,17 @@ namespace {
         return glm::clamp( x, map_tile_generator::GRID_START, map_tile_generator::GRID_END - 1 );
     }
 
-    INLINE int32_t TileIndex( int32_t x, int32_t z )
+	INLINE int32_t tile_index( int32_t x, int32_t z )
     {
         return z * map_tile_generator::GRID_SIZE + x;
     }
 
-    INLINE int32_t TileModIndex( int32_t x, int32_t z )
+	INLINE int32_t tile_clamp_index( int32_t x, int32_t z )
     {
         z = GridRange( z );
         x = GridRange( x );
 
-        return TileIndex( x, z );
+		return tile_index( x, z );
     }
 
     bool MergeRegions( shared_tile_region_t& merged, map_tile_region* r0 )
@@ -262,7 +262,7 @@ namespace {
         assert( index.x < map_tile_generator::GRID_SIZE );
         assert( index.y < map_tile_generator::GRID_SIZE );
 
-        p->mOrigin = &tiles[ TileIndex( index.x, index.y ) ];
+		p->mOrigin = &tiles[ tile_index( index.x, index.y ) ];
 
         return true;
     }
@@ -450,12 +450,12 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
 		{
 			for ( uint32_t x = 0; x < GRID_SIZE; ++x )
 			{
-                int32_t index = TileIndex( x, z );
+				int32_t index = tile_index( x, z );
 
                 mTiles[ index ].mX = x;
                 mTiles[ index ].mZ = z;
 
-                tile( mTiles[ index ], pass );
+				make_tile( mTiles[ index ], pass );
 			}
 		}
 	}
@@ -469,34 +469,34 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
         collision_face_table_t halfSpaces;
         halfSpaces.fill( -1 );
 
-        int32_t left = TileModIndex( wall->mX - 1, wall->mZ );
-        int32_t forward = TileModIndex( wall->mX, wall->mZ - 1 );
-        int32_t right = TileModIndex( wall->mX + 1, wall->mZ );
-        int32_t back = TileModIndex( wall->mX, wall->mZ + 1 );
+		int32_t left = tile_index( wall->mX - 1, wall->mZ );
+		int32_t forward = tile_index( wall->mX, wall->mZ - 1 );
+		int32_t right = tile_index( wall->mX + 1, wall->mZ );
+		int32_t back = tile_index( wall->mX, wall->mZ + 1 );
 
         bool hasHalfSpace = false;
 
         const obb& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
 
-        if ( mTiles[ left ].mType != map_tile::WALL && ( wall->mX - 1 ) >= 0 )
+		if ( mTiles[ left ].mType != map_tile::WALL && ( wall->mX - 1 ) >= 0 )
         {
             halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_LEFT );
             hasHalfSpace = true;
         }
 
-        if ( mTiles[ forward ].mType != map_tile::WALL && ( wall->mZ - 1 ) >= 0 )
+		if ( mTiles[ forward ].mType != map_tile::WALL && ( wall->mZ - 1 ) >= 0 )
         {
             halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_FORWARD );
             hasHalfSpace = true;
         }
 
-        if ( mTiles[ right ].mType != map_tile::WALL && ( wall->mX + 1 ) < GRID_SIZE )
+		if ( mTiles[ right ].mType != map_tile::WALL && ( wall->mX + 1 ) < GRID_SIZE )
         {
             halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_RIGHT );
             hasHalfSpace = true;
         }
 
-        if ( mTiles[ back ].mType != map_tile::WALL && ( wall->mZ + 1 ) < GRID_SIZE )
+		if ( mTiles[ back ].mType != map_tile::WALL && ( wall->mZ + 1 ) < GRID_SIZE )
         {
             halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_BACK );
             hasHalfSpace = true;
@@ -504,13 +504,13 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
 
         if ( hasHalfSpace )
         {
-            wall->mHalfSpaceIndex = ( int32_t ) mCollision.halfSpaceTable.size();
+			wall->mHalfSpaceIndex = ( int32_t ) mCollision.mHalfSpaceTable.size();
 
             wall->query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )
                     ->to_lookup()
-                    ->index = wall->mHalfSpaceIndex;
+					->mIndex = wall->mHalfSpaceIndex;
 
-            mCollision.halfSpaceTable.push_back( std::move( halfSpaces ) );
+			mCollision.mHalfSpaceTable.push_back( halfSpaces );
         }
     }
 
@@ -609,7 +609,7 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
         // will also be added. This may or may not be desired.
         IterateTileListRange( r->mTiles, -1, 1, [ this, &r ]( const map_tile& tile, int32_t x, int32_t z )
         {
-            int32_t index = TileModIndex( x, z );
+			int32_t index = tile_clamp_index( x, z );
             auto r0 = mTiles[ index ].owner().lock();
             const map_tile* t = &mTiles[ index ];
 
@@ -696,7 +696,7 @@ shared_tile_region_t map_tile_generator::fetch_region( const glm::vec3& p )
     int32_t x, z;
     get_tile_coords( x, z, p );
 
-    auto pRegion = mTiles[ TileIndex( x, z ) ].owner().lock();
+	auto pRegion = mTiles[ tile_index( x, z ) ].owner().lock();
 
     assert( pRegion );
 
@@ -721,7 +721,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
     // we peace out and move onto the next normal. The result is
     // some regions which need to be "remixed" down the road.
 
-    const collision_face_table_t& hst = mCollision.halfSpaceTable[ tile->mHalfSpaceIndex ];
+	const collision_face_table_t& hst = mCollision.mHalfSpaceTable[ tile->mHalfSpaceIndex ];
 
     shared_tile_region_t regionPtr( new map_tile_region( tile ) );
 
@@ -746,8 +746,8 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         }
 
         // Find the direction we need to move in...
-		const glm::vec3& e1 = mCollision.halfSpaces[ hst[ i ] ].axes()[ 2 ] * 10.0f;
-		const glm::vec3& e2 = mCollision.halfSpaces[ hst[ j ] ].axes()[ 2 ] * 10.0f;
+		const glm::vec3& e1 = mCollision.mHalfSpaces[ hst[ i ] ].axes()[ 2 ];
+		const glm::vec3& e2 = mCollision.mHalfSpaces[ hst[ j ] ].axes()[ 2 ];
 
         int32_t zp, xp;
 
@@ -783,7 +783,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         // by x = 5 and z = 5, from x = 0 and z = 0.
         for ( int32_t z = tile->mZ; z != endZ; z += zp )
         {
-            const map_tile& ztest = mTiles[ TileIndex( tile->mX, z ) ];
+			const map_tile& ztest = mTiles[ tile_index( tile->mX, z ) ];
 
             if ( ztest.mType == map_tile::WALL && !zWall && &ztest != tile )
             {
@@ -792,14 +792,14 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 
             for ( int32_t x = tile->mX; x != endX; x += xp )
             {
-                const map_tile& xtest = mTiles[ TileIndex( x, tile->mZ ) ];
+				const map_tile& xtest = mTiles[ tile_index( x, tile->mZ ) ];
 
                 if ( xtest.mType == map_tile::WALL && !xWall && &xtest != tile )
                 {
                     xWall = &xtest;
                 }
 
-                int32_t index = TileIndex( x, z );
+				int32_t index = tile_index( x, z );
 
                 const map_tile& t = mTiles[ index ];
 
@@ -844,7 +844,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 
                             if ( glm::distance( o1, p ) < glm::distance( o0, p ) )
                             {
-                                regionSwaps.push_back( { t0, TileModIndex( t0->mX, t0->mZ ) } );
+								regionSwaps.push_back( { t0, tile_clamp_index( t0->mX, t0->mZ ) } );
                             }
                         }
                     }
@@ -899,7 +899,7 @@ void map_tile_generator::find_adjacent_regions( void )
         {
             UNUSEDPARAM( t );
 
-            const ref_tile_region_t& rr = mTiles[ TileIndex( x, z ) ].owner();
+			const ref_tile_region_t& rr = mTiles[ tile_index( x, z ) ].owner();
 
             bool addIt = false;
             {
@@ -989,7 +989,7 @@ int32_t map_tile_generator::range_count( const map_tile& t, int32_t startOffset,
     {
         UNUSEDPARAM( tile );
 
-        if ( mTiles[ TileIndex( x, z ) ].mType != map_tile::EMPTY )
+		if ( mTiles[ tile_index( x, z ) ].mType != map_tile::EMPTY )
         {
             count++;
         }
@@ -998,7 +998,7 @@ int32_t map_tile_generator::range_count( const map_tile& t, int32_t startOffset,
 	return count;
 }
 
-void map_tile_generator::tile( map_tile& tile, int32_t pass )
+void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
 {
     bool isWall;
 
@@ -1061,13 +1061,13 @@ bool map_tile_generator::collides_wall( glm::vec3& normal, const map_tile& t,
         return false;
     }
 
-    const collision_face_table_t& halfSpaceFaces = mCollision.halfSpaceTable[ t.mHalfSpaceIndex ];
+	const collision_face_table_t& halfSpaceFaces = mCollision.mHalfSpaceTable[ t.mHalfSpaceIndex ];
 
     for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
     {
         if ( halfSpaceFaces[ i ] >= 0 )
         {
-            const halfspace& hs = mCollision.halfSpaces[ halfSpaceFaces[ i ] ];
+			const halfspace& hs = mCollision.mHalfSpaces[ halfSpaceFaces[ i ] ];
 
             contact::list_t contacts;
 
@@ -1223,7 +1223,7 @@ void map_tile_generator::find_entities_raycast(
                 mapPos.y += step.y;
             }
 
-            int32_t index = TileModIndex( mapPos.x, mapPos.y );
+			int32_t index = tile_clamp_index( mapPos.x, mapPos.y );
 
             if ( mTiles[ index ].mType == map_tile::WALL )
             {
@@ -1273,7 +1273,7 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
                 break;
             }
 
-            int32_t index = TileModIndex( x, z );
+			int32_t index = tile_clamp_index( x, z );
 
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 

@@ -113,8 +113,8 @@ bool obb::encloses( const obb& box ) const
 	geom::intersect_comp_t test( va, ma, vb, mb );
 
 #else
-	local::simd_intersect_convert_t c( {{ origin(), box.origin() }}, {{ axes(), box.axes() }} );
-	local::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
+	detail::simd_intersect_convert_t c( {{ origin(), box.origin() }}, {{ axes(), box.axes() }} );
+	detail::intersect_comp_t test( c.vectors[ 0 ], c.matrices[ 0 ], c.vectors[ 1 ], c.matrices[ 1 ] );
 #endif
 
 	if ( !test.ValidateDistance() )
@@ -126,7 +126,7 @@ bool obb::encloses( const obb& box ) const
 	if ( !test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, test.srcExtents ) ) return false;
 	if ( !test.TestIntersection( test.origin, test.extents[ 2 ], test.srcOrigin, test.srcExtents ) ) return false;
 
-	local::mat_t negAxis( test.srcExtents );
+	detail::mat_t negAxis( test.srcExtents );
 
 	if ( !test.TestIntersection( test.origin, test.extents[ 0 ], test.srcOrigin, -negAxis ) ) return false;
 	if ( !test.TestIntersection( test.origin, test.extents[ 1 ], test.srcOrigin, -negAxis ) ) return false;
@@ -150,11 +150,9 @@ bool obb::range( glm::vec3 v, bool inversed ) const
 
 bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
-	glm::vec3 toCenter( bounds.origin() - origin() );
+	detail::sat_intersection_test test( mT, bounds.mT );
 
-	local::sat_intersection_test test( toCenter, mT, bounds.mT );
-
-	if ( !local::has_intersection( test ) )
+	if ( !test() )
 	{
 		return false;
 	}
@@ -258,8 +256,8 @@ obb::maxmin_pair3D_t obb::maxmin( bool inverse ) const
 	{
 		glm::mat3 i( inv_axes() );
 
-		mm.max = i * mm.max;
-		mm.min = i * mm.min;
+		mm.max = i * mm.max + mT.mOrigin;
+		mm.min = i * mm.min + mT.mOrigin;
 	}
 
 	return std::move( mm );

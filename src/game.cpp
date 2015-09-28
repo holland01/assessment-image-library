@@ -55,11 +55,11 @@ namespace {
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
-		{ "collision_test", DRAW_BILLBOARDS | DRAW_HALFSPACES | COLLIDE_BILLBOARDS | COLLIDE_WALLS },
+		{ "collision_test", DRAW_WALLS | DRAW_BILLBOARDS | DRAW_HALFSPACES | COLLIDE_BILLBOARDS | COLLIDE_WALLS },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
-	uint32_t gTestFlags = gTestConfig[ "default" ];
+	uint32_t gTestFlags = gTestConfig[ "collision_test" ];
 
 }
 
@@ -420,7 +420,7 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
 
 void apply_force( game_app_t& game, const collision_entity& ce )
 {
-    assert( false && "need to rewrite for contact list usage" );
+	//assert( false && "need to rewrite for contact list usage" );
 
     UNUSEDPARAM( game );
 
@@ -601,7 +601,7 @@ static void draw_group( game& game,
             }
 
             const collision_face_table_t& table =
-                    game.collision.halfSpaceTable[ wall->mHalfSpaceIndex ];
+					game.collision.mHalfSpaceTable[ wall->mHalfSpaceIndex ];
 
             for ( int32_t i: table )
             {
@@ -610,7 +610,7 @@ static void draw_group( game& game,
                     continue;
                 }
 
-                game.collision.halfSpaces[ i ].draw( drawer );
+				game.collision.mHalfSpaces[ i ].draw( drawer );
             }
         }
     }

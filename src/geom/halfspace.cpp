@@ -24,15 +24,15 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	glm::vec3 boundsOrigin( bounds.origin() );
 	glm::vec3 boundsSize( bounds.extents() );
 
-	// normalize the cross on extents[ 0 ] so that we don't scale more than is necessary
+	// normalize the cross on mAxes[ 0 ] so that we don't scale more than is necessary
 	mT.mAxes[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
-	mT.mAxes[ 1 ] = glm::normalize( upAxis ) * boundsSize[ 1 ];
-	mT.mAxes[ 2 ] = normal * 0.1f;
+	mT.mAxes[ 1 ] = upAxis * boundsSize[ 1 ];
+	mT.mAxes[ 2 ] = normal;
 
 	// normal is assumed to be a cardinal (positive or negative) axis, so multiplying
 	// by boundsSizes will distribute the intended length along the appropriate component, where as all others will be zero
 	// as before. We then transform the scaled normal, since scaling before transformation will keep the length preserved (as opposed to after).
-	glm::vec3 faceCenter( bounds.axes() * glm::normalize( normal ) * boundsSize );
+	glm::vec3 faceCenter( bounds.axes() * ( glm::normalize( normal ) * boundsSize ) );
 	faceCenter += boundsOrigin; // offset by boundsOrigin since we need its worldSpace position
 
 	// TODO: take into account ALL points
@@ -46,7 +46,7 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 
 	for ( corner_t face: lowerPoints )
 	{
-		glm::vec3 point( bounds.axes() * bounds.corner( ( corner_t ) face ) );
+		glm::vec3 point( bounds.world_corner( face ) );
 		glm::vec3 pointToCenter( faceCenter - point );
 
 		// Not in same plane; move on
@@ -62,10 +62,16 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 		}
 
 		mT.mOrigin = point;
+
+		if ( mT.mOrigin.x < 0.0f || mT.mOrigin.z < 0.0f )
+		{
+			__nop();
+		}
+
 		break;
 	}
 
-	mDistance = glm::dot( mT.mAxes[ 2 ], mT.mOrigin );
+	mDistance = glm::dot( glm::normalize( mT.mAxes[ 2 ] ), mT.mOrigin );
 }
 
 halfspace::halfspace( const halfspace& c )
@@ -84,11 +90,30 @@ halfspace& halfspace::operator=( halfspace c )
 	return *this;
 }
 
+halfspace::halfspace( halfspace&& m )
+	: bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
+	  mT( std::move( m.mT ) ),
+	  mDistance( m.mDistance )
+{
+}
+
+halfspace& halfspace::operator=( halfspace&& m )
+{
+	if ( this != &m )
+	{
+		mT = std::move( m.mT );
+		mDistance = m.mDistance;
+	}
+
+	return *this;
+}
+
+
 bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
 	UNUSEDPARAM( contacts );
-	UNUSEDPARAM( bounds );
-	assert( false && "NEED TO IMPLEMENT" );
+	detail::sat_intersection_test test( mT, bounds.trans_data() );
+	return test();
 }
 
 void halfspace::draw( imm_draw& drawer ) const

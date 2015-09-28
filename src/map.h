@@ -180,7 +180,7 @@ public:
 
     void                    merge_regions( const region_merge_predicates_t& predicates, const uint32_t maxDepth );
 
-    void                    tile( map_tile& tile, int32_t pass );
+	void                    make_tile( map_tile& tile, int32_t pass );
 
     int32_t                 range_count( const map_tile& t, int32_t startOffset, int32_t offsetEnd );
 

@@ -13,11 +13,11 @@ struct halfspace;
 struct plane;
 struct ray;
 
-namespace local {
+namespace detail {
 
 	struct sat_intersection_test
 	{
-		const glm::vec3& mToCenter;
+		const glm::vec3 mToCenter;
 		const transform_data& mA;
 		const transform_data& mB;
 
@@ -25,16 +25,12 @@ namespace local {
 		uint32_t mSmallestPenetrationIndex;
 		float mSmallestPenetration;
 
-		sat_intersection_test( const glm::vec3& toCenter,
-							   const transform_data& a,
+		sat_intersection_test( const transform_data& a,
 							   const transform_data& b );
+
+		// Perform test
+		bool operator()( void );
 	};
-
-	float penetration_depth( const glm::vec3& axis, const sat_intersection_test& test );
-
-	bool eval_axis( uint32_t index, sat_intersection_test& test, const glm::vec3& axis );
-
-	bool has_intersection( sat_intersection_test& test );
 
 #if GLM_ARCH != GLM_ARCH_PURE
 	using vec_t = glm::simdVec4;
