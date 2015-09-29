@@ -184,8 +184,6 @@ public:
 
     int32_t                 range_count( const map_tile& t, int32_t startOffset, int32_t offsetEnd );
 
-    bool                    collides_wall( glm::vec3& normal, const map_tile& t, const obb& bounds, halfspace& outHalfSpace );
-
     void                    find_entities(map_tile_list_t& mBillboards,
                                           map_tile_list_t& mWalls,
                                           map_tile_list_t& mFreeSpace,

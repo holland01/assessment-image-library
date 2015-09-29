@@ -25,7 +25,9 @@ namespace detail {
 		uint32_t mSmallestPenetrationIndex;
 		float mSmallestPenetration;
 
-		sat_intersection_test( const transform_data& a,
+		sat_intersection_test( const transform_data& a, const transform_data& b );
+
+		sat_intersection_test( const glm::vec3& toCenter, const transform_data& a,
 							   const transform_data& b );
 
 		// Perform test

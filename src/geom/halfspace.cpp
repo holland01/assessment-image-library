@@ -22,17 +22,17 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 
 	glm::vec3 upAxis( bounds.axes()[ 1 ] );
 	glm::vec3 boundsOrigin( bounds.origin() );
-	glm::vec3 boundsSize( bounds.extents() );
+	glm::vec3 boundsSize( bounds.extents() * 2.0f );
 
 	// normalize the cross on mAxes[ 0 ] so that we don't scale more than is necessary
-	mT.mAxes[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
+	mT.mAxes[ 0 ] = std::move( glm::normalize( -glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
 	mT.mAxes[ 1 ] = upAxis * boundsSize[ 1 ];
 	mT.mAxes[ 2 ] = normal;
 
 	// normal is assumed to be a cardinal (positive or negative) axis, so multiplying
 	// by boundsSizes will distribute the intended length along the appropriate component, where as all others will be zero
 	// as before. We then transform the scaled normal, since scaling before transformation will keep the length preserved (as opposed to after).
-	glm::vec3 faceCenter( bounds.axes() * ( glm::normalize( normal ) * boundsSize ) );
+	glm::vec3 faceCenter( bounds.axes() * ( glm::normalize( normal ) * boundsSize * 0.5f ) );
 	faceCenter += boundsOrigin; // offset by boundsOrigin since we need its worldSpace position
 
 	// TODO: take into account ALL points
@@ -63,23 +63,20 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 
 		mT.mOrigin = point;
 
-		if ( mT.mOrigin.x < 0.0f || mT.mOrigin.z < 0.0f )
-		{
-			__nop();
-		}
-
 		break;
 	}
 
 	mDistance = glm::dot( glm::normalize( mT.mAxes[ 2 ] ), mT.mOrigin );
 }
 
+/*
+
 halfspace::halfspace( const halfspace& c )
 	: halfspace( c.mT.mAxes, c.mT.mOrigin, c.mDistance )
 {
 }
 
-halfspace& halfspace::operator=( halfspace c )
+halfspace& halfspace::operator=( const halfspace& c )
 {
 	if ( this != &c )
 	{
@@ -89,6 +86,7 @@ halfspace& halfspace::operator=( halfspace c )
 
 	return *this;
 }
+
 
 halfspace::halfspace( halfspace&& m )
 	: bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
@@ -107,12 +105,22 @@ halfspace& halfspace::operator=( halfspace&& m )
 
 	return *this;
 }
+*/
 
 
 bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
 	UNUSEDPARAM( contacts );
-	detail::sat_intersection_test test( mT, bounds.trans_data() );
+
+	glm::vec3 normal( glm::normalize( mT.mAxes[ 1 ] ) );
+	plane P( normal, mT.mOrigin );
+
+	// Project toCenter onto plane which has the same normal as the direction of the halfspace up vector (mT.mAxes[1]) as a normal
+	// This will prevent the SAT from fucking up, since the origins are typically in the bottom corner of the halfspace and the bounds' origins
+	// are directly in the middle
+	glm::vec3 projToCenter( P.project( bounds.origin() ) - mT.mOrigin );
+
+	detail::sat_intersection_test test( projToCenter, mT, bounds.trans_data() );
 	return test();
 }
 

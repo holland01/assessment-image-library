@@ -1052,52 +1052,6 @@ void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
 	}
 }
 
-bool map_tile_generator::collides_wall( glm::vec3& normal, const map_tile& t,
-                                const obb& bounds,
-                                halfspace& outHalfSpace )
-{
-    if ( t.mHalfSpaceIndex < 0 )
-    {
-        return false;
-    }
-
-	const collision_face_table_t& halfSpaceFaces = mCollision.mHalfSpaceTable[ t.mHalfSpaceIndex ];
-
-    for ( uint32_t i = 0; i < halfSpaceFaces.size(); ++i )
-    {
-        if ( halfSpaceFaces[ i ] >= 0 )
-        {
-			const halfspace& hs = mCollision.mHalfSpaces[ halfSpaceFaces[ i ] ];
-
-            contact::list_t contacts;
-
-            UNUSEDPARAM( normal ); // whatever calls this function will need to be rewritten too...
-            assert( false && "need to rewrite for contact list generation" );
-
-            if ( bounds.intersects( contacts, hs ) )
-            {
-                /*
-                if ( glm::length( normal ) < 1.0f )
-                {
-                    normal = glm::normalize( normal );
-                }
-                */
-
-                outHalfSpace = hs;
-                return true;
-            }
-
-            if ( gImmDrawer )
-            {
-                hs.draw( *gImmDrawer );
-            }
-        }
-    }
-
-
-	return false;
-}
-
 namespace {
 
     INLINE void insert_appro_tile( map_tile& t,

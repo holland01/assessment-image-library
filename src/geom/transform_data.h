@@ -52,7 +52,7 @@ struct transform_data
 	transform_data& operator=( transform_data&& m );
 
 	transform_data( const transform_data& c ) = default;
-	transform_data& operator=( transform_data& c ) = default;
+	transform_data& operator=( const transform_data& c ) = default;
 
     glm::mat4 world_transform( void ) const;
 

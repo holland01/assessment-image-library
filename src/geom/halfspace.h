@@ -24,14 +24,14 @@ public:
 
 	halfspace( const obb& bounds, const glm::vec3& normal );
 
-	halfspace( const halfspace& c );
+	halfspace( const halfspace& c ) = default;
 
-	halfspace& operator=( halfspace c );
-
+	halfspace& operator=( const halfspace& c ) = default;
+/*
 	halfspace( halfspace&& m );
 
 	halfspace& operator=( halfspace&& m );
-
+*/
 	const glm::mat3& axes( void ) const { return mT.mAxes; }
 
 	const glm::vec3& origin( void ) const { return mT.mOrigin; }

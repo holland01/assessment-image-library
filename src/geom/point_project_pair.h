@@ -17,7 +17,7 @@ struct point_project_pair
                         const glm::vec3& point )
         : mPlaneRef( thePlane ),
           mWorldPointRef( point ),
-          mProjected( std::move( plane_project( point, thePlane ) ) ),
+		  mProjected( thePlane.project( point ) ),
           mDistToPlane( glm::dot( thePlane.mNormal, point ) - thePlane.mDistance )
     {
     }
@@ -38,7 +38,6 @@ INLINE bool operator == ( const point_project_pair& a, const point_project_pair&
     return a.mPlaneRef.similar_to( b.mPlaneRef ) && a.mProjected == b.mProjected;
 }
 
-// Implemented for STL container usage
 INLINE bool operator < ( const point_project_pair& l, const point_project_pair& r )
 {
     return l.closer_than( r );

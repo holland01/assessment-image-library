@@ -44,9 +44,15 @@ bool eval_axis( uint32_t index, detail::sat_intersection_test& test, const glm::
 
 namespace detail {
 
-sat_intersection_test::sat_intersection_test( const transform_data& a,
+sat_intersection_test::sat_intersection_test( const transform_data& a, const transform_data& b )
+	: sat_intersection_test( b.mOrigin - a.mOrigin, a, b )
+{
+}
+
+sat_intersection_test::sat_intersection_test( const glm::vec3& toCenter,
+											  const transform_data& a,
 											  const transform_data& b )
-	: mToCenter( std::move( b.mOrigin - a.mOrigin ) ),
+	: mToCenter( toCenter ),
 	  mA( a ),
 	  mB( b ),
 	  mBestSingleAxisSPIndex( 0 ),

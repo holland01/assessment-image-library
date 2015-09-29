@@ -244,7 +244,7 @@ void game::handle_event( const SDL_Event& e )
                     break;
 
                 case SDLK_h:
-                    gTestFlags ^= DRAW_HALFSPACES;
+					gTestFlags ^= DRAW_WALLS;
                     break;
 
                 case SDLK_UP:
@@ -568,8 +568,8 @@ static void draw_group( game& game,
 			if ( gTestFlags & COLLIDE_WALLS )
 			{
                 test_tile_collision( game,
-				 ( collision_entity::ptr_t )game.camera,
-									vp.mOrigin,
+				 ( collision_entity::ptr_t )&game.player,
+									game.player.view_params().mOrigin,
 									ENTITY_BOUNDS_MOVE_COLLIDE,
 									tile,
 									ENTITY_BOUNDS_MOVE_COLLIDE  );
