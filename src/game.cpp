@@ -299,17 +299,11 @@ INLINE bool test_tile_collision(
                                entFlags,
                                tileFlags );
 
-        if ( g.collision.eval_collision( ce ) )
-        {
-            debug_draw_bounds( g, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-
-            if ( tile->mType != map_tile::BILLBOARD )
-            {
-                apply_force( g, ce );
-            }
-
-            return true;
-        }
+		if ( g.collision.eval_collision( ce ) )
+		{
+			apply_force( g, ce );
+			return true;
+		}
     }
 
     return false;
@@ -424,14 +418,17 @@ void apply_force( game_app_t& game, const collision_entity& ce )
 
     UNUSEDPARAM( game );
 
-    if ( ce.mEntityB->mBody )
-    {
+	rigid_body* body = ce.mEntityA->mBody.get();
 
-        //glm::vec3 offset( ce.normal * ce.interpenDepth );
+	for ( const contact& c: ce.mContacts )
+	{
+		UNUSEDPARAM( c );
+		glm::vec3 n( -glm::normalize( body->total_velocity() ) );
 
-        //game.camera->mBody->apply_force(
-          //          get_collision_normal( offset, *( ce.mEntityA->mBody ), *( ce.mEntityB->mBody ) ) );
-    }
+		n *= glm::dot( n, -body->last_force_accum() );
+
+		body->apply_force( n );
+	}
 }
 
 INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
@@ -567,12 +564,19 @@ static void draw_group( game& game,
 
 			if ( gTestFlags & COLLIDE_WALLS )
 			{
-                test_tile_collision( game,
-				 ( collision_entity::ptr_t )&game.player,
-									game.player.view_params().mOrigin,
-									ENTITY_BOUNDS_MOVE_COLLIDE,
-									tile,
-									ENTITY_BOUNDS_MOVE_COLLIDE  );
+				bool success = test_tile_collision( game,
+													( collision_entity::ptr_t )&game.player,
+													game.player.view_params().mOrigin,
+													ENTITY_BOUNDS_MOVE_COLLIDE,
+													tile,
+													ENTITY_BOUNDS_MOVE_COLLIDE  );
+
+				if ( success )
+				{
+					debug_draw_bounds( game,
+									   *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ),
+									   glm::vec3( 0.0f, 1.0f, 0.0f ) );
+				}
 			}
         }
     }

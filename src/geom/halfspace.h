@@ -27,14 +27,12 @@ public:
 	halfspace( const halfspace& c ) = default;
 
 	halfspace& operator=( const halfspace& c ) = default;
-/*
-	halfspace( halfspace&& m );
 
-	halfspace& operator=( halfspace&& m );
-*/
 	const glm::mat3& axes( void ) const { return mT.mAxes; }
 
 	const glm::vec3& origin( void ) const { return mT.mOrigin; }
+
+	const glm::vec3& normal( void ) const { return mT.mAxes[ 2 ]; }
 
 	bool intersects( contact::list_t& contacts, const obb& bounds ) const;
 

@@ -3,7 +3,7 @@
 
 static const float MOUSE_SENSE = 0.1f;
 
-static INLINE void NormalizeRotation( glm::vec3& r )
+static INLINE void clamp_orientation( glm::vec3& r )
 {
 	if ( r.x > 89.9f )
 	{
@@ -171,7 +171,7 @@ void input_client::apply_movement( void )
 {
     if ( mMode == MODE_PLAY )
     {
-        NormalizeRotation( mViewParams.mCurrRot );
+		clamp_orientation( mViewParams.mCurrRot );
     }
 
     mViewParams.mLastRot = mViewParams.mCurrRot;
@@ -228,7 +228,7 @@ void input_client::sync( void )
 	if ( mBody )
 	{
         mViewParams.mOrigin = mBody->position();
-        set_view_transform( mViewParams.mOrientation );
+		set_view_transform( mViewParams.mOrientation );
 		mBody->orientation( mViewParams.mInverseOrient );
         entity::sync();
 	}

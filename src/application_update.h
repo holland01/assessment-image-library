@@ -2,6 +2,7 @@
 #define APPLICATION_UPDATE_INL
 
 #include "physics_world_update.inl"
+#include <glm/gtx/string_cast.hpp>
 
 template < typename child_t >
 struct application_frame
@@ -37,7 +38,8 @@ application_frame< child_t >::~application_frame( void )
     // since we only want to integrate bodies which are in view
 	mApp.world.mTime = get_time() - mApp.startTime;
 
-	printf( "FPS: %f\r", 1.0f / mApp.world.mTime );
+	printf( "Position: %s, FPS: %f\r", glm::to_string( mApp.camera->mBody->position() ).c_str(),
+			1.0f / mApp.world.mTime );
 }
 
 #endif // APPLICATION_UPDATE_INL

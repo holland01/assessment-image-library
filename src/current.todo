@@ -2,5 +2,6 @@
 // TODO list for current tasks yet to be finished
 //
 
-* Separate geometry into different modules, in its own folder ( #issue 38 )
-* Fix all problems in the failed assertion areas. ( Uncreated issue )
+* Look for sources giving information on proper wall collision resolution. Quake's source code might be the right route to go...
+    - Sys_win.c, line 715. Remember what you're trying to figure out is the program which is written for e1->v.touch in the SV_Impact function,
+    on line 165 in sv_phys.c

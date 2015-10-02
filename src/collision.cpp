@@ -62,11 +62,14 @@ namespace {
 
                     if ( a.intersects( contacts, hs ) )
                     {
+						e.mContacts = std::move( contacts );
                         e.mColliding = true;
                         break;
                     }
                 }
             }
+
+			__nop();
         },
         DUMMY_LAMBDA,
         DUMMY_LAMBDA

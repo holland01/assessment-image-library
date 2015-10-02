@@ -202,11 +202,13 @@ rigid_body::rigid_body( uint32_t options )
       mAngularDamping( 1.0f ),
       mPosition( 0.0f ),
       mLinearVelocity( 0.0f ),
+	  mTotalVelocity( 0.0f ),
       mAngularVelocity( 0.0f ),
       mLastAngularAccel( 0.0f ),
       mLastLinearAccel( 0.0f ),
 	  mTorqueAccum( 0.0f ),
       mForceAccum( 0.0f ),
+	  mLastForceAccum( 0.0f ),
 	  mIitLocal( 1.0f ),
 	  mIitWorld( 1.0f ),
 	  mOptions( options )
@@ -234,12 +236,24 @@ void rigid_body::integrate( float t )
 
     mOrientation = glm::normalize( mOrientation );
 
-    mPosition += mOrientation * mLinearVelocity + accel * t;
+	const glm::vec3 totalVel( mOrientation * mLinearVelocity );
+
+	mPosition += totalVel + accel * t;
 
     inertia_tensor_to_world( mIitWorld, mIitLocal, glm::mat3_cast( mOrientation ) );
 
     mLastLinearAccel = linear_acceleration();
     mLastAngularAccel = angular_acceleration();
+
+	if ( mForceAccum != glm::zero< glm::vec3 >() )
+	{
+		mLastForceAccum = mForceAccum;
+	}
+
+	if ( totalVel != glm::zero< glm::vec3 >() )
+	{
+		mTotalVelocity = totalVel;
+	}
 }
 
 void rigid_body::mass( float m )

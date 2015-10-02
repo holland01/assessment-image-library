@@ -43,7 +43,7 @@ public:
 
     input_client* camera;
 
-    obb* drawBounds;
+	obb* drawBounds;
 
     physics_world world;
 
@@ -161,7 +161,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
 #endif
 
     camera = &spec;
-    drawBounds = player.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
+	drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
 
     running = true;
 }
@@ -175,7 +175,7 @@ application< child_t >::~application( void )
 template < typename child_t >
 void application< child_t >::make_body( input_client &dest, input_client::client_mode mode, const glm::vec3 &pos, float mass )
 {
-    uint32_t flags = rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
+	uint32_t flags = rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
 
     rigid_body* body = new rigid_body( flags );
     body->position( pos );
@@ -194,6 +194,7 @@ void application< child_t >::toggle_culling( void )
 {
     drawAll = !drawAll;
 
+	/*
     if ( !drawAll )
     {
         camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP;
@@ -202,6 +203,7 @@ void application< child_t >::toggle_culling( void )
     {
         camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 10.0f;
     }
+	*/
 }
 
 template < typename child_t >

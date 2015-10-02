@@ -25,7 +25,7 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	glm::vec3 boundsSize( bounds.extents() * 2.0f );
 
 	// normalize the cross on mAxes[ 0 ] so that we don't scale more than is necessary
-	mT.mAxes[ 0 ] = std::move( glm::normalize( -glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
+	mT.mAxes[ 0 ] = std::move( glm::normalize( glm::cross( normal, upAxis ) ) ) * boundsSize[ 0 ];
 	mT.mAxes[ 1 ] = upAxis * boundsSize[ 1 ];
 	mT.mAxes[ 2 ] = normal;
 
@@ -69,45 +69,6 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	mDistance = glm::dot( glm::normalize( mT.mAxes[ 2 ] ), mT.mOrigin );
 }
 
-/*
-
-halfspace::halfspace( const halfspace& c )
-	: halfspace( c.mT.mAxes, c.mT.mOrigin, c.mDistance )
-{
-}
-
-halfspace& halfspace::operator=( const halfspace& c )
-{
-	if ( this != &c )
-	{
-		mT = c.mT;
-		mDistance = c.mDistance;
-	}
-
-	return *this;
-}
-
-
-halfspace::halfspace( halfspace&& m )
-	: bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
-	  mT( std::move( m.mT ) ),
-	  mDistance( m.mDistance )
-{
-}
-
-halfspace& halfspace::operator=( halfspace&& m )
-{
-	if ( this != &m )
-	{
-		mT = std::move( m.mT );
-		mDistance = m.mDistance;
-	}
-
-	return *this;
-}
-*/
-
-
 bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
 {
 	UNUSEDPARAM( contacts );
@@ -120,7 +81,9 @@ bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
 	// are directly in the middle
 	glm::vec3 projToCenter( P.project( bounds.origin() ) - mT.mOrigin );
 
-	detail::sat_intersection_test test( projToCenter, mT, bounds.trans_data() );
+	//projToCenter = bounds.axes() * projToCenter;
+
+	detail::sat_intersection_test test( projToCenter, mT.transform_to( bounds.trans_data() ), bounds.trans_data() );
 	return test();
 }
 
@@ -137,5 +100,9 @@ void halfspace::draw( imm_draw& drawer ) const
 	drawer.vertex( origin() );
 	drawer.vertex( origin() + axes()[ 2 ] * 2.0f );
 
+	drawer.end();
+
+	drawer.begin( GL_POINTS );
+	drawer.vertex( origin() );
 	drawer.end();
 }

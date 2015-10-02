@@ -16,11 +16,11 @@ struct contact
     const glm::vec3 mNormal;
     const float mInterpenDepth;
 
-    contact( const glm::vec3 point = glm::vec3( 0.0f ),
-             const glm::vec3 normal = glm::vec3( 0.0f ),
+	contact( const glm::vec3& point = glm::vec3( 0.0f ),
+			 const glm::vec3& normal = glm::vec3( 0.0f ),
              const float interpenDepth = 0.0f )
-      : mPoint( std::move( point ) ),
-        mNormal( std::move( normal ) ),
+	  : mPoint( point ),
+		mNormal( normal ),
         mInterpenDepth( interpenDepth )
     {
     }

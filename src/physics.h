@@ -42,6 +42,8 @@ private:
 
     glm::vec3 mLinearVelocity;
 
+	glm::vec3 mTotalVelocity;
+
     glm::vec3 mAngularVelocity;
 
     glm::vec3 mLastAngularAccel;
@@ -51,6 +53,8 @@ private:
     glm::vec3 mTorqueAccum;
 
     glm::vec3 mForceAccum;
+
+	glm::vec3 mLastForceAccum;
 
     glm::quat mOrientation;
 
@@ -111,6 +115,10 @@ public:
     glm::vec3& linear_velocity( void ) { return mLinearVelocity; }
 
     const glm::vec3& force_accum( void ) const { return mForceAccum; }
+
+	const glm::vec3& last_force_accum( void ) const { return mLastForceAccum; }
+
+	const glm::vec3& total_velocity( void ) const { return mTotalVelocity; }
 
     const glm::vec3& torque_accum( void ) const { return mTorqueAccum; }
 

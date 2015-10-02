@@ -187,6 +187,7 @@ bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) co
 {
 	if ( halfSpace.intersects( contacts, *this ) )
 	{
+		contacts.insert( contact( halfSpace.origin(), halfSpace.normal() ) );
 		return true;
 	}
 
