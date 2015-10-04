@@ -423,9 +423,8 @@ void apply_force( game_app_t& game, const collision_entity& ce )
 	for ( const contact& c: ce.mContacts )
 	{
 		UNUSEDPARAM( c );
-		glm::vec3 n( -glm::normalize( body->total_velocity() ) );
-
-		n *= glm::dot( n, -body->last_force_accum() );
+        glm::vec3 n( c.mNormal * body->mass() );
+        n -= body->total_velocity() * game.world.mTime * 1000.0f;
 
 		body->apply_force( n );
 	}

@@ -469,34 +469,38 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
         collision_face_table_t halfSpaces;
         halfSpaces.fill( -1 );
 
-		int32_t left = tile_index( wall->mX - 1, wall->mZ );
-		int32_t forward = tile_index( wall->mX, wall->mZ - 1 );
-		int32_t right = tile_index( wall->mX + 1, wall->mZ );
-		int32_t back = tile_index( wall->mX, wall->mZ + 1 );
+        int32_t left = tile_index( wall->mX - 1, wall->mZ );
+        int32_t forward = tile_index( wall->mX, wall->mZ - 1 );
+        int32_t right = tile_index( wall->mX + 1, wall->mZ );
+        int32_t back = tile_index( wall->mX, wall->mZ + 1 );
 
         bool hasHalfSpace = false;
 
         const obb& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
 
-		if ( mTiles[ left ].mType != map_tile::WALL && ( wall->mX - 1 ) >= 0 )
+        if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
+             && ( wall->mX - 1 ) >= 0 )
         {
             halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_LEFT );
             hasHalfSpace = true;
         }
 
-		if ( mTiles[ forward ].mType != map_tile::WALL && ( wall->mZ - 1 ) >= 0 )
+        if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
+             && ( wall->mZ - 1 ) >= 0 )
         {
             halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_FORWARD );
             hasHalfSpace = true;
         }
 
-		if ( mTiles[ right ].mType != map_tile::WALL && ( wall->mX + 1 ) < GRID_SIZE )
+        if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
+             && ( wall->mX + 1 ) < GRID_SIZE )
         {
             halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_RIGHT );
             hasHalfSpace = true;
         }
 
-		if ( mTiles[ back ].mType != map_tile::WALL && ( wall->mZ + 1 ) < GRID_SIZE )
+        if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
+             && ( wall->mZ + 1 ) < GRID_SIZE )
         {
             halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_BACK );
             hasHalfSpace = true;

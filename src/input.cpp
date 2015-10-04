@@ -202,21 +202,18 @@ void input_client::apply_movement( void )
     {
         sync();
     }
-}
 
-void input_client::sync( void )
-{
-	if ( mMode == MODE_PLAY )
-	{
-		if ( mBody )
-		{
+    if ( mMode == MODE_PLAY )
+    {
+        if ( mBody )
+        {
             mBody->position( 1, 0.0f );
-		}
-		else
-		{
+        }
+        else
+        {
             mViewParams.mOrigin.y = 0.0f;
-		}
-	}
+        }
+    }
 
     auto set_view_transform = [ this ]( const glm::mat4& orient )
     {
@@ -225,15 +222,15 @@ void input_client::sync( void )
         mViewParams.mTransform = orient * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
     };
 
-	if ( mBody )
-	{
+    if ( mBody )
+    {
         mViewParams.mOrigin = mBody->position();
-		set_view_transform( mViewParams.mOrientation );
-		mBody->orientation( mViewParams.mInverseOrient );
-        entity::sync();
-	}
-	else
-	{
+        set_view_transform( mViewParams.mOrientation );
+        mBody->orientation( mViewParams.mInverseOrient );
+
+    }
+    else
+    {
         obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
         assert( b );
 
@@ -241,7 +238,12 @@ void input_client::sync( void )
         b->axes( glm::mat3( mViewParams.mInverseOrient ) );
 
         set_view_transform( mViewParams.mOrientation );
-	}
+    }
+}
+
+void input_client::sync( void )
+{
+    entity::sync();
 }
 
 void input_client::print_origin( void ) const
