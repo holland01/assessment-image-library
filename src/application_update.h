@@ -22,12 +22,13 @@ application_frame< child_t >::application_frame( app_t& a )
 {
 	mApp.startTime = get_time();
 
+    /*
 	const view_data& vp = mApp.camera->view_params();
 
 	mApp.frustum.update( vp );
 
-	mApp.world.update( mApp );
-
+    mApp.world.update( mApp );
+*/
 	mApp.draw();
 }
 
@@ -38,7 +39,7 @@ application_frame< child_t >::~application_frame( void )
     // since we only want to integrate bodies which are in view
 	mApp.world.mTime = get_time() - mApp.startTime;
 
-	printf( "Position: %s, FPS: %f\r", glm::to_string( mApp.camera->mBody->position() ).c_str(),
+    printf( "Position: %s, FPS: %f\r", glm::to_string( mApp.camera->position() ).c_str(),
 			1.0f / mApp.world.mTime );
 }
 

@@ -9,7 +9,7 @@
 #ifdef EMSCRIPTEN
 #	define OP_DEFAULT_MOVE_STEP 0.5f
 #else
-#	define OP_DEFAULT_MOVE_STEP 0.1f
+#	define OP_DEFAULT_MOVE_STEP 0.01f
 #endif
 
 struct view_data

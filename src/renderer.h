@@ -488,6 +488,8 @@ public:
     const shader_program& program( const std::string& prog ) const { return mPrograms.at( prog ); }
 
     const buffer_map_t& draw_buffers( void ) const { return mDrawBuffers; }
+
+    const draw_buffer& buffer( const std::string& buf ) const { return mDrawBuffers.at( buf ); }
 };
 
 //---------------------------------------------------------------------
@@ -506,6 +508,8 @@ public:
     bind_program( const std::string& which );
 
     ~bind_program( void );
+
+    const shader_program& program( void ) const { return mProgram; }
 };
 
 

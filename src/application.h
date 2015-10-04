@@ -145,6 +145,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     player.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
 
     spec.mMode = input_client::MODE_SPEC;
+    spec.mDepType = entity::BOUNDS_DEPENDENT;
 
     program.load_mat4( "viewToClip", player.view_params().mClipTransform );
     program.release();

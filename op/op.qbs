@@ -4,12 +4,30 @@ Product {
     type: "application" // To suppress bundle generation on Mac
     Depends { name: "cpp" }
     consoleApplication: true
-    cpp.includePaths: [
-        "/usr/include/",
-        "/usr/include/c++",
-        "../src/lib",
-        qbs.getEnv("DEVLIB_ROOT") + "/sdl2/include"
-    ]
+    cpp.includePaths: {
+        var inc = [
+            "/usr/include/",
+            "/usr/include/c++",
+            "../src/lib"
+        ];
+
+        var librootInc = [
+            "/sdl2/include",
+            "/bullet3/",
+            "/bullet3/bullet3",
+          //  "/bullet3/bullet3/BulletCollision",
+          //  "/bullet3/bullet3/BulletDynamics",
+          //  "/bullet3/bullet3/LinearMath"
+        ];
+
+        var devlibRoot = qbs.getEnv("DEVLIB_ROOT");
+
+        librootInc.forEach(function(includePath) {
+            inc.push(devlibRoot + includePath);
+        });
+
+        return inc;
+    }
     cpp.defines: ["__DEBUG_RENDERER__", "DEBUG"]
     cpp.treatWarningsAsErrors: true
     cpp.cxxFlags:[
@@ -19,39 +37,57 @@ Product {
         "-Wno-strict-aliasing",
         "-std=c++1y"
     ]
-    cpp.linkerFlags: [
-        "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
-        "-L/usr/lib/x86_64-linux-gnu",
-        "-lGL",
-        "-lGLU",
-        "-lGLEW",
-        "-L/usr/lib/x86_64-linux-gnu",
-        "-lSDL2",
-        "-lpthread",
-        "-Wl,--no-undefined",
-        "-lm",
-        "-ldl",
-        "-lasound",
-        "-lm",
-        "-ldl",
-        "-lpthread",
-        "-lpulse-simple",
-        "-lpulse",
-        "-lX11",
-        "-lXext",
-        "-lXcursor",
-        "-lXinerama",
-        "-lXi",
-        "-lXrandr",
-        "-lXss",
-        "-lXxf86vm",
-        "-lwayland-egl",
-        "-lwayland-client",
-        "-lwayland-cursor",
-        "-lxkbcommon",
-        "-lpthread",
-        "-lrt"
-    ]
+    cpp.linkerFlags: {
+        var linkFlags = [
+            "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
+            "-L/usr/lib/x86_64-linux-gnu",
+            "-lGL",
+            "-lGLU",
+            "-lGLEW",
+            "-L/usr/lib/x86_64-linux-gnu",
+            "-lSDL2",
+            "-lpthread",
+            "-Wl,--no-undefined",
+            "-lm",
+            "-ldl",
+            "-lasound",
+            "-lm",
+            "-ldl",
+            "-lpthread",
+            "-lpulse-simple",
+            "-lpulse",
+            "-lX11",
+            "-lXext",
+            "-lXcursor",
+            "-lXinerama",
+            "-lXi",
+            "-lXrandr",
+            "-lXss",
+            "-lXxf86vm",
+            "-lwayland-egl",
+            "-lwayland-client",
+            "-lwayland-cursor",
+            "-lxkbcommon",
+            "-lpthread",
+            "-lrt"
+        ];
+
+        linkFlags.push("-L" + qbs.getEnv("DEVLIB_ROOT") + "/bullet3/bin");
+
+        var bulletSuffix = "_gmake_x64_release";
+
+        var bulletLibs = [
+            "-lBulletDynamics",
+            "-lBulletCollision",
+            "-lLinearMath",
+        ];
+
+        bulletLibs.forEach(function(lib) {
+            linkFlags.push(lib + bulletSuffix);
+        });
+
+        return linkFlags;
+    }
     files: [
         "../Makefile",
         "../asset/shader/es/billboard.frag",

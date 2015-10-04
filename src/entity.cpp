@@ -161,6 +161,11 @@ namespace {
 
 void entity::sync( void )
 {
+    if ( !mBody || !mBounds )
+    {
+        return;
+    }
+
     for ( auto key: gEntBoundsPrims )
     {
         bounds_primitive* prim = query_bounds( key );

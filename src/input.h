@@ -70,6 +70,8 @@ struct input_client : public entity
 
     void	position( const glm::vec3& origin );
 
+    const glm::vec3& position( void ) const;
+
     glm::vec3   calc_direction( const glm::vec3& d ) const;
 
     glm::vec3   forward( void ) const { return std::move( calc_direction( G_DIR_FORWARD ) ); }
@@ -146,6 +148,18 @@ INLINE void input_client::view_transform( const glm::mat4& view )
 INLINE void input_client::position( const glm::vec3& origin )
 {
     mViewParams.mOrigin = origin;
+}
+
+INLINE const glm::vec3& input_client::position( void ) const
+{
+    if ( mBody )
+    {
+        return mBody->position();
+    }
+    else
+    {
+        return mViewParams.mOrigin;
+    }
 }
 
 INLINE const view_data& input_client::view_params( void ) const

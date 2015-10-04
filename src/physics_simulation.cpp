@@ -1,211 +1,181 @@
 #include "physics_simulation.h"
 #include "debug_app.h"
 #include "application_update.h"
+#include <bullet3/btBulletCollisionCommon.h>
+#include <bullet3/btBulletDynamicsCommon.h>
 
 using namespace std;
 
 #define GROUND_MASS 10000.0f
 
 namespace {
+
     const glm::vec4 G_TAG_COLOR( 0.0f, 0.0f, 1.0f, 1.0f );
 
     vector< entity* > gen_entities( void )
     {
-        vector< entity* > ents;
-
-        uint32_t flags = rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
-
-        entity* box0 = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
-                                   glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-        box0->mBody->position( glm::vec3( -10.0f, 500.0f, 0.0f ) );
-        box0->mBody->mass( 100.0f );
-        box0->mBody->linear_damping( 0.01f );
-        box0->mBody->angular_damping( 0.01f );
-        box0->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
-        box0->mBody->iit_local( get_block_inertia( glm::vec3( 1.0f ), box0->mBody->mass() ) );
-
-        ents.push_back( box0 );
-
-        entity* box1 = new entity( entity::BODY_DEPENDENT,
-                                   new rigid_body( flags ),
-                                   G_TAG_COLOR );
-        box1->mBody->position( glm::vec3( 0.0f, 100.0f, 0.0f ) );
-        box1->mBody->mass( 200.0f );
-        box1->mBody->linear_damping( 0.3f );
-        box1->mBody->angular_damping( 0.5f );
-        box1->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
-        box1->mBody->iit_local( get_block_inertia( glm::vec3( 1.0f ), box1->mBody->mass() ) );
-
-        ents.push_back( box1 );
-
-        entity* groundPlane = new entity( entity::BODY_DEPENDENT, new rigid_body( flags ),
-                                          glm::vec4( 0.0f, 0.4f, 0.0f, 1.0f ) );
-        groundPlane->mBody->position( glm::vec3( 0.0f ) );
-        groundPlane->mBody->mass( INFINITE_MASS );
-        groundPlane->add_bounds( ENTITY_BOUNDS_ALL,
-                                 new obb() );
-
-        groundPlane->mSize = glm::vec3( 100.0f, 1.0f, 100.0f );
-        groundPlane->sync_options( ENTITY_SYNC_APPLY_SCALE );
-
-        ents.push_back( groundPlane );
-
-        return std::move( ents );
+        return std::vector< entity* >();
     }
 
     vector< entity* > gEnts = gen_entities();
 
-    struct force
+    struct physics_sys
     {
-    protected:
-        glm::vec3 mForce, mFriction;
+        using rigid_info_t = btRigidBody::btRigidBodyConstructionInfo;
 
-        std::vector< collision_entity* > mEntityList;
+        unique_ptr< btBroadphaseInterface > mBroadphase;
+        unique_ptr< btDefaultCollisionConfiguration > mCollisionConfig;
+        unique_ptr< btCollisionDispatcher > mDispatcher;
+        unique_ptr< btSequentialImpulseConstraintSolver > mSolver;
+        unique_ptr< btDiscreteDynamicsWorld > mDynamics;
+        unique_ptr< btCollisionShape > mGroundShape, mFallShape;
+        unique_ptr< btDefaultMotionState > mGroundMotionState, mFallMotionState, mFall2MotionState;
+        unique_ptr< btRigidBody > mGroundRigidBody, mFallRigidBody, mFall2RigidBody;
+        unique_ptr< btSliderConstraint > mSliderConst;
 
-    public:
-        force( void )
-            : mForce( 0.0f ),
-              mFriction( 0.0f )
-        {}
-
-        glm::vec3 force_vec( void ) const { return mForce; }
-
-        glm::vec3 friction( void ) const { return mFriction; }
-    };
-
-    INLINE float calc_mass_comp( const collision_entity::ptr_t entity )
-    {
-        if ( entity->mBody->mass() != INFINITE_MASS )
+        struct wall
         {
-            return entity->mBody->inv_mass();
-        }
+            unique_ptr< btCollisionShape > mShape;
+            unique_ptr< btRigidBody > mBody;
+            unique_ptr< btDefaultMotionState > mMotionState;
+        };
 
-        return 0.0f;
-    }
+        std::array< wall, 4 > mWalls;
 
-    struct test_force : public force
-    {
-    public:
-        test_force( const physics_world& world, const contact& c, const collision_entity& ce )
+        physics_sys( void )
+            : mBroadphase( new btDbvtBroadphase() ),
+              mCollisionConfig( new btDefaultCollisionConfiguration() ),
+              mDispatcher( new btCollisionDispatcher( mCollisionConfig.get() ) ),
+              mSolver( new btSequentialImpulseConstraintSolver() ),
+              mDynamics( new btDiscreteDynamicsWorld( mDispatcher.get(),
+                                                      mBroadphase.get(),
+                                                      mSolver.get(),
+                                                      mCollisionConfig.get() ) ),
+              mGroundShape( new btStaticPlaneShape( btVector3( 0, 1, 0 ), 1 ) ),
+              mFallShape( new btSphereShape( 1 ) ),
+
+              mGroundMotionState( new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
+                                                                         btVector3( 0, -1, 0 ) ) ) ),
+
+              mFallMotionState( new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
+                                                                       btVector3( 0, 100, 0 ) ) ) ),
+
+              mFall2MotionState( new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
+                                                                        btVector3( 8, 100, 0 ) ) ) ),
+
+              mGroundRigidBody( new btRigidBody( rigid_info_t( 0,
+                                                               mGroundMotionState.get(),
+                                                               mGroundShape.get(),
+                                                               btVector3( 0, 0, 0 ) ) ) )
         {
-            glm::vec3 resolveDir( glm::normalize( c.mNormal ) );
+            mDynamics->setGravity( btVector3( 0, -1.0f, 0 ) );
+            mDynamics->setSynchronizeAllMotionStates( true );
 
-            glm::vec3 relavel( ce.mEntityB->mBody->linear_velocity() - ce.mEntityA->mBody->linear_velocity() );
-            relavel -= c.mNormal * c.mInterpenDepth * world.mTargetDeltaTime;
+            mDynamics->addRigidBody( mGroundRigidBody.get() );
 
-            float closingVelocity = glm::dot( relavel, resolveDir );
+            btScalar mass = 1;
+            btVector3 fallInertia( 10, 10, 10 );
+            mFallShape->calculateLocalInertia( mass, fallInertia );
 
-            if ( closingVelocity > 0.0f )
+            mFallRigidBody.reset( new btRigidBody( rigid_info_t( mass,
+                                                                 mFallMotionState.get(),
+                                                                 mFallShape.get(),
+                                                                 fallInertia ) ) );
+
+            mFall2RigidBody.reset( new btRigidBody( rigid_info_t( mass,
+                                                                  mFall2MotionState.get(),
+                                                                  mFallShape.get(),
+                                                                  fallInertia ) ) );
+
+            mDynamics->addRigidBody( mFallRigidBody.get() );
+            mDynamics->addRigidBody( mFall2RigidBody.get() );
+
+            //btVector3 a, b;
+            btTransform a, b;
+            //a.setValue( 0, 0, 0 );
+            //b.setValue( 0, 0, 0 );
+            a.setIdentity();
+            b.setIdentity();
+
+            mSliderConst.reset( new btSliderConstraint( *mFallRigidBody, *mFall2RigidBody, a, b, true ) );
+            //mSliderConst->m_setting.m_damping = 0.3f;
+            mDynamics->addConstraint( mSliderConst.get() );
+
+            struct plane_params
             {
-                return;
-            }
+                btVector3 normal;
+                btVector3 origin;
+                float d;
+            };
 
-            const float restitution = 1.0f;
+            float dist = 10.0f;
+            float d = 10.0f;
+            // order is left, forward, right, back
+            std::array< plane_params, 4 > params =
+            {{
+                { btVector3( 1.0f, 0.0f, 0.0f ), btVector3( -dist, 0.0f, 0.0f ), d },
+                { btVector3( 0.0f, 0.0f, 1.0f ), btVector3( 0.0f, 0.0f, -dist ), d },
+                { btVector3( -1.0f, 0.0f, 0.0f ), btVector3( dist, 0.0f, 0.0f ), -d },
+                { btVector3( 0.0f, 0.0f, -1.0f ), btVector3( 0.0f, 0.0f, dist ), -d }
+            }};
 
-            float impulseNum = -( 1.0f + restitution ) * closingVelocity;
-            float denom = ce.mEntityA->mBody->inv_mass() + ce.mEntityB->mBody->inv_mass();
-
-            float impulse = impulseNum / denom;
-
-            glm::vec3 imp( impulse * resolveDir );
-
-            if ( !ce.mEntityA->mBody->is_static() )
+            for ( uint32_t i: { 0, 1, 2, 3 } )
             {
-                glm::vec3 impa( ce.mEntityA->mBody->inv_mass() * imp );
-                ce.mEntityA->mBody->linear_velocity() -= impa;
+                mWalls[ i ].mShape.reset( new btStaticPlaneShape( params[ i ].normal, params[ i ].d ) );
+                mWalls[ i ].mMotionState.reset( new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
+                                                                                       btVector3( params[ i ].origin ) ) ) );
+                mWalls[ i ].mBody.reset( new btRigidBody( rigid_info_t( 0, mWalls[ i ].mMotionState.get(),
+                                                                        mWalls[ i ].mShape.get(),
+                                                                        btVector3( 0, 0, 0 ) ) ) );
+
+                mDynamics->addRigidBody( mWalls[ i ].mBody.get() );
             }
-
-			if ( !ce.mEntityB->mBody->is_static() )
-			{
-				glm::vec3 impb( ce.mEntityB->mBody->inv_mass() * imp );
-				ce.mEntityB->mBody->linear_velocity() += impb;
-			}
-		}
-    };
-
-    struct spring_force : public force
-    {
-    public:
-        spring_force( collision_entity& ce, float restLength, float springConstant )
-        {
-            glm::vec3 theForce( ce.mEntityB->mBody->position() - ce.mEntityA->mBody->position() );
-
-            float mag = glm::length( theForce );
-            mag = glm::abs( mag - restLength );
-            mag *= springConstant;
-
-            mForce = glm::normalize( theForce ) * -mag;
         }
     };
+
+    physics_sys gSystem;
 }
 
 physics_simulation::physics_simulation( uint32_t w, uint32_t h )
     : physics_app_t( w, h )
 {
     camera = &spec;
-    camera->mViewParams.mMoveStep = 0.1f;
     camera->position( glm::vec3( 0.0f, 10.0f, 100.0f ) );
 }
 
 void physics_simulation::frame( void )
 {
+    const view_data& vp = camera->view_params();
+
+    frustum.update( vp );
+
+    world.update( *this );
+
+    gSystem.mDynamics->stepSimulation( 1.0f / 60.0f, 10 );
     application_frame< physics_simulation > theFrame( *this );
 }
 
-namespace {
-    bool gDoIt = true;
-    bool gFire = false;
-}
 void physics_simulation::draw( void )
 {
-    bind_program program( "single_color" );
+    bind_program bound_prog( "single_color" );
+    const draw_buffer& cubeDraw = pipeline->buffer( "colored_cube" );
 
-    auto emit_pred = []( entity* e ) -> bool
+    auto draw_it = [ & ]( const btMotionState* state, const glm::vec4& color )
     {
-        if ( !gFire )
-        {
-            return e->mColor != G_TAG_COLOR;
-        }
-        else
-        {
-            return true;
-        }
+        btTransform T;
+        state->getWorldTransform( T );
+        glm::mat4 rT;
+        T.getOpenGLMatrix( &rT[ 0 ][ 0 ] );
+
+        bound_prog.program().load_vec4( "color", color );
+        bound_prog.program().load_mat4( "modelToView", camera->view_params().mTransform * rT );
+        cubeDraw.render( bound_prog.program() );
     };
 
-    auto apply_gravity = [ emit_pred ]( entity* e )
-    {
-        if ( gDoIt && emit_pred( e ) )
-        {
-            e->mBody->apply_force( glm::vec3( 0.0f, -9.8f, 0.0f ) );
-        }
-    };
-
-    for ( entity* e: gEnts )
-    {
-        for ( entity* e1: gEnts )
-        {
-            if ( e == e1 )
-            {
-                continue;
-            }
-
-            collision_entity ce( collision, e, e1 );
-
-            if ( collision.eval_collision( ce ) )
-            {
-                for ( const contact& c: ce.mContacts )
-                {
-                    test_force tf( world, c, ce );
-                }
-            }
-
-            apply_gravity( e );
-            apply_gravity( e1 );
-        }
-
-        const obb& bounds = *ENTITY_PTR_GET_BOX( e, ENTITY_BOUNDS_ALL );
-        debug_draw_bounds( *this, bounds, glm::vec3( e->mColor ), e->mColor.a );
-    }
+    cubeDraw.bind();
+    draw_it( gSystem.mFallMotionState.get(), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+    draw_it( gSystem.mFall2MotionState.get(), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+    cubeDraw.release();
 
     application< physics_simulation >::draw();
 }
@@ -221,16 +191,7 @@ void physics_simulation::handle_event( const SDL_Event& e )
 
     if ( e.type ==  SDL_KEYDOWN )
     {
-        switch ( e.key.keysym.sym )
-        {
-            case SDLK_v:
-                gFire = !gFire;
-                break;
-            case SDLK_r:
-                gEnts = std::move( gen_entities() );
-                gFire = false;
-                break;
-        }
+        // TODO
     }
 }
 

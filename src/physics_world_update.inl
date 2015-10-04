@@ -16,9 +16,12 @@ INLINE void physics_world::update( application< child_t >& app )
 
     app.fill_entities( mBodies );
 
-    app.camera->apply_movement();
+    if ( app.camera )
+    {
+        app.camera->apply_movement();
+    }
 
-    sync_bodies();
+    //sync_bodies();
 
     clear_accum();
 }
