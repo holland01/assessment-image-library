@@ -70,7 +70,7 @@ game::game( uint32_t width, uint32_t height )
     billTexture.open_file( "asset/mooninite.png" );
     billTexture.load_2d();
 
-    gen.reset( new map_tile_generator( collision ) );
+    gen.reset( new map_tile_generator() );
 
     std::sort( gen->mFreeSpace.begin(), gen->mFreeSpace.end(), []( const map_tile* a, const map_tile* b ) -> bool
     {
@@ -81,12 +81,10 @@ game::game( uint32_t width, uint32_t height )
 
     const map_tile* tile = gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
 
-    make_body( player, input_client::MODE_PLAY, glm::vec3( tile->mX, 0.0f, tile->mZ ), 80.0f );
-    make_body( spec, input_client::MODE_SPEC, glm::vec3( 0.0f, 10.0f, 0.0f ), 5.0f );
-
     fill_orient_map();
 
     camera = &player;
+    camera->position( gen->scale_to_world( glm::vec3( tile->mX, 0.0f, tile->mZ ) ) );
 }
 
 void game::fill_orient_map( void )
@@ -101,25 +99,19 @@ void game::fill_orient_map( void )
 
 void game::reset_map( void )
 {
-    collision = collision_provider();
-
-    gen.reset( new map_tile_generator( collision ) );
+    gen.reset( new map_tile_generator() );
     fill_orient_map();
 }
 
 void game::fire_gun( void )
 {
-    if ( camera->mBody )
     {
         debug_set_flag( false );
-        bullet.reset( new entity( entity::BODY_DEPENDENT, new rigid_body() ) );
+        bullet.reset( new entity() );
 
         bullet->mSize = glm::vec3( 0.1f );
-        bullet->sync_options( ENTITY_SYNC_APPLY_SCALE );
 
-        bullet->mBody->orientation( camera->mBody->orientation_mat3() );
-        bullet->mBody->apply_velocity( camera->view_params().mForward );
-        bullet->mBody->position( camera->view_params().mOrigin );
+        // TODO: add physics here
 
         bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
     }
@@ -134,7 +126,7 @@ namespace {
 
 void game::frame( void )
 {
-    application_frame< game > theFrame( *this );
+    update();
 
 //!!FIXME: throw this somewhere more logical, like have it managed by the application base class
 #ifdef EMSCRIPTEN
@@ -149,6 +141,8 @@ void game::frame( void )
     {
         gen->find_entities( billboards, walls, freeSpace, frustum, *( camera ) );
     };
+
+    draw();
 }
 
 namespace {
@@ -279,36 +273,6 @@ glm::mat4 gQuadTransform(
     }()
 );
 
-void apply_force( game_app_t& game, const collision_entity& ce );
-
-INLINE bool test_tile_collision(
-    game& g,
-	collision_entity::ptr_t e,
-    const glm::vec3& entityPos,
-    entity_bounds_use_flags entFlags,
-    const map_tile* tile,
-    entity_bounds_use_flags tileFlags )
-{
-    glm::mat4 t = get_tile_transform( *tile );
-
-    if ( glm::distance( entityPos, glm::vec3( t[ 3 ] ) ) < 2.0f )
-    {
-        collision_entity ce(   g.collision,
-                               e,
-							   ( collision_entity::ptr_t )tile,
-                               entFlags,
-                               tileFlags );
-
-		if ( g.collision.eval_collision( ce ) )
-		{
-			apply_force( g, ce );
-			return true;
-		}
-    }
-
-    return false;
-}
-
 INLINE void draw_tiles( const game_app_t& game,
                         const std::vector< const map_tile* >& tiles,
                         const glm::vec3& color, float alpha = 1.0f )
@@ -412,24 +376,6 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
     }
 }
 
-void apply_force( game_app_t& game, const collision_entity& ce )
-{
-	//assert( false && "need to rewrite for contact list usage" );
-
-    UNUSEDPARAM( game );
-
-	rigid_body* body = ce.mEntityA->mBody.get();
-
-	for ( const contact& c: ce.mContacts )
-	{
-		UNUSEDPARAM( c );
-        glm::vec3 n( c.mNormal * body->mass() );
-        n -= body->total_velocity() * game.world.mTime * 1000.0f;
-
-		body->apply_force( n );
-	}
-}
-
 INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
 {
     const obb& bounds = *( tile.query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box() );
@@ -438,52 +384,7 @@ INLINE void load_billboard_params( map_tile& tile, const shader_program& billboa
 
     billboard.load_vec3( "origin", boundsOrigin );
 
-    billboard.load_mat3( "viewOrient", tile.mBody->orientation_mat3() );
-}
-
-INLINE void test_bullet_collide( game& game, map_tile* billboard, const shader_program& singleColor )
-{
-    if ( game.bullet )
-    {
-        if( test_tile_collision( game,
-                            game.bullet.get(),
-                            game.bullet->mBody->position(),
-                            ENTITY_BOUNDS_AIR_COLLIDE,
-                            billboard,
-                            ENTITY_BOUNDS_AIR_COLLIDE ) )
-        {
-            billboard->mColor = glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f );
-
-            game.billboard_oriented( *billboard, false );
-
-            game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
-
-			if ( debug_flag_set() )
-			{
-                const obb& tileBox = *ENTITY_PTR_GET_BOX( billboard, ENTITY_BOUNDS_AIR_COLLIDE );
-
-				singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
-
-				GL_CHECK( glPointSize( 50.0f ) );
-
-				imm_draw d( singleColor );
-
-				ray dbr;
-				debug_get_ray( dbr );
-                debug_draw_debug_ray( game, d, tileBox, dbr );
-
-				GL_CHECK( glPointSize( 10.0f ) );
-
-				game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
-			}
-        }
-        else if ( glm::distance( game.bullet->mBody->position(), billboard->mBody->position() ) <= 1.0f )
-        {
-            game.billboard_oriented( *billboard, false );
-
-            game.bullet->mBody->add_options( rigid_body::LOCK_INTEGRATION );
-        }
-    }
+    billboard.load_mat3( "viewOrient", bounds.axes() );
 }
 
 void process_billboards( game& game, const view_data& vp, map_tile_list_t& billboards )
@@ -507,7 +408,6 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
 		const obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
 
         singleColor.bind();
-        test_bullet_collide( game, tile, singleColor );
         billboard.bind();
 
         billboard.load_vec4( "color", tile->mColor );
@@ -560,23 +460,6 @@ static void draw_group( game& game,
         for ( const map_tile* tile: walls )
         {
             debug_draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
-
-			if ( gTestFlags & COLLIDE_WALLS )
-			{
-				bool success = test_tile_collision( game,
-													( collision_entity::ptr_t )&game.player,
-													game.player.view_params().mOrigin,
-													ENTITY_BOUNDS_MOVE_COLLIDE,
-													tile,
-													ENTITY_BOUNDS_MOVE_COLLIDE  );
-
-				if ( success )
-				{
-					debug_draw_bounds( game,
-									   *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ),
-									   glm::vec3( 0.0f, 1.0f, 0.0f ) );
-				}
-			}
         }
     }
 
@@ -603,8 +486,8 @@ static void draw_group( game& game,
                 continue;
             }
 
-            const collision_face_table_t& table =
-					game.collision.mHalfSpaceTable[ wall->mHalfSpaceIndex ];
+            const map_tile_generator::collision_face_table_t& table =
+                    game.gen->wall_surf_table( wall->mHalfSpaceIndex );
 
             for ( int32_t i: table )
             {
@@ -613,7 +496,7 @@ static void draw_group( game& game,
                     continue;
                 }
 
-				game.collision.mHalfSpaces[ i ].draw( drawer );
+                game.gen->wall_surf( i ).draw( drawer );
             }
         }
     }
@@ -632,12 +515,6 @@ static void draw_group( game& game,
     }
 
     frameCount += 1.0f;
-
-    if ( frameCount >= ( 5.0f / game.world.mTime ))
-    {
-        regionIter++;
-        frameCount = 0.0f;
-    }
 
     if ( regionIter == game.gen->mRegions.size() )
     {

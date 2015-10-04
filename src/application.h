@@ -3,7 +3,6 @@
 #include "geom/geom.h"
 #include "input.h"
 #include "debug.h"
-#include "collision.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
@@ -45,23 +44,19 @@ public:
 
 	obb* drawBounds;
 
-    physics_world world;
-
     view_frustum frustum;
-
-    collision_provider collision;
 
     application( uint32_t width, uint32_t height );
 
     virtual ~application( void );
-
-    void make_body( input_client& dest, input_client::client_mode mode, const glm::vec3& pos, float mass );
 
     void toggle_culling( void );
 
     virtual void draw( void );
 
     virtual void frame( void ) = 0;
+
+    virtual void update( void );
 
     virtual void handle_event( const SDL_Event& e );
 
@@ -94,8 +89,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
       lastTime( 0.0f ),
       startTime( 0.0f ),
       camera( nullptr ),
-      drawBounds( nullptr ),
-      world( 1.0f, OP_PHYSICS_DT )
+      drawBounds( nullptr )
 {
     SDL_Init( SDL_INIT_VIDEO );
     SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -145,7 +139,6 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     player.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
 
     spec.mMode = input_client::MODE_SPEC;
-    spec.mDepType = entity::BOUNDS_DEPENDENT;
 
     program.load_mat4( "viewToClip", player.view_params().mClipTransform );
     program.release();
@@ -174,37 +167,9 @@ application< child_t >::~application( void )
 }
 
 template < typename child_t >
-void application< child_t >::make_body( input_client &dest, input_client::client_mode mode, const glm::vec3 &pos, float mass )
-{
-	uint32_t flags = rigid_body::RESET_VELOCITY | rigid_body::RESET_FORCE_ACCUM | rigid_body::RESET_TORQUE_ACCUM;
-
-    rigid_body* body = new rigid_body( flags );
-    body->position( pos );
-    body->mass( mass );
-    body->linear_damping( 0.1f );
-    body->angular_damping( 1.0f );
-    body->iit_local( get_block_inertia( glm::vec3( 1.0f ), mass ) );
-
-    dest.mMode = mode;
-    dest.mBody.reset( body );
-    dest.sync();
-}
-
-template < typename child_t >
 void application< child_t >::toggle_culling( void )
 {
     drawAll = !drawAll;
-
-	/*
-    if ( !drawAll )
-    {
-        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP;
-    }
-    else
-    {
-        camera->mViewParams.mMoveStep = OP_DEFAULT_MOVE_STEP * 10.0f;
-    }
-	*/
 }
 
 template < typename child_t >
@@ -214,6 +179,17 @@ void application< child_t >::draw( void )
 
     debug_draw_axes( *this, vp );
     debug_draw_hud( *this );
+}
+
+template < typename child_t >
+void application< child_t >::update( void )
+{
+    if ( camera )
+    {
+        frustum.update( camera->view_params() );
+
+        camera->apply_movement();
+    }
 }
 
 template < typename child_t >

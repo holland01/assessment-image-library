@@ -5,7 +5,6 @@
 #include <glm/vec4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-struct rigid_body;
 struct render_pipeline;
 struct view_data;
 
@@ -30,7 +29,7 @@ enum entity_bounds_use_flags
 
 enum entity_sync_flags
 {
-	ENTITY_SYNC_APPLY_SCALE = 0x1
+    ENTITY_SYNC_APPLY_SCALE = 0x1
 };
 
 struct entity_bounds_primitive
@@ -56,28 +55,13 @@ private:
 
     std::unique_ptr< entity_bounds_primitive > mBounds;
 
-	uint32_t mSyncOpt;
-
 public:
-    enum dependent_t
-    {
-        BOUNDS_DEPENDENT,
-        BODY_DEPENDENT
-    };
-
-    dependent_t mDepType;
 
     glm::vec4 mColor;
 
     glm::vec3 mSize;
 
-    std::shared_ptr< rigid_body > mBody;
-
-	entity(  dependent_t dep,
-			 rigid_body* mBody = nullptr,
-			 const glm::vec4& mColor = glm::vec4( 1.0f ) );
-
-    virtual void sync( void );
+    entity( const glm::vec4& color = glm::vec4( 1.0f ) );
 
     glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 
@@ -88,10 +72,6 @@ public:
     const bounds_primitive* query_bounds( uint32_t flags ) const;
 
     void orient_to( const glm::vec3& v );
-
-	void sync_options( uint32_t opt ) { mSyncOpt = opt; }
-
-	uint32_t sync_options( void ) const { return mSyncOpt; }
 };
 
 

@@ -3,6 +3,8 @@
 #include "application.h"
 #include "map.h"
 
+struct game;
+
 using game_app_t = application< game >;
 
 struct game : public application< game >

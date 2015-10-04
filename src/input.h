@@ -5,7 +5,6 @@
 #include <array>
 #include <glm/gtc/matrix_transform.hpp>
 #include "entity.h"
-#include "physics.h"
 #include "view.h"
 
 enum class input_key : uint32_t
@@ -60,7 +59,6 @@ struct input_client : public entity
 
     void	apply_movement( void );
     void    update( void );
-    void    sync( void ) override;
 
     void	add_dir( const glm::vec3& dir, float scale );
 
@@ -90,32 +88,20 @@ INLINE glm::vec3 input_client::calc_direction( const glm::vec3& d ) const
     // If we have a body defined, then we're going to update its orientation
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
-    if ( mBody )
-    {
-        return d;
-    }
-
-    return std::move( world_direction( d ) );
+    return world_direction( d );
 }
 
 INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 {
     glm::vec3 f( dir * scale );
 
-    if ( mBody )
-	{
-		mBody->apply_force( f * mBody->mass() );
-	}
-	else
-	{
-        mViewParams.mOrigin += f;
-	}
+    mViewParams.mOrigin += f;
 }
 
 INLINE glm::vec3 input_client::world_direction( const glm::vec3& v ) const
 {
-    glm::vec4 u = mViewParams.mInverseOrient * glm::vec4( v, 1.0f );
-    return std::move( glm::normalize( glm::vec3( u ) ) );
+    glm::vec3 u( mViewParams.mInverseOrient * glm::vec4( v, 1.0f ) );
+    return  glm::normalize( u );
 }
 
 INLINE void input_client::perspective( float fovy, float width, float height, float zNear, float zFar )
@@ -152,14 +138,7 @@ INLINE void input_client::position( const glm::vec3& origin )
 
 INLINE const glm::vec3& input_client::position( void ) const
 {
-    if ( mBody )
-    {
-        return mBody->position();
-    }
-    else
-    {
-        return mViewParams.mOrigin;
-    }
+    return mViewParams.mOrigin;
 }
 
 INLINE const view_data& input_client::view_params( void ) const

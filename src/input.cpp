@@ -45,8 +45,7 @@ input_client::input_client( void )
 }
 
 input_client::input_client( const view_data& view )
-    : entity( entity::BODY_DEPENDENT, nullptr ),
-      mViewParams( view ),
+    : mViewParams( view ),
 	  mMode( MODE_PLAY )
 {
 	mKeysPressed.fill( 0 );
@@ -197,53 +196,18 @@ void input_client::apply_movement( void )
     if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
 
-    // No need to wait for physics update, so just forward it here
-    if ( !mBody )
-    {
-        sync();
-    }
-
     if ( mMode == MODE_PLAY )
     {
-        if ( mBody )
-        {
-            mBody->position( 1, 0.0f );
-        }
-        else
-        {
-            mViewParams.mOrigin.y = 0.0f;
-        }
+        mViewParams.mOrigin.y = 0.0f;
     }
 
-    auto set_view_transform = [ this ]( const glm::mat4& orient )
-    {
-        UNUSEDPARAM( orient );
+    obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
+    assert( b );
 
-        mViewParams.mTransform = orient * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
-    };
+    b->origin( mViewParams.mOrigin );
+    b->axes( glm::mat3( mViewParams.mInverseOrient ) );
 
-    if ( mBody )
-    {
-        mViewParams.mOrigin = mBody->position();
-        set_view_transform( mViewParams.mOrientation );
-        mBody->orientation( mViewParams.mInverseOrient );
-
-    }
-    else
-    {
-        obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
-        assert( b );
-
-        b->origin( mViewParams.mOrigin );
-        b->axes( glm::mat3( mViewParams.mInverseOrient ) );
-
-        set_view_transform( mViewParams.mOrientation );
-    }
-}
-
-void input_client::sync( void )
-{
-    entity::sync();
+    mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
 }
 
 void input_client::print_origin( void ) const

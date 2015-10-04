@@ -69,24 +69,6 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	mDistance = glm::dot( glm::normalize( mT.mAxes[ 2 ] ), mT.mOrigin );
 }
 
-bool halfspace::intersects( contact::list_t& contacts, const obb& bounds ) const
-{
-	UNUSEDPARAM( contacts );
-
-	glm::vec3 normal( glm::normalize( mT.mAxes[ 1 ] ) );
-	plane P( normal, mT.mOrigin );
-
-	// Project toCenter onto plane which has the same normal as the direction of the halfspace up vector (mT.mAxes[1]) as a normal
-	// This will prevent the SAT from fucking up, since the origins are typically in the bottom corner of the halfspace and the bounds' origins
-	// are directly in the middle
-	glm::vec3 projToCenter( P.project( bounds.origin() ) - mT.mOrigin );
-
-	//projToCenter = bounds.axes() * projToCenter;
-
-	detail::sat_intersection_test test( projToCenter, mT.transform_to( bounds.trans_data() ), bounds.trans_data() );
-	return test();
-}
-
 void halfspace::draw( imm_draw& drawer ) const
 {
 	drawer.begin( GL_LINES );

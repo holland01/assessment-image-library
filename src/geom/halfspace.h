@@ -3,7 +3,6 @@
 #include "_geom_local.h"
 #include "bounds_primitive.h"
 #include "transform_data.h"
-#include "../collision_contact.h"
 
 //-------------------------------------------------------------------------------------------------------
 // half_space_t
@@ -33,8 +32,6 @@ public:
 	const glm::vec3& origin( void ) const { return mT.mOrigin; }
 
 	const glm::vec3& normal( void ) const { return mT.mAxes[ 2 ]; }
-
-	bool intersects( contact::list_t& contacts, const obb& bounds ) const;
 
 	void draw( imm_draw& drawer ) const;
 };

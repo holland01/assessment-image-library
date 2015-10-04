@@ -148,52 +148,6 @@ bool obb::range( glm::vec3 v, bool inversed ) const
 		&& glm::all( glm::lessThanEqual( v, mm.max ) );
 }
 
-bool obb::intersects( contact::list_t& contacts, const obb& bounds ) const
-{
-	detail::sat_intersection_test test( mT, bounds.mT );
-
-	if ( !test() )
-	{
-		return false;
-	}
-
-	pointlist3D_t points;
-	get_world_space_points( points );
-
-	const glm::vec3 bCenter( bounds.origin() );
-
-	for ( uint32_t f = 0; f < 6; ++f )
-	{
-		face_type face = ( face_type )f;
-
-		plane Plane;
-		bounds.face_plane( face, Plane );
-
-		for ( const auto& p: points )
-		{
-			if ( Plane.has_point( p ) )
-			{
-				glm::vec3 normal( glm::normalize( bCenter - p ) );
-				contact c( p, std::move( normal ) );
-				contacts.insert( std::move( c ) );
-			}
-		}
-	}
-
-	return true;
-}
-
-bool obb::intersects( contact::list_t& contacts, const halfspace& halfSpace ) const
-{
-	if ( halfSpace.intersects( contacts, *this ) )
-	{
-		contacts.insert( contact( halfSpace.origin(), halfSpace.normal() ) );
-		return true;
-	}
-
-	return false;
-}
-
 // Find the closest 3 faces
 // Compute intersections;
 // then make sure the ray will be within the bounds of the three faces;

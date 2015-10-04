@@ -1,86 +1,5 @@
 #include "entity.h"
-#include "physics.h"
 #include "geom/geom.h"
-
-namespace {
-
-    using entity_dep_table_t =
-		std::array< std::function< void( const entity& e, bounds_primitive* prim, rigid_body* body ) >, NUM_BOUNDS_PRIMTYPE >;
-
-    entity_dep_table_t gSyncBodyDepTable =
-    {{
-        // BOUNDS_PRIMTYPE_HALFSPACE
-		[]( const entity& e, bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-            UNUSEDPARAM( prim );
-            UNUSEDPARAM( body );
-        },
-
-        // BOUNDS_PRIMTYPE_BOX
-		[]( const entity& e, bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-
-            obb* box = ( obb* )prim;
-
-            if ( box )
-            {
-                box->origin( body->position() );
-
-                glm::mat3 o( body->orientation_mat3() );
-
-				if ( e.sync_options() & ENTITY_SYNC_APPLY_SCALE  )
-				{
-					o = std::move( glm::mat3( e.scale_transform() ) * o );
-				}
-
-                box->axes( std::move( o ) );
-            }
-        },
-
-        // BOUNDS_PRIMTYPE_LOOKUP
-		[]( const entity& e, bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-            UNUSEDPARAM( prim );
-            UNUSEDPARAM( body );
-        }
-    }};
-
-    entity_dep_table_t gSyncBoundsDepTable =
-    {{
-        // BOUNDS_PRIMTYPE_HALFSPACE
-		[]( const entity& e, const bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-            UNUSEDPARAM( prim );
-            UNUSEDPARAM( body );
-        },
-
-        // BOUNDS_PRIMTYPE_BOX
-		[]( const entity& e, const bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-
-			const obb* box = ( obb* )prim;
-
-            if ( body )
-            {
-                body->set( box->world_transform() );
-            }
-        },
-
-        // BOUNDS_PRIMTYPE_LOOKUP
-		[]( const entity& e, const bounds_primitive* prim, rigid_body* body )
-        {
-			UNUSEDPARAM( e );
-
-            UNUSEDPARAM( prim );
-            UNUSEDPARAM( body );
-        }
-    }};
-}
 
 entity_bounds_primitive::entity_bounds_primitive( uint32_t flags, bounds_primitive* bounds_ )
     : usageFlags( flags ),
@@ -93,13 +12,10 @@ entity_bounds_primitive::entity_bounds_primitive( uint32_t flags, bounds_primiti
 // entity_bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
-entity::entity( dependent_t dep, rigid_body* body_, const glm::vec4& color_ )
+entity::entity(const glm::vec4& color )
     : mBounds( nullptr ),
-	  mSyncOpt( 0 ),
-	  mDepType( dep ),
-      mColor( color_ ),
-      mSize( 1.0f ),
-      mBody( body_ )
+      mColor( color ),
+      mSize( 1.0f )
 {
 }
 
@@ -145,48 +61,6 @@ const bounds_primitive* entity::query_bounds( uint32_t flags ) const
     return __QueryBounds( mBounds.get(), flags );
 }
 
-namespace {
-    const  uint32_t NUM_ENTITY_BOUNDS_PRIM_TYPES = 3;
-
-    // Why don't we just iterate over the list instead of forcing 4 iterations when only
-    // one or two may be necessary...?
-    std::array< uint32_t, NUM_ENTITY_BOUNDS_PRIM_TYPES + 1 > gEntBoundsPrims =
-    {{
-        ENTITY_BOUNDS_ALL,
-        ENTITY_BOUNDS_AIR_COLLIDE,
-        ENTITY_BOUNDS_AREA_EVAL,
-        ENTITY_BOUNDS_MOVE_COLLIDE
-    }};
-}
-
-void entity::sync( void )
-{
-    if ( !mBody || !mBounds )
-    {
-        return;
-    }
-
-    for ( auto key: gEntBoundsPrims )
-    {
-        bounds_primitive* prim = query_bounds( key );
-
-        if ( prim )
-        {
-            switch ( mDepType )
-            {
-                case entity::BOUNDS_DEPENDENT:
-					gSyncBoundsDepTable[ prim->mType ]( *this, prim, mBody.get() );
-                    break;
-
-                case entity::BODY_DEPENDENT:
-					gSyncBodyDepTable[ prim->mType ]( *this, prim, mBody.get() );
-                    break;
-            }
-        }
-
-    }
-}
-
 void entity::orient_to( const glm::vec3& v )
 {
     obb* bounds = query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box();
@@ -210,16 +84,5 @@ void entity::orient_to( const glm::vec3& v )
         )
     );
 
-    switch ( mDepType )
-    {
-        case entity::BODY_DEPENDENT:
-            assert( mBody );
-            mBody->orientation( orient );
-            break;
-        case entity::BOUNDS_DEPENDENT:
-            bounds->axes( orient );
-            break;
-    }
-
-    sync();
+    bounds->axes( orient );
 }

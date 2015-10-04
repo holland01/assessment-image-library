@@ -2,8 +2,6 @@
 
 #include "def.h"
 #include "entity.h"
-#include "collision.h"
-#include "physics.h"
 #include "geom/geom.h"
 #include "renderer.h"
 #include "bvh.h"
@@ -126,7 +124,43 @@ INLINE bool map_tile::owned( void ) const
 
 struct map_tile_generator
 {	
+public:
+    struct collision_face_type
+    {
+        static const uint32_t left = 0;
+        static const uint32_t forward = 1;
+        static const uint32_t right = 2;
+        static const uint32_t back = 3;
+        static const uint32_t count = 4;
+    };
+
+    using collision_face_table_t = std::array< int32_t, collision_face_type::count >;
+
 private:
+    struct map_wall_data
+    {
+        std::vector< collision_face_table_t > mHalfSpaceTable;
+        std::vector< halfspace > mHalfSpaces;
+
+        uint32_t gen_half_space( const obb& bounds, uint32_t face )
+        {
+            std::array< glm::vec3, collision_face_type::count > halfSpaceNormals =
+            {{
+                glm::vec3( -1.0f, 0.0f, 0.0f ),
+                glm::vec3( 0.0f, 0.0f, -1.0f ),
+                glm::vec3( 1.0f, 0.0f, 0.0f ),
+                glm::vec3( 0.0f, 0.0f, 1.0f )
+            }};
+
+            uint32_t index = ( int32_t ) mHalfSpaces.size();
+            mHalfSpaces.push_back( halfspace( bounds, halfSpaceNormals[ face ] ) );
+
+            return index;
+        }
+    };
+
+    std::unique_ptr< map_wall_data > mWallData;
+
     void find_entities_raycast( map_tile_list_t& billboards,
                                 map_tile_list_t& walls,
                                 map_tile_list_t& freespace,
@@ -164,11 +198,9 @@ public:
 
     map_tile_list_t mFreeSpace;
 
-    collision_provider& mCollision;
-
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
-                map_tile_generator( collision_provider& mCollision );
+                map_tile_generator( void );
 
     shared_tile_region_t    fetch_region( const glm::vec3& p );
 
@@ -195,6 +227,12 @@ public:
     const map_tile_list_t& billboards( void ) const { return mBillboards; }
 
     const map_tile_list_t& freespace( void ) const { return mFreeSpace; }
+
+    const collision_face_table_t& wall_surf_table( uint32_t i ) const { return mWallData->mHalfSpaceTable[ i ]; }
+
+    const halfspace& wall_surf( uint32_t i ) const { return mWallData->mHalfSpaces[ i ]; }
+
+    static glm::vec3 scale_to_world( const glm::vec3& v );
 };
 
 //-------------------------------------------------------------------------------------------------------

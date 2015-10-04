@@ -145,14 +145,11 @@ physics_simulation::physics_simulation( uint32_t w, uint32_t h )
 
 void physics_simulation::frame( void )
 {
-    const view_data& vp = camera->view_params();
-
-    frustum.update( vp );
-
-    world.update( *this );
+    physics_app_t::update();
 
     gSystem.mDynamics->stepSimulation( 1.0f / 60.0f, 10 );
-    application_frame< physics_simulation > theFrame( *this );
+
+    draw();
 }
 
 void physics_simulation::draw( void )

@@ -389,8 +389,7 @@ bool operator != ( const adjacent_region& a, const adjacent_region& b )
 //-------------------------------------------------------------------------------------------------------
 
 map_tile::map_tile( void )
-    : entity( entity::BODY_DEPENDENT ),
-      mType( map_tile::EMPTY ),
+    : mType( map_tile::EMPTY ),
       mX( 0 ), mZ( 0 ),
       mHalfSpaceIndex( -1 )
 {
@@ -398,49 +397,32 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
-	mBody.reset( new rigid_body( rigid_body::RESET_FORCE_ACCUM ) );
-
-    switch ( mType )
+    if ( mType == map_tile::WALL )
     {
-        case map_tile::BILLBOARD:
-            mDepType = entity::BODY_DEPENDENT;
-            mBody->set( transform );
-            mBody->mass( 100.0f );
+        add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
+                   new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
 
-
-			add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
-
-            break;
-
-        default:
-            if ( mType == map_tile::WALL )
-            {
-                add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
-                           new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
-
-				add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb( transform ) );
-
-                mBody->mass( 10.0f );
-            }
-            else
-            {
-				add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
-            }
-
-            mDepType = entity::BOUNDS_DEPENDENT;
-            break;
+        add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb( transform ) );
     }
-
-    sync();
+    else
+    {
+        add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
+    }
 }
 
 //-------------------------------------------------------------------------------------------------------
 // tile_generator_t
 //-------------------------------------------------------------------------------------------------------
 
+constexpr float map_tile_generator::TRANSLATE_STRIDE;
 
-map_tile_generator::map_tile_generator( collision_provider& collision_ )
-    : mCollision( collision_ )
+glm::vec3 map_tile_generator::scale_to_world( const glm::vec3& v )
+{
+    return v * map_tile_generator::TRANSLATE_STRIDE;
+}
+
+map_tile_generator::map_tile_generator( void )
+    : mWallData( new map_wall_data() )
 {
     mTiles.resize( GRID_SIZE * GRID_SIZE );
 
@@ -481,40 +463,40 @@ map_tile_generator::map_tile_generator( collision_provider& collision_ )
         if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
              && ( wall->mX - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_LEFT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_LEFT );
+            halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::left );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
              && ( wall->mZ - 1 ) >= 0 )
         {
-            halfSpaces[ COLLISION_FACE_FORWARD ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_FORWARD );
+            halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::forward );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
              && ( wall->mX + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_RIGHT ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_RIGHT );
+            halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::right );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
              && ( wall->mZ + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ COLLISION_FACE_BACK ] = ( int32_t )mCollision.gen_half_space( box, COLLISION_FACE_BACK );
+            halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::back );
             hasHalfSpace = true;
         }
 
         if ( hasHalfSpace )
         {
-			wall->mHalfSpaceIndex = ( int32_t ) mCollision.mHalfSpaceTable.size();
+            wall->mHalfSpaceIndex = ( int32_t ) mWallData->mHalfSpaceTable.size();
 
             wall->query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )
                     ->to_lookup()
 					->mIndex = wall->mHalfSpaceIndex;
 
-			mCollision.mHalfSpaceTable.push_back( halfSpaces );
+            mWallData->mHalfSpaceTable.push_back( halfSpaces );
         }
     }
 
@@ -725,7 +707,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
     // we peace out and move onto the next normal. The result is
     // some regions which need to be "remixed" down the road.
 
-	const collision_face_table_t& hst = mCollision.mHalfSpaceTable[ tile->mHalfSpaceIndex ];
+    const collision_face_table_t& hst = mWallData->mHalfSpaceTable[ tile->mHalfSpaceIndex ];
 
     shared_tile_region_t regionPtr( new map_tile_region( tile ) );
 
@@ -750,8 +732,8 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         }
 
         // Find the direction we need to move in...
-		const glm::vec3& e1 = mCollision.mHalfSpaces[ hst[ i ] ].axes()[ 2 ];
-		const glm::vec3& e2 = mCollision.mHalfSpaces[ hst[ j ] ].axes()[ 2 ];
+        const glm::vec3& e1 = mWallData->mHalfSpaces[ hst[ i ] ].axes()[ 2 ];
+        const glm::vec3& e2 = mWallData->mHalfSpaces[ hst[ j ] ].axes()[ 2 ];
 
         int32_t zp, xp;
 

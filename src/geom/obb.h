@@ -2,8 +2,8 @@
 
 #include "../def.h"
 #include "transform_data.h"
-#include "../collision_contact.h"
 #include "bounds_primitive.h"
+#include <unordered_set>
 
 //-------------------------------------------------------------------------------------------------------
 // obb
@@ -91,10 +91,6 @@ public:
 
 	// pass isTransformed = "true" if v has already been transformed relative to the linear inverse of this bounds
 	bool			range( glm::vec3 v, bool isTransformed ) const;
-
-	bool			intersects( contact::list_t& contacts, const obb& bounds ) const;
-
-	bool			intersects( contact::list_t& contacts, const halfspace& halfSpace ) const;
 
 	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 

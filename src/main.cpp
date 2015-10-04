@@ -54,6 +54,6 @@ float get_time( void )
 
 int main( void )
 {
-    return run< physics_simulation >();
+    return run< game >();
 }
 
