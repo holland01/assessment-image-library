@@ -731,9 +731,12 @@ bool map_tile_generator::find_regions( const map_tile* tile )
             continue;
         }
 
+        glm::mat3 axi( mWallData->mHalfSpaces[ hst[ i ] ].axes() );
+        glm::mat3 axj( mWallData->mHalfSpaces[ hst[ j ] ].axes() );
+
         // Find the direction we need to move in...
-        const glm::vec3& e1 = mWallData->mHalfSpaces[ hst[ i ] ].axes()[ 2 ];
-        const glm::vec3& e2 = mWallData->mHalfSpaces[ hst[ j ] ].axes()[ 2 ];
+        const glm::vec3 e1( axi[ 2 ] );
+        const glm::vec3 e2( axj[ 2 ] );
 
         int32_t zp, xp;
 

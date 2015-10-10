@@ -2,11 +2,14 @@
 
 #include "def.h"
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/simd_mat4.hpp>
 #include <glm/gtx/simd_vec4.hpp>
 #include <stdint.h>
 #include <utility>
 #include <functional>
+#include <bullet3/LinearMath/btTransform.h>
+#include <bullet3/LinearMath/btMatrix3x3.h>
 
 namespace glm {
 
@@ -49,6 +52,74 @@ INLINE bool operator!=
 #endif // GLM_ARCH != GLM_ARCH_PURE
 
 namespace ext {
+
+INLINE btVector3 to_bullet( const glm::vec3& v )
+{
+    return btVector3( v.x, v.y, v.z );
+}
+
+INLINE btMatrix3x3 to_bullet( const glm::mat3& m )
+{
+    btMatrix3x3 bm;
+    bm[ 0 ] = to_bullet( m[ 0 ] );
+    bm[ 1 ] = to_bullet( m[ 1 ] );
+    bm[ 2 ] = to_bullet( m[ 2 ] );
+
+    return bm;
+}
+
+INLINE btTransform to_bullet( const glm::mat4& m )
+{
+    btTransform t;
+    t.setIdentity();
+    t.setFromOpenGLMatrix( glm::value_ptr( m ) );
+    return t;
+}
+
+INLINE glm::vec3 from_bullet( const btVector3& v )
+{
+    return glm::vec3( v.x(), v.y(), v.z() );
+}
+
+INLINE glm::mat4 from_bullet( const btTransform& t )
+{
+    glm::mat4 gm;
+
+    float mat[ 16 ];
+    memset( mat, 0, sizeof( mat ) );
+    t.getOpenGLMatrix( mat );
+
+    gm[ 0 ][ 0 ] = mat[ 0 ];
+    gm[ 0 ][ 1 ] = mat[ 1 ];
+    gm[ 0 ][ 2 ] = mat[ 2 ];
+    gm[ 0 ][ 3 ] = mat[ 3 ];
+
+    gm[ 1 ][ 0 ] = mat[ 4 ];
+    gm[ 1 ][ 1 ] = mat[ 5 ];
+    gm[ 1 ][ 2 ] = mat[ 6 ];
+    gm[ 1 ][ 3 ] = mat[ 7 ];
+
+    gm[ 2 ][ 0 ] = mat[ 8  ];
+    gm[ 2 ][ 1 ] = mat[ 9  ];
+    gm[ 2 ][ 2 ] = mat[ 10 ];
+    gm[ 2 ][ 3 ] = mat[ 11 ];
+
+    gm[ 3 ][ 0 ] = mat[ 12 ];
+    gm[ 3 ][ 1 ] = mat[ 13 ];
+    gm[ 3 ][ 2 ] = mat[ 14 ];
+    gm[ 3 ][ 3 ] = mat[ 15 ];
+
+    return gm;
+}
+
+INLINE glm::mat3 from_bullet( const btMatrix3x3& m )
+{
+    glm::mat3 gm;
+    gm[ 0 ] = from_bullet( m[ 0 ] );
+    gm[ 1 ] = from_bullet( m[ 1 ] );
+    gm[ 2 ] = from_bullet( m[ 2 ] );
+    return gm;
+}
 
 template < typename vec_type >
 struct maxmin_pair
