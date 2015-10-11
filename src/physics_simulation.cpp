@@ -1,7 +1,7 @@
 #include "physics_simulation.h"
 #include "debug_app.h"
 #include "application_update.h"
-#include <bullet3/btBulletCollisionCommon.h>
+#include "physics_entity.h"
 #include <bullet3/btBulletDynamicsCommon.h>
 
 using namespace std;
@@ -11,6 +11,13 @@ using namespace std;
 namespace {
 
     const glm::vec4 G_TAG_COLOR( 0.0f, 0.0f, 1.0f, 1.0f );
+
+    struct plane_params
+    {
+        btVector3 normal;
+        btVector3 origin;
+        float d;
+    };
 
     vector< entity* > gen_entities( void )
     {
@@ -33,14 +40,7 @@ namespace {
         unique_ptr< btRigidBody > mGroundRigidBody, mFallRigidBody, mFall2RigidBody;
         unique_ptr< btSliderConstraint > mSliderConst;
 
-        struct wall
-        {
-            unique_ptr< btCollisionShape > mShape;
-            unique_ptr< btRigidBody > mBody;
-            unique_ptr< btDefaultMotionState > mMotionState;
-        };
-
-        std::array< wall, 4 > mWalls;
+        std::array< physics_entity, 4 > mWalls;
 
         physics_sys( void )
             : mBroadphase( new btDbvtBroadphase() ),
@@ -101,13 +101,6 @@ namespace {
             //mSliderConst->m_setting.m_damping = 0.3f;
             mDynamics->addConstraint( mSliderConst.get() );
 
-            struct plane_params
-            {
-                btVector3 normal;
-                btVector3 origin;
-                float d;
-            };
-
             float dist = 10.0f;
             float d = 10.0f;
             // order is left, forward, right, back
@@ -121,14 +114,18 @@ namespace {
 
             for ( uint32_t i: { 0, 1, 2, 3 } )
             {
-                mWalls[ i ].mShape.reset( new btStaticPlaneShape( params[ i ].normal, params[ i ].d ) );
-                mWalls[ i ].mMotionState.reset( new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
-                                                                                       btVector3( params[ i ].origin ) ) ) );
-                mWalls[ i ].mBody.reset( new btRigidBody( rigid_info_t( 0, mWalls[ i ].mMotionState.get(),
-                                                                        mWalls[ i ].mShape.get(),
-                                                                        btVector3( 0, 0, 0 ) ) ) );
 
-                mDynamics->addRigidBody( mWalls[ i ].mBody.get() );
+                btCollisionShape* shape =  new btStaticPlaneShape( params[ i ].normal, params[ i ].d );
+                btDefaultMotionState* motionState = new btDefaultMotionState( btTransform( btQuaternion( 0, 0, 0, 1 ),
+                                                                                           btVector3( params[ i ].origin ) ) );
+                btRigidBody* body = new btRigidBody( rigid_info_t( 0, motionState,
+                                                                   shape,
+                                                                   btVector3( 0, 0, 0 ) ) );
+
+
+                mWalls[ i ] = physics_entity( shape, body, motionState );
+
+                mDynamics->addRigidBody( body );
             }
         }
     };

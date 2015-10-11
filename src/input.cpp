@@ -166,7 +166,7 @@ bool input_client::eval_key_release( input_key key )
     return pressed;
 }
 
-void input_client::apply_movement( void )
+void input_client::sync( void )
 {
     if ( mMode == MODE_PLAY )
     {
@@ -208,6 +208,8 @@ void input_client::apply_movement( void )
     b->axes( glm::mat3( mViewParams.mInverseOrient ) );
 
     mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
+
+    entity::sync();
 }
 
 void input_client::print_origin( void ) const

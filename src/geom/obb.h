@@ -94,6 +94,8 @@ public:
 
 	bool            ray_intersection( ray& r, bool earlyOut = true ) const;
 
+    bool            intersects( const halfspace& hs ) const;
+
 	maxmin_pair3D_t maxmin( bool inverse ) const;
 };
 

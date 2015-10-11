@@ -397,6 +397,8 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
+    float mass = 0.0f;
+
     if ( mType == map_tile::WALL )
     {
         add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
@@ -406,8 +408,27 @@ void map_tile::set( const glm::mat4& transform )
     }
     else
     {
+        if ( mType == map_tile::BILLBOARD )
+        {
+            mass = 80.0f;
+        }
+
         add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
+
+        // No need for physics entity, so let's bail
+        if ( mType == map_tile::EMPTY )
+        {
+            return;
+        }
     }
+
+    btTransform t( glm::ext::to_bullet( transform ) );
+
+    btDefaultMotionState* ms = new btDefaultMotionState( t );
+    btBoxShape* oriented = new btBoxShape( btVector3( 1.0f, 1.0f, 1.0f ) );
+    btRigidBody* body = new btRigidBody( mass, ms, oriented );
+
+    mPhysEnt.reset( new physics_entity( oriented, body, ms ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -1036,7 +1057,6 @@ void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
         tile.mSize = glm::vec3( 1.0f );
-
         tile.set( get_tile_transform( tile ) );
 	}
 }
@@ -1253,7 +1273,7 @@ void map_tile_generator::find_entities(
     walls.clear();
     freespace.clear();
 
-#ifdef MAP_USE_RAYCAST
+#ifdef MAP_USE_RAYCAST // slow; only kept here for study purposes
     find_entities_raycast( billboards,
                            walls,
                            freespace,

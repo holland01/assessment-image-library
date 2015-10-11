@@ -187,8 +187,18 @@ void application< child_t >::update( void )
     if ( camera )
     {
         frustum.update( camera->view_params() );
+        camera->sync();
+    }
 
-        camera->apply_movement();
+    std::vector< entity* > entities;
+    fill_entities( entities );
+
+    for ( entity* e: entities )
+    {
+        if ( e )
+        {
+            e->sync();
+        }
     }
 }
 

@@ -4,6 +4,7 @@
 #include <memory>
 #include <glm/vec4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "physics_entity.h"
 
 struct render_pipeline;
 struct view_data;
@@ -47,6 +48,8 @@ struct entity_bounds_primitive
 // entity_t
 //-------------------------------------------------------------------------------------------------------
 
+struct physics_world;
+
 struct entity
 {
 private:
@@ -54,6 +57,8 @@ private:
     friend struct map_tile_generator;
 
     std::unique_ptr< entity_bounds_primitive > mBounds;
+
+    std::unique_ptr< physics_entity > mPhysEnt;
 
 public:
 
@@ -63,8 +68,6 @@ public:
 
     entity( const glm::vec4& color = glm::vec4( 1.0f ) );
 
-    glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
-
     void add_bounds( uint32_t usageFlags, bounds_primitive* mBounds );
 
     bounds_primitive* query_bounds( uint32_t flags );
@@ -72,6 +75,12 @@ public:
     const bounds_primitive* query_bounds( uint32_t flags ) const;
 
     void orient_to( const glm::vec3& v );
+
+    void add_to_world( physics_world& world );
+
+    glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
+
+    virtual void sync( void );
 };
 
 

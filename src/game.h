@@ -1,6 +1,7 @@
 #pragma once
 
 #include "application.h"
+#include "physics_world.h"
 #include "map.h"
 
 struct game;
@@ -17,6 +18,8 @@ private:
     uintptr_t billboard_index( const map_tile& billboard ) const { return ( uintptr_t ) reinterpret_cast< const void* >( &billboard ); }
 
     void fill_orient_map( void );
+
+    mutable physics_world mWorld;
 
 public:
     std::unique_ptr< entity > bullet;
@@ -35,13 +38,15 @@ public:
 
     void frame( void ) override;
 
+    void update( void ) override;
+
     void handle_event( const SDL_Event& e ) override;
 
     void draw( void ) override;
 
     void fill_entities( std::vector< entity* >& list ) const override;
 
-    void reset_map( void );
+    const map_tile* reset_map( void ); // returns a starting tile with which the player can use
 
     void fire_gun( void );
 

@@ -3,6 +3,7 @@
 #include "halfspace.h"
 #include "geom.h"
 #include "point_project_pair.h"
+#include <bullet3/btBulletCollisionCommon.h>
 
 obb::obb( glm::mat4&& tt )
 	: bounds_primitive( BOUNDS_PRIM_BOX ),
@@ -198,6 +199,13 @@ bool obb::ray_intersection( ray& r, bool earlyOut ) const
 	}
 
 	return false;
+}
+
+bool obb::intersects( const halfspace& hs ) const
+{
+    UNUSEDPARAM( hs );
+    //btCollisionAlgorithm algol(
+    return false;
 }
 
 obb::maxmin_pair3D_t obb::maxmin( bool inverse ) const

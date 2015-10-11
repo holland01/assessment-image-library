@@ -60,7 +60,6 @@ namespace {
     };
 
 	uint32_t gTestFlags = gTestConfig[ "collision_test" ];
-
 }
 
 game::game( uint32_t width, uint32_t height )
@@ -70,21 +69,9 @@ game::game( uint32_t width, uint32_t height )
     billTexture.open_file( "asset/mooninite.png" );
     billTexture.load_2d();
 
-    gen.reset( new map_tile_generator() );
-
-    std::sort( gen->mFreeSpace.begin(), gen->mFreeSpace.end(), []( const map_tile* a, const map_tile* b ) -> bool
-    {
-        glm::vec2 va( a->mX, a->mZ ), vb( b->mX, b->mZ );
-
-        return glm::length( va ) < glm::length( vb );
-    });
-
-    const map_tile* tile = gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
-
-    fill_orient_map();
-
+    const map_tile* startTile = reset_map();
     camera = &player;
-    camera->position( gen->scale_to_world( glm::vec3( tile->mX, 0.0f, tile->mZ ) ) );
+    camera->position( gen->scale_to_world( glm::vec3( startTile->mX, 0.0f, startTile->mZ ) ) );
 }
 
 void game::fill_orient_map( void )
@@ -97,24 +84,30 @@ void game::fill_orient_map( void )
     }
 }
 
-void game::reset_map( void )
+const map_tile* game::reset_map( void )
 {
     gen.reset( new map_tile_generator() );
     fill_orient_map();
+
+    std::sort( gen->mFreeSpace.begin(), gen->mFreeSpace.end(), []( const map_tile* a, const map_tile* b ) -> bool
+    {
+        glm::vec2 va( a->mX, a->mZ ), vb( b->mX, b->mZ );
+
+        return glm::length( va ) < glm::length( vb );
+    });
+
+    return gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
 }
 
 void game::fire_gun( void )
 {
-    {
-        debug_set_flag( false );
-        bullet.reset( new entity() );
+    debug_set_flag( false );
+    bullet.reset( new entity() );
 
-        bullet->mSize = glm::vec3( 0.1f );
+    bullet->mSize = glm::vec3( 0.1f );
 
-        // TODO: add physics here
-
-        bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
-    }
+    // TODO: add physics here
+    bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
 }
 
 namespace {
@@ -143,6 +136,15 @@ void game::frame( void )
     };
 
     draw();
+
+    mWorld.remove_bodies();
+}
+
+void game::update( void )
+{
+    game_app_t::update();
+
+    mWorld.step();
 }
 
 namespace {
@@ -169,25 +171,26 @@ void game::fill_entities( std::vector< entity* >& list ) const
     // kinda sorta shouldn't be called from here, but whatever - it works for now.
     update_billboards( *this );
 
-    map_tile_list_t walllist( std::move( wall_list() ) );
-    map_tile_list_t billboardlist( std::move( billboard_list() ) );
-
-    list.reserve( walllist.size() + billboardlist.size() + 1 );
+    auto add_to_list = [ &list, this ]( map_tile_list_t& mapTileList ) -> void
+    {
+        for ( entity* e: mapTileList )
+        {
+            list.push_back( e );
+            e->add_to_world( mWorld );
+        }
+    };
 
     if ( bullet )
     {
         list.push_back( bullet.get() );
     }
 
-    for ( entity* e: walllist )
-    {
-        list.push_back( e );
-    }
+    map_tile_list_t walllist( std::move( wall_list() ) );
+    map_tile_list_t billboardlist( std::move( billboard_list() ) );
 
-    for ( entity* e: billboardlist )
-    {
-        list.push_back( e );
-    }
+    list.reserve( walllist.size() + billboardlist.size() + 1 );
+    add_to_list( walllist );
+    add_to_list( billboardlist );
 }
 
 void game::draw( void )

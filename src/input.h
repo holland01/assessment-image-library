@@ -57,8 +57,7 @@ struct input_client : public entity
     bool    eval_key_release( input_key key ); // same
     void    eval_mouse_move( float x, float y, bool calcRelative );
 
-    void	apply_movement( void );
-    void    update( void );
+    void	sync( void ) override;
 
     void	add_dir( const glm::vec3& dir, float scale );
 
