@@ -46,6 +46,8 @@ public:
 
     void fill_entities( std::vector< entity* >& list ) const override;
 
+    void clear_entities( std::vector< entity* >& list ) override;
+
     const map_tile* reset_map( void ); // returns a starting tile with which the player can use
 
     void fire_gun( void );

@@ -166,11 +166,11 @@ bool input_client::eval_key_release( input_key key )
     return pressed;
 }
 
-void input_client::sync( void )
+void input_client::update_view_data( void )
 {
     if ( mMode == MODE_PLAY )
     {
-		clamp_orientation( mViewParams.mCurrRot );
+        clamp_orientation( mViewParams.mCurrRot );
     }
 
     mViewParams.mLastRot = mViewParams.mCurrRot;
@@ -201,15 +201,45 @@ void input_client::sync( void )
         mViewParams.mOrigin.y = 0.0f;
     }
 
-    obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
-    assert( b );
+    if ( !mPhysEnt )
+    {
+        mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
+    }
+}
 
-    b->origin( mViewParams.mOrigin );
-    b->axes( glm::mat3( mViewParams.mInverseOrient ) );
+void input_client::sync( void )
+{
+    if ( mPhysEnt && mPhysEnt->body() )
+    {
+        const btDefaultMotionState& ms = mPhysEnt->motion_state();
 
-    mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
+        btTransform worldT;
+        ms.getWorldTransform( worldT );
+
+        glm::mat4 gBasis( glm::ext::from_bullet( worldT ) );
+
+        update_view_data();
+
+        mViewParams.mTransform = mViewParams.mOrientation * glm::inverse( gBasis );
+        mViewParams.mOrigin = glm::vec3( gBasis[ 3 ] );
+    }
+    else
+    {
+        update_view_data();
+
+        obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
+        assert( b );
+
+        b->origin( mViewParams.mOrigin );
+        b->axes( glm::mat3( mViewParams.mInverseOrient ) );
+    }
 
     entity::sync();
+}
+
+void input_client::set_physics( float mass, const glm::mat4& orientAndTranslate )
+{
+    mPhysEnt.reset( new physics_entity( mass, orientAndTranslate, glm::vec3( 1.0f ) ) );
 }
 
 void input_client::print_origin( void ) const

@@ -23,6 +23,8 @@ private:
 
     std::vector< physics_entity* > mPhysEntities;
 
+    physics_entity mGround;
+
 public:
 
     static constexpr float TIME_STEP = 1.0f / 60.0f;
@@ -31,5 +33,5 @@ public:
 
     void step( void );
 
-    void remove_bodies( void );
+    void clear_physics_entities( void );
 };

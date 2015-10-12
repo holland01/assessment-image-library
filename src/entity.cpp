@@ -96,8 +96,19 @@ void entity::add_to_world( physics_world& world )
     if ( e && !e->mOwned )
     {
         world.mPhysEntities.push_back( e );
-        world.mDynamics->addRigidBody( e->mBody.get() );
+        world.mDynamics->addRigidBody( e->body() );
         e->mOwned = true;
+    }
+}
+
+void entity::remove_from_world( physics_world& world )
+{
+    physics_entity* e = mPhysEnt.get();
+
+    if ( e && e->mOwned )
+    {
+        world.mDynamics->removeRigidBody( e->body() );
+        e->mOwned = false;
     }
 }
 

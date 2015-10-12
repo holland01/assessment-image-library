@@ -54,16 +54,24 @@ struct input_client : public entity
     input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection );
 
     bool    eval_key_press( input_key key ); // returns true if a camera key was pressed
+
     bool    eval_key_release( input_key key ); // same
+
     void    eval_mouse_move( float x, float y, bool calcRelative );
 
     void	sync( void ) override;
 
+    void    set_physics( float mass, const glm::mat4& orientAndTranslate );
+
     void	add_dir( const glm::vec3& dir, float scale );
 
     void    perspective( float fovy, float width, float height, float znear, float zfar );
+
     void	clip_transform( const glm::mat4& proj );
+
     void	view_transform( const glm::mat4& mViewParams );
+
+    void    update_view_data( void );
 
     void	position( const glm::vec3& origin );
 
@@ -72,7 +80,9 @@ struct input_client : public entity
     glm::vec3   calc_direction( const glm::vec3& d ) const;
 
     glm::vec3   forward( void ) const { return std::move( calc_direction( G_DIR_FORWARD ) ); }
+
     glm::vec3   up( void ) const { return std::move( calc_direction( G_DIR_UP ) ); }
+
     glm::vec3   right( void ) const { return std::move( calc_direction( G_DIR_RIGHT ) ); }
 
     glm::vec3   world_direction( const glm::vec3& d ) const;
@@ -94,7 +104,14 @@ INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 {
     glm::vec3 f( dir * scale );
 
-    mViewParams.mOrigin += f;
+    if ( mPhysEnt )
+    {
+        mPhysEnt->body()->translate( glm::ext::to_bullet( f ) );
+    }
+    else
+    {
+        mViewParams.mOrigin += f;
+    }
 }
 
 INLINE glm::vec3 input_client::world_direction( const glm::vec3& v ) const

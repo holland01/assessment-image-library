@@ -72,6 +72,7 @@ game::game( uint32_t width, uint32_t height )
     const map_tile* startTile = reset_map();
     camera = &player;
     camera->position( gen->scale_to_world( glm::vec3( startTile->mX, 0.0f, startTile->mZ ) ) );
+    camera->set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), camera->position() ) );
 }
 
 void game::fill_orient_map( void )
@@ -137,7 +138,17 @@ void game::frame( void )
 
     draw();
 
-    mWorld.remove_bodies();
+    mWorld.clear_physics_entities();
+}
+
+void game::clear_entities( std::vector< entity* >& list )
+{
+    for ( entity* e: list )
+    {
+        e->remove_from_world( mWorld );
+    }
+
+    game_app_t::clear_entities( list );
 }
 
 void game::update( void )
@@ -180,10 +191,17 @@ void game::fill_entities( std::vector< entity* >& list ) const
         }
     };
 
-    if ( bullet )
+    auto add_if_alive = [ &list, this ]( entity* e ) -> void
     {
-        list.push_back( bullet.get() );
-    }
+        if ( e )
+        {
+            list.push_back( e );
+            e->add_to_world( mWorld );
+        }
+    };
+
+    add_if_alive( camera );
+    add_if_alive( bullet.get() );
 
     map_tile_list_t walllist( std::move( wall_list() ) );
     map_tile_list_t billboardlist( std::move( billboard_list() ) );

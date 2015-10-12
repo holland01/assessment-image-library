@@ -422,13 +422,7 @@ void map_tile::set( const glm::mat4& transform )
         }
     }
 
-    btTransform t( glm::ext::to_bullet( transform ) );
-
-    btDefaultMotionState* ms = new btDefaultMotionState( t );
-    btBoxShape* oriented = new btBoxShape( btVector3( 1.0f, 1.0f, 1.0f ) );
-    btRigidBody* body = new btRigidBody( mass, ms, oriented );
-
-    mPhysEnt.reset( new physics_entity( oriented, body, ms ) );
+    mPhysEnt.reset( new physics_entity( mass, transform, glm::vec3( 1.0f ) ) );
 }
 
 //-------------------------------------------------------------------------------------------------------

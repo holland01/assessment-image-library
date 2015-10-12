@@ -52,7 +52,7 @@ struct physics_world;
 
 struct entity
 {
-private:
+protected:
     friend struct map_tile;
     friend struct map_tile_generator;
 
@@ -77,6 +77,8 @@ public:
     void orient_to( const glm::vec3& v );
 
     void add_to_world( physics_world& world );
+
+    void remove_from_world( physics_world& world );
 
     glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 

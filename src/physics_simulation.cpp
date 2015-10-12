@@ -123,7 +123,7 @@ namespace {
                                                                    btVector3( 0, 0, 0 ) ) );
 
 
-                mWalls[ i ] = physics_entity( shape, body, motionState );
+                mWalls[ i ] = physics_entity( shape, motionState, body );
 
                 mDynamics->addRigidBody( body );
             }
