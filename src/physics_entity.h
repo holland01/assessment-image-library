@@ -42,6 +42,8 @@ public:
     {
     }
 
+    const btBoxShape* shape_as_box( void ) const { return ( const btBoxShape* ) mShape.get(); }
+
     btRigidBody* body( void ) { return mBody.get(); }
 
     const btDefaultMotionState& motion_state( void ) const { return *mMotionState; }

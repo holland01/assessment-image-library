@@ -473,33 +473,33 @@ map_tile_generator::map_tile_generator( void )
 
         bool hasHalfSpace = false;
 
-        const obb& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
+        //const obb& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
 
         if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
              && ( wall->mX - 1 ) >= 0 )
         {
-            halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::left );
+            halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::left );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
              && ( wall->mZ - 1 ) >= 0 )
         {
-            halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::forward );
+            halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::forward );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
              && ( wall->mX + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::right );
+            halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::right );
             hasHalfSpace = true;
         }
 
         if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
              && ( wall->mZ + 1 ) < GRID_SIZE )
         {
-            halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( box, collision_face_type::back );
+            halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::back );
             hasHalfSpace = true;
         }
 

@@ -13,6 +13,8 @@
 
 struct imm_draw;
 
+struct physics_entity;
+
 struct halfspace : public bounds_primitive
 {
 private:
@@ -25,7 +27,7 @@ public:
 
 	halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance );
 
-	halfspace( const obb& bounds, const glm::vec3& normal );
+    halfspace( const physics_entity& physEnt, const glm::vec3& normal );
 
     halfspace( const halfspace& c );
 

@@ -142,7 +142,7 @@ private:
         std::vector< collision_face_table_t > mHalfSpaceTable;
         std::vector< halfspace > mHalfSpaces;
 
-        uint32_t gen_half_space( const obb& bounds, uint32_t face )
+        uint32_t gen_half_space( const physics_entity& physEnt, uint32_t face )
         {
             std::array< glm::vec3, collision_face_type::count > halfSpaceNormals =
             {{
@@ -153,7 +153,7 @@ private:
             }};
 
             uint32_t index = ( int32_t ) mHalfSpaces.size();
-            mHalfSpaces.push_back( halfspace( bounds, halfSpaceNormals[ face ] ) );
+            mHalfSpaces.push_back( halfspace( physEnt, halfSpaceNormals[ face ] ) );
 
             return index;
         }

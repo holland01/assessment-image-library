@@ -82,6 +82,8 @@ public:
 
     glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 
+    const physics_entity& physics_data( void ) const { return *mPhysEnt; }
+
     virtual void sync( void );
 };
 

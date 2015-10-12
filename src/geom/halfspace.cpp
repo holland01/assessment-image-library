@@ -2,6 +2,7 @@
 #include "../renderer.h"
 #include "obb.h"
 #include "geom_util.h"
+#include "../physics_entity.h"
 
 namespace {
     void shape_deleter( btBox2dShape* s )
@@ -23,14 +24,23 @@ halfspace::halfspace( const glm::mat3& axes, const glm::vec3& origin, float dist
 {
 }
 
-halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
+halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
 	: halfspace( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
 	using corner_t = obb::corner_type;
 
-	glm::vec3 upAxis( bounds.axes()[ 1 ] );
-	glm::vec3 boundsOrigin( bounds.origin() );
-	glm::vec3 boundsSize( bounds.extents() * 2.0f );
+    btTransform physEntTrans;
+    physEnt.motion_state().getWorldTransform( physEntTrans );
+
+    glm::mat3 entAx( glm::ext::from_bullet( physEntTrans.getBasis() ) );
+    glm::vec3 origin( glm::ext::from_bullet( physEntTrans.getOrigin() ) );
+    glm::vec3 extents( glm::ext::from_bullet( physEnt.shape_as_box()->getHalfExtentsWithMargin() ) );
+
+    const btBoxShape& box = *( physEnt.shape_as_box() );
+
+    glm::vec3 upAxis( entAx[ 1 ] );
+    glm::vec3 boundsOrigin( origin );
+    glm::vec3 boundsSize( extents * 2.0f );
 
     btMatrix3x3& ax = mAxes.getBasis();
 
@@ -42,8 +52,19 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 	// normal is assumed to be a cardinal (positive or negative) axis, so multiplying
 	// by boundsSizes will distribute the intended length along the appropriate component, where as all others will be zero
 	// as before. We then transform the scaled normal, since scaling before transformation will keep the length preserved (as opposed to after).
-	glm::vec3 faceCenter( bounds.axes() * ( glm::normalize( normal ) * boundsSize * 0.5f ) );
+    glm::vec3 faceCenter( entAx * ( glm::normalize( normal ) * boundsSize * 0.5f ) );
 	faceCenter += boundsOrigin; // offset by boundsOrigin since we need its worldSpace position
+
+    auto bounds_range = [ & ]( const glm::vec3& point ) -> bool
+    {
+        glm::vec3 max( origin + extents );
+        glm::vec3 min( origin - extents );
+
+        // If bounds is oriented, then we need to align the point with the bounds as if it were an aabb
+        glm::vec3 p( glm::inverse( entAx ) * point );
+
+        return glm::all( glm::lessThanEqual( point, max ) ) && glm::all( glm::greaterThanEqual( point, min ) );
+    };
 
 	// TODO: take into account ALL points
 	std::array< corner_t, 4 > lowerPoints =
@@ -59,8 +80,18 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 
 	for ( corner_t face: lowerPoints )
 	{
-		glm::vec3 point( bounds.world_corner( face ) );
-		glm::vec3 pointToCenter( faceCenter - point );
+        //glm::vec3 point( bounds.world_corner( face ) );
+
+        int32_t pointIndex = ( int32_t )obb::CORNER_MAX - ( int32_t )face;
+
+        glm::vec3 point;
+        {
+            btVector3 vtx;
+            box.getVertex( pointIndex, vtx );
+            point = origin + entAx * glm::ext::from_bullet( vtx );
+        }
+
+        glm::vec3 pointToCenter( faceCenter - point );
 
 		// Not in same plane; move on
         if ( triple_product( pointToCenter, btX, btY ) != 0.0f )
@@ -69,8 +100,9 @@ halfspace::halfspace( const obb& bounds, const glm::vec3& normal )
 		}
 
 		// Half space axes will be outside of the bounds; move on
-        if ( !bounds.range( point + btX, false ) || !bounds.range( point + btY, false ) )
-		{
+        //if ( !bounds.range( point + btX, false ) || !bounds.range( point + btY, false ) )
+        if ( !bounds_range( point + btX ) || !bounds_range( point + btY ) )
+        {
 			continue;
 		}
 
