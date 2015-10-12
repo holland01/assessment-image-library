@@ -22,6 +22,8 @@ using shared_tile_region_t = std::shared_ptr< map_tile_region >;
 
 struct region_merge_predicates_t;
 
+static INLINE glm::mat4 get_tile_transform( const map_tile& tile );
+
 //-------------------------------------------------------------------------------------------------------
 // adjacent_region_t
 //-------------------------------------------------------------------------------------------------------
@@ -96,12 +98,22 @@ public:
 
     void set( const glm::mat4& transform );
 
+    void set( map_tile_type newType );
+
+    void add_halfspace_lookup( int32_t index );
+
     void owner( shared_tile_region_t& r ) const;
 
     const ref_tile_region_t& owner( void ) const;
 
     bool owned( void ) const;
 };
+
+INLINE void map_tile::set( map_tile_type newType )
+{
+    mType = newType;
+    set( get_tile_transform( *this ) );
+}
 
 INLINE void map_tile::owner( shared_tile_region_t& r ) const
 {
@@ -201,6 +213,8 @@ public:
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
                 map_tile_generator( void );
+
+    void                    try_gen_halfspace( map_tile* wall );
 
     shared_tile_region_t    fetch_region( const glm::vec3& p );
 

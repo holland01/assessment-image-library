@@ -401,9 +401,6 @@ void map_tile::set( const glm::mat4& transform )
 
     if ( mType == map_tile::WALL )
     {
-        add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
-                   new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
-
         add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb( transform ) );
     }
     else
@@ -411,9 +408,8 @@ void map_tile::set( const glm::mat4& transform )
         if ( mType == map_tile::BILLBOARD )
         {
             mass = 80.0f;
+            add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
         }
-
-        add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
 
         // No need for physics entity, so let's bail
         if ( mType == map_tile::EMPTY )
@@ -423,6 +419,16 @@ void map_tile::set( const glm::mat4& transform )
     }
 
     mPhysEnt.reset( new physics_entity( mass, transform, glm::vec3( 1.0f ) ) );
+}
+
+void map_tile::add_halfspace_lookup( int32_t index )
+{
+    assert( mType == map_tile::WALL && "map_tile::add_halfspace_lookup called with mType != map_tile::WALL" );
+
+    mHalfSpaceIndex = index;
+
+    add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
+               new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -463,56 +469,7 @@ map_tile_generator::map_tile_generator( void )
     // for the corresponding face.
     for ( map_tile* wall: mWalls )
     {
-        collision_face_table_t halfSpaces;
-        halfSpaces.fill( -1 );
-
-        int32_t left = tile_index( wall->mX - 1, wall->mZ );
-        int32_t forward = tile_index( wall->mX, wall->mZ - 1 );
-        int32_t right = tile_index( wall->mX + 1, wall->mZ );
-        int32_t back = tile_index( wall->mX, wall->mZ + 1 );
-
-        bool hasHalfSpace = false;
-
-        //const obb& box = *ENTITY_PTR_GET_BOX( wall, ENTITY_BOUNDS_AREA_EVAL );
-
-        if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
-             && ( wall->mX - 1 ) >= 0 )
-        {
-            halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::left );
-            hasHalfSpace = true;
-        }
-
-        if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
-             && ( wall->mZ - 1 ) >= 0 )
-        {
-            halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::forward );
-            hasHalfSpace = true;
-        }
-
-        if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
-             && ( wall->mX + 1 ) < GRID_SIZE )
-        {
-            halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::right );
-            hasHalfSpace = true;
-        }
-
-        if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
-             && ( wall->mZ + 1 ) < GRID_SIZE )
-        {
-            halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::back );
-            hasHalfSpace = true;
-        }
-
-        if ( hasHalfSpace )
-        {
-            wall->mHalfSpaceIndex = ( int32_t ) mWallData->mHalfSpaceTable.size();
-
-            wall->query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )
-                    ->to_lookup()
-					->mIndex = wall->mHalfSpaceIndex;
-
-            mWallData->mHalfSpaceTable.push_back( halfSpaces );
-        }
+        try_gen_halfspace( wall );
     }
 
     // Accumulate a list of tiles with halfSpaces, so we know
@@ -584,13 +541,14 @@ map_tile_generator::map_tile_generator( void )
     purge_defunct_regions();
 
     using transfer_predicate_t = std::function< bool( map_tile* ) >;
-    transfer_predicate_t LDoSwapIf = []( map_tile* t ) -> bool
+    transfer_predicate_t LDoSwapIf = [ this ]( map_tile* t ) -> bool
     {
         bool needsSwap = !t->owned();
 
         if ( needsSwap )
         {
-            t->mType = map_tile::WALL;
+            t->set( map_tile::WALL );
+            try_gen_halfspace( t ); // see if we should generate a halfspace after we've transitioned
         }
 
         return needsSwap;
@@ -682,6 +640,53 @@ map_tile_generator::map_tile_generator( void )
     }
 
     assert( GeneratorTest( *this ) );
+}
+
+void map_tile_generator::try_gen_halfspace( map_tile* wall )
+{
+    collision_face_table_t halfSpaces;
+    halfSpaces.fill( -1 );
+
+    int32_t left = tile_index( wall->mX - 1, wall->mZ );
+    int32_t forward = tile_index( wall->mX, wall->mZ - 1 );
+    int32_t right = tile_index( wall->mX + 1, wall->mZ );
+    int32_t back = tile_index( wall->mX, wall->mZ + 1 );
+
+    bool hasHalfSpace = false;
+
+    if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
+         && ( wall->mX - 1 ) >= 0 )
+    {
+        halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::left );
+        hasHalfSpace = true;
+    }
+
+    if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
+         && ( wall->mZ - 1 ) >= 0 )
+    {
+        halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::forward );
+        hasHalfSpace = true;
+    }
+
+    if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
+         && ( wall->mX + 1 ) < GRID_SIZE )
+    {
+        halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::right );
+        hasHalfSpace = true;
+    }
+
+    if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
+         && ( wall->mZ + 1 ) < GRID_SIZE )
+    {
+        halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::back );
+        hasHalfSpace = true;
+    }
+
+    if ( hasHalfSpace )
+    {
+        wall->add_halfspace_lookup( ( int32_t ) mWallData->mHalfSpaceTable.size() );
+        mWallData->mHalfSpaceTable.push_back( halfSpaces );
+    }
 }
 
 namespace {
@@ -1219,26 +1224,23 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
     for ( int32_t z = startZ; z < endZ; ++z )
     {
         if ( z >= ( int32_t ) GRID_SIZE )
-        {
             break;
-        }
 
         for ( int32_t x = startX; x < endX; ++x )
         {
             if ( x >= ( int32_t ) GRID_SIZE )
-            {
                 break;
-            }
 
 			int32_t index = tile_clamp_index( x, z );
+
+            if ( !mTiles[ index ].query_bounds( ENTITY_BOUNDS_ALL ) )
+                continue;
 
             const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 
             // cull frustum, insert into appropriate type, etc.
             if ( !frustum.intersects( areaBox ) )
-            {
                 continue;
-            }
 
             switch ( mTiles[ index ].mType )
             {
