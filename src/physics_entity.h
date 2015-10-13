@@ -9,6 +9,7 @@
 #include "glm_ext.hpp"
 
 struct imm_draw;
+struct view_data;
 
 struct physics_entity
 {
@@ -36,6 +37,23 @@ public:
 
     const btDefaultMotionState& motion_state( void ) const { return *mMotionState; }
 
+    glm::mat4 world_transform( void ) const;
+
     void draw( imm_draw& drawer, uint32_t primType ) const;
+
+    void draw( const std::string& buffer,
+               const std::string& program,
+               const view_data& view,
+               const glm::vec4& color ) const;
 };
 
+INLINE glm::mat4 physics_entity::world_transform( void ) const
+{
+    assert( mMotionState );
+
+    btTransform t;
+    // TODO: incorporate scale of the world transform
+    // for specific collision shapes ( e.g., physics_entities using btBoxShape, and its halfSpaceExtents )
+    mMotionState->getWorldTransform( t );
+    return glm::ext::from_bullet( t );
+}

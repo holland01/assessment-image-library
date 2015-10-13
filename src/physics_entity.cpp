@@ -1,5 +1,6 @@
 #include "physics_entity.h"
 #include "renderer.h"
+#include "view.h"
 
 physics_entity::physics_entity( btCollisionShape* shape, btDefaultMotionState* ms, btRigidBody* body )
     : mOwned( false ),
@@ -51,4 +52,15 @@ void physics_entity::draw( imm_draw& drawer, uint32_t primType ) const
     drawer.end();
 }
 
+void physics_entity::draw( const std::string& buffer,
+                           const std::string& program,
+                           const view_data& view,
+                           const glm::vec4& color ) const
+{
+    bind_program pbind( program );
+    pbind.program().load_mat4( "modelToView", view.mTransform * world_transform() );
+    pbind.program().load_vec4( "color", color );
 
+    bind_buffer bbuff( buffer );
+    bbuff.buffer().render( pbind.program() );
+}

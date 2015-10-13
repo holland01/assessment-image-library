@@ -465,17 +465,10 @@ static void draw_group( game& game,
 	if ( gTestFlags & DRAW_WALLS )
     {
         for ( const map_tile* tile: walls )
-        {   
-            debug_draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
+        {
+            tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
         }
     }
-
-    /*
-    if ( game.bullet )
-    {
-        debug_draw_bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-    }
-    */
 
 	if ( gTestFlags & DRAW_BILLBOARDS )
     {

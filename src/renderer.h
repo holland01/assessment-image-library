@@ -493,17 +493,26 @@ public:
 };
 
 //---------------------------------------------------------------------
-// bind_program
+// pipeline_aware
 //---------------------------------------------------------------------
 
-struct bind_program
+struct pipeline_aware
 {
-private:
+protected:
     friend struct render_pipeline;
 
     static const render_pipeline* mInstance;
+};
 
+//---------------------------------------------------------------------
+// bind_program
+//---------------------------------------------------------------------
+
+struct bind_program : public pipeline_aware
+{
+private:
     const shader_program& mProgram;
+
 public:
     bind_program( const std::string& which );
 
@@ -512,6 +521,22 @@ public:
     const shader_program& program( void ) const { return mProgram; }
 };
 
+//---------------------------------------------------------------------
+// bind_buffer
+//---------------------------------------------------------------------
+
+struct bind_buffer : public pipeline_aware
+{
+private:
+    const draw_buffer& mDrawBuffer;
+
+public:
+    bind_buffer( const std::string& which );
+
+    ~bind_buffer( void );
+
+    const draw_buffer& buffer( void ) const { return mDrawBuffer; }
+};
 
 //---------------------------------------------------------------------
 // imm_draw_t

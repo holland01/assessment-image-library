@@ -10,7 +10,10 @@ template < typename app_impl_t >
 void debug_draw_axes( const application< app_impl_t >& app, const view_data& vp );
 
 template < typename app_impl_t >
-void debug_draw_bounds( const application< app_impl_t >& app, const obb& bounds, const glm::vec3& color, float alpha = 1.0f );
+void debug_draw_bounds( const application< app_impl_t >& app,
+                        const obb& bounds,
+                        const glm::vec3& color,
+                        float alpha = 1.0f );
 
 template < typename app_impl_t >
 void debug_draw_billboard_bounds( const application< app_impl_t >& app,

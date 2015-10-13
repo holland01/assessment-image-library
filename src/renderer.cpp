@@ -784,7 +784,7 @@ render_pipeline::render_pipeline( void )
     GL_CHECK( glBindVertexArray( mVao ) );
 #endif
 
-    bind_program::mInstance = this;
+    pipeline_aware::mInstance = this;
 }
 
 render_pipeline::~render_pipeline( void )
@@ -798,10 +798,14 @@ render_pipeline::~render_pipeline( void )
 }
 
 //-------------------------------------------------------------------------------------------------
-// bind_program
+// pipeline_aware
 //-------------------------------------------------------------------------------------------------
 
-const render_pipeline* bind_program::mInstance = nullptr;
+const render_pipeline* pipeline_aware::mInstance = nullptr;
+
+//-------------------------------------------------------------------------------------------------
+// bind_program
+//-------------------------------------------------------------------------------------------------
 
 bind_program::bind_program( const std::string& what )
     : mProgram( mInstance->program( what ) )
@@ -812,4 +816,19 @@ bind_program::bind_program( const std::string& what )
 bind_program::~bind_program( void )
 {
     mProgram.release();
+}
+
+//-------------------------------------------------------------------------------------------------
+// bind_buffer
+//-------------------------------------------------------------------------------------------------
+
+bind_buffer::bind_buffer( const std::string& what )
+    : mDrawBuffer( mInstance->buffer( what ) )
+{
+    mDrawBuffer.bind();
+}
+
+bind_buffer::~bind_buffer( void )
+{
+    mDrawBuffer.release();
 }
