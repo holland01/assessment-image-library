@@ -74,6 +74,8 @@ public:
 
     const bounds_primitive* query_bounds( uint32_t flags ) const;
 
+    const obb& get_box_ref( uint32_t useFlags ) const;
+
     void orient_to( const glm::vec3& v );
 
     void add_to_world( physics_world& world );
@@ -86,9 +88,6 @@ public:
 
     virtual void sync( void );
 };
-
-
-
 
 
 

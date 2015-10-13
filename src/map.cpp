@@ -267,39 +267,6 @@ namespace {
         return true;
     }
 
-    obb ComputeBoundsFromRegion( const map_tile_region* r )
-    {
-        glm::ivec2 min( ( int32_t ) map_tile_generator::GRID_END ),
-                   max( ( int32_t ) map_tile_generator::GRID_START );
-
-        for ( const map_tile* t: r->mTiles )
-        {
-            if ( min.x > t->mX ) min.x = t->mX;
-            if ( min.y > t->mZ ) min.y = t->mZ;
-            if ( max.x < t->mX ) max.x = t->mX;
-            if ( max.y < t->mZ ) max.y = t->mZ;
-        }
-
-        glm::vec2 s( max - min );
-
-        float exp = log4( glm::max( s.x, s.y ) );
-
-        float dim = glm::pow( 4, glm::ceil( exp ) );
-
-        glm::vec3 size( dim, 1.0f, dim );
-
-        glm::vec3 pos( r->mOrigin->mX * map_tile_generator::TRANSLATE_STRIDE,
-                       0.0f,
-                       r->mOrigin->mZ * map_tile_generator::TRANSLATE_STRIDE );
-
-        pos.x -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
-        pos.z -= map_tile_generator::TRANSLATE_STRIDE * 0.5f;
-
-        glm::mat4 t( glm::translate( glm::mat4( 1.0f ), pos ) * glm::scale( glm::mat4( 1.0f ), size ) );
-
-		return obb( t );
-    }
-
     void PurgeFromAdjacent( std::vector< shared_tile_region_t >& regions, const shared_tile_region_t& target )
     {
         using predicate_t = std::function< bool( const adjacent_region& ) >;
@@ -397,6 +364,8 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
+    mBounds.reset( nullptr );
+
     float mass = 0.0f;
 
     if ( mType == map_tile::WALL )
@@ -626,17 +595,6 @@ map_tile_generator::map_tile_generator( void )
     {
         bool success = ComputeOrigin( region, mTiles );
         assert( success );
-
-        if ( success )
-        {
-            auto r = region.lock();
-
-            obb b = ComputeBoundsFromRegion( r.get() );
-
-            uint32_t depth = ( uint32_t )glm::floor( log4( b.axes()[ 0 ][ 0 ] ) );
-
-            r->mBoundsVolume.reset( new quad_hierarchy( std::move( b ), depth, r->entity_list() ) );
-        }
     }
 
     assert( GeneratorTest( *this ) );
@@ -1291,8 +1249,7 @@ void map_tile_generator::find_entities(
 map_tile_region::map_tile_region( const map_tile* origin_ )
     : mDestroy( false ),
       mOrigin( origin_ ),
-      mColor( make_random_color() ),
-      mBoundsVolume( nullptr )
+      mColor( make_random_color() )
 {
 }
 
@@ -1325,9 +1282,9 @@ adjacent_region* map_tile_region::find_adjacent_owner( const map_tile* t )
     return nullptr;
 }
 
-quad_hierarchy::entity_list_t map_tile_region::entity_list( void ) const
+map_tile_region::entity_list_t map_tile_region::entity_list( void ) const
 {
-    quad_hierarchy::entity_list_t entities;
+    entity_list_t entities;
     entities.resize( mTiles.size() );
 
     uint32_t i;
@@ -1347,15 +1304,4 @@ quad_hierarchy::entity_list_t map_tile_region::entity_list( void ) const
     }
 
     return std::move( entities );
-}
-
-
-void map_tile_region::update( void )
-{
-    if ( !mBoundsVolume )
-    {
-        return;
-    }
-
-    mBoundsVolume->update( std::move( entity_list() ) );
 }

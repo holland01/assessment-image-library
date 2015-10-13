@@ -4,7 +4,6 @@
 #include "entity.h"
 #include "geom/geom.h"
 #include "renderer.h"
-#include "bvh.h"
 
 #include <set>
 #include <unordered_set>
@@ -212,7 +211,7 @@ public:
 
     using merge_predicate_fn_t = std::function< bool( shared_tile_region_t& m ) >;
 
-                map_tile_generator( void );
+    map_tile_generator( void );
 
     void                    try_gen_halfspace( map_tile* wall );
 
@@ -253,8 +252,6 @@ public:
 // tile_region_t
 //-------------------------------------------------------------------------------------------------------
 
-struct quad_hierarchy;
-
 struct map_tile_region
 {
 private:
@@ -262,6 +259,8 @@ private:
     mutable bool mDestroy;
 
 public:
+
+    using entity_list_t = std::vector< const entity* >;
 
     const map_tile* mOrigin;
 
@@ -273,8 +272,6 @@ public:
 
     adjacent_region_list_t mAdjacent;
 
-    quad_hierarchy::ptr_t mBoundsVolume;
-
     map_tile_region( const map_tile* mOrigin = nullptr );
 
     void draw( const render_pipeline& pl, const view_data& vp );
@@ -285,9 +282,7 @@ public:
 
     adjacent_region* find_adjacent_owner( const map_tile* t );
 
-    quad_hierarchy::entity_list_t entity_list( void ) const;
-
-    void update( void );
+    entity_list_t entity_list( void ) const;
 };
 
 //-------------------------------------------------------------------------------------------------------

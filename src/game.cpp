@@ -108,7 +108,6 @@ void game::fire_gun( void )
     bullet->mSize = glm::vec3( 0.1f );
 
     // TODO: add physics here
-    bullet->add_bounds( ENTITY_BOUNDS_ALL, new obb() );
 }
 
 namespace {
@@ -300,6 +299,11 @@ INLINE void draw_tiles( const game_app_t& game,
 {
     for ( const map_tile* tile: tiles )
     {
+        if ( tile->mType == map_tile::EMPTY )
+        {
+            continue;
+        }
+
         const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
 
 		debug_draw_quad( game, box.world_transform() * gQuadTransform, color, alpha );
@@ -326,15 +330,6 @@ INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_l
     }
 }
 
-INLINE void draw_bounds_tiles( const game_app_t& game, const shared_tile_region_t& region )
-{
-    const obb& box = *ENTITY_PTR_GET_BOX( region->mOrigin, ENTITY_BOUNDS_AREA_EVAL );
-
-	debug_draw_quad( game, box.world_transform(), glm::vec3( 1.0f ), 1.0f );
-
-    region->mBoundsVolume->mRoot->draw( *( game.pipeline ), game.camera->view_params() );
-}
-
 INLINE bool in_adjacent_region_list( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
 {
     for ( const adjacent_region& r: adjRegions )
@@ -353,7 +348,7 @@ bool has_cancel_regions( void )
 	return !!( gTestFlags & DRAW_CANCEL_REGIONS );
 }
 
-void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
+void draw_regions( game& g, bool drawAdjacent = false )
 {
     for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
     {
@@ -372,12 +367,12 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
         // the regions as normal if i == regionIter: for some reason,
         // despite being rendered previously, this pass will overwrite
         // following draw pass in the color buffer, which produces inaccurate results.
-        if ( canDraw || ( drawBoundsTiles && !drawAdjacent && !has_cancel_regions() ) )
+        if ( canDraw )
         {
             draw_tiles( g, region->mTiles, region->mColor );
         }
 
-        if ( i == regionIter && ( drawBoundsTiles || drawAdjacent ) )
+        if ( i == regionIter && drawAdjacent )
         {
             // Note: if drawAdjacent is turned on,
             // it's pretty hard seeing which tile is current
@@ -386,12 +381,6 @@ void draw_regions( game& g, bool drawBoundsTiles, bool drawAdjacent = false )
             if ( drawAdjacent )
             {
                 draw_adjacent_tiles( g, region->mAdjacent );
-            }
-
-            // Draw these last since the adjacent regions take up the most space
-            if ( drawBoundsTiles )
-            {
-                draw_bounds_tiles( g, region );
             }
         }
     }
@@ -465,8 +454,6 @@ static void draw_group( game& game,
 
     const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
 
-    //const draw_buffer_t& billboardBuffer = game.pipeline->mDrawBuffers.at( "billboard" );
-
     // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
     // It's useful for debugging...
     imm_draw drawer( singleColor );
@@ -474,20 +461,21 @@ static void draw_group( game& game,
 
     // Load a grey color so it looks somewhat fancy
     singleColor.bind();
-    //singleColor.LoadVec4( "color", glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
 
 	if ( gTestFlags & DRAW_WALLS )
     {
         for ( const map_tile* tile: walls )
-        {
+        {   
             debug_draw_bounds( game, *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL ), glm::vec3( 0.5f ) );
         }
     }
 
+    /*
     if ( game.bullet )
     {
         debug_draw_bounds( game, *( ENTITY_PTR_GET_BOX( game.bullet, ENTITY_BOUNDS_ALL ) ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
     }
+    */
 
 	if ( gTestFlags & DRAW_BILLBOARDS )
     {
@@ -503,9 +491,7 @@ static void draw_group( game& game,
         for ( const map_tile* wall: walls )
         {
             if ( wall->mHalfSpaceIndex < 0 )
-            {
                 continue;
-            }
 
             const map_tile_generator::collision_face_table_t& table =
                     game.gen->wall_surf_table( wall->mHalfSpaceIndex );
@@ -527,13 +513,7 @@ static void draw_group( game& game,
 
     singleColor.bind();
 
-	bool drawAdj = !!( gTestFlags & DRAW_REGIONS_ADJACENT );
-	bool drawBounds = !!( gTestFlags & DRAW_REGIONS_BOUNDS );
-
-    if  ( drawAdj || drawBounds )
-    {
-        draw_regions( game, drawBounds, drawAdj );
-    }
+    draw_regions( game, !!( gTestFlags & DRAW_REGIONS_ADJACENT ) );
 
     frameCount += 1.0f;
 
