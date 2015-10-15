@@ -5,7 +5,6 @@
 #include "../glm_ext.hpp"
 
 #include "geom_util.h"
-#include "obb.h"
 #include "plane.h"
 #include "transform_data.h"
 #include "ray.h"

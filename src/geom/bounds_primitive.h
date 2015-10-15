@@ -37,10 +37,6 @@ public:
 
 	const primitive_lookup*   to_lookup( void ) const;
 
-	obb*		to_box( void );
-
-	const obb*	to_box( void ) const;
-
 	halfspace*	to_halfspace( void );
 };
 

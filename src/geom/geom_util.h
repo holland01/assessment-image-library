@@ -3,6 +3,7 @@
 #include "_geom_local.h"
 #include "plane.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
 static const glm::vec3 G_DIR_RIGHT( 1.0f, 0.0f, 0.0f );
 static const glm::vec3 G_DIR_UP( 0.0f, 1.0f, 0.0f );
@@ -35,8 +36,8 @@ static INLINE void rotate_matrix_xyz( glm::mat4& r, const glm::vec3& rotation )
 
 using point_predicate_t = bool ( * )( float );
 
-template < size_t N, point_predicate_t predicate >
-static INLINE bool test_point_plane( const std::array< glm::vec3, N >& points, const plane& pln )
+template < point_predicate_t predicate >
+static INLINE bool test_point_plane( const std::vector< glm::vec3 >& points, const plane& pln )
 {
 	for ( const glm::vec3& p: points )
 	{

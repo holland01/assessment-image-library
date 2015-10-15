@@ -106,7 +106,7 @@ INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
 
     if ( mPhysEnt )
     {
-        mPhysEnt->body()->translate( glm::ext::to_bullet( f ) );
+        mPhysEnt->mBody->translate( glm::ext::to_bullet( f ) );
     }
     else
     {

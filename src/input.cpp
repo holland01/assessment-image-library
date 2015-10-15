@@ -49,7 +49,6 @@ input_client::input_client( const view_data& view )
 	  mMode( MODE_PLAY )
 {
 	mKeysPressed.fill( 0 );
-    add_bounds( ENTITY_BOUNDS_ALL, new obb() );
 }
 
 input_client::input_client( float width, float height, const glm::mat4& viewTransform, const glm::mat4& projection )
@@ -209,7 +208,7 @@ void input_client::update_view_data( void )
 
 void input_client::sync( void )
 {
-    if ( mPhysEnt && mPhysEnt->body() )
+    if ( mPhysEnt && mPhysEnt->mBody )
     {
         const btDefaultMotionState& ms = mPhysEnt->motion_state();
 
@@ -226,12 +225,6 @@ void input_client::sync( void )
     else
     {
         update_view_data();
-
-        obb* b = query_bounds( ENTITY_BOUNDS_ALL )->to_box();
-        assert( b );
-
-        b->origin( mViewParams.mOrigin );
-        b->axes( glm::mat3( mViewParams.mInverseOrient ) );
     }
 
     entity::sync();

@@ -45,8 +45,6 @@ public:
 
     input_client* camera;
 
-	obb* drawBounds;
-
     view_frustum frustum;
 
     application( uint32_t width, uint32_t height );
@@ -95,8 +93,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
       frameTime( 0.0f ),
       lastTime( 0.0f ),
       startTime( 0.0f ),
-      camera( nullptr ),
-      drawBounds( nullptr )
+      camera( nullptr )
 {
     SDL_Init( SDL_INIT_VIDEO );
     SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
@@ -162,8 +159,6 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
 #endif
 
     camera = &spec;
-	drawBounds = spec.query_bounds( ENTITY_BOUNDS_MOVE_COLLIDE )->to_box();
-
     running = true;
 }
 

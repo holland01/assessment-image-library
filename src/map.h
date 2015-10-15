@@ -21,7 +21,7 @@ using shared_tile_region_t = std::shared_ptr< map_tile_region >;
 
 struct region_merge_predicates_t;
 
-static INLINE glm::mat4 get_tile_transform( const map_tile& tile );
+static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile );
 
 //-------------------------------------------------------------------------------------------------------
 // adjacent_region_t
@@ -111,7 +111,7 @@ public:
 INLINE void map_tile::set( map_tile_type newType )
 {
     mType = newType;
-    set( get_tile_transform( *this ) );
+    set( get_tile_start_transform( *this ) );
 }
 
 INLINE void map_tile::owner( shared_tile_region_t& r ) const
@@ -296,11 +296,13 @@ static INLINE void get_tile_coords( type_t& x, type_t& z, const glm::vec3& v )
    z = ( type_t )( v.z * 0.5f );
 }
 
-static INLINE glm::mat4 get_tile_transform( const map_tile& tile )
+static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile )
 {
+    float y = tile.mType == map_tile::WALL? 1.0f: 10.0f;
+
     glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
                  glm::vec3( map_tile_generator::TRANSLATE_STRIDE * tile.mX,
-                            0.0f,
+                            y,
                             map_tile_generator::TRANSLATE_STRIDE * tile.mZ ) ) );
 
     return std::move( t * tile.scale_transform() );

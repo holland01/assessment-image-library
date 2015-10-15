@@ -1,6 +1,7 @@
 #include "physics_entity.h"
 #include "renderer.h"
 #include "view.h"
+#include "physics_world.h"
 
 physics_entity::physics_entity( btCollisionShape* shape, btDefaultMotionState* ms, btRigidBody* body )
     : mOwned( false ),
@@ -20,6 +21,11 @@ physics_entity::physics_entity( float mass, const glm::mat4& orientAndTranslate,
 physics_entity::physics_entity( void )
     : physics_entity( nullptr, nullptr, nullptr )
 {
+}
+
+void physics_entity::iterate_collision_points( collision_point_fn_t callback ) const
+{
+    UNUSEDPARAM( callback ); //TODO: implement this
 }
 
 void physics_entity::draw( imm_draw& drawer, uint32_t primType ) const
@@ -50,6 +56,25 @@ void physics_entity::draw( imm_draw& drawer, uint32_t primType ) const
         drawer.vertex( vg );
     }
     drawer.end();
+}
+
+void physics_entity::add_to_world( physics_world& world ) const
+{
+    if ( !mOwned )
+    {
+        world.mPhysEntities.push_back( this );
+        world.mDynamics->addRigidBody( mBody.get() );
+        mOwned = true;
+    }
+}
+
+void physics_entity::remove_from_world( physics_world& world ) const
+{
+    if ( mOwned )
+    {
+        world.mDynamics->removeRigidBody( mBody.get() );
+        mOwned = false;
+    }
 }
 
 void physics_entity::draw( const std::string& buffer,

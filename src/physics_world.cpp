@@ -12,10 +12,10 @@ physics_world::physics_world( void )
                                               mCollisionConfig.get() ) ),
       mGround( std::move( []( void ) -> physics_entity
                {
-                    btCollisionShape* plane = new btStaticPlaneShape( btVector3( 0.0f, 1.0f, 0.0f ), 1.0f );
+                    btCollisionShape* plane = new btStaticPlaneShape( btVector3( 0.0f, 1.0f, 0.0f ), 0.0f );
                     btDefaultMotionState* ms = new btDefaultMotionState(
                                 btTransform( btQuaternion( 0.0f, 0.0f, 0.0f, 1.0f ),
-                                             btVector3( 0.0f, -1.0f, 0.0f ) ) );
+                                             btVector3( 0.0f, 0.0f, 0.0f ) ) );
 
                     btRigidBody* b = new btRigidBody(
                                 btRigidBody::btRigidBodyConstructionInfo( 0.0f, ms, plane ) );
@@ -25,7 +25,7 @@ physics_world::physics_world( void )
 {
     mDynamics->setGravity( btVector3( 0, -1.0f, 0 ) );
     mDynamics->setSynchronizeAllMotionStates( true );
-    mDynamics->addRigidBody( mGround.body() );
+    mGround.add_to_world( *this );
 }
 
 void physics_world::step( void )
@@ -36,4 +36,5 @@ void physics_world::step( void )
 void physics_world::clear_physics_entities( void )
 {
     mPhysEntities.clear();
+    mPhysEntities.push_back( &mGround );
 }

@@ -65,6 +65,7 @@ const bounds_primitive* entity::query_bounds( uint32_t flags ) const
 
 void entity::orient_to( const glm::vec3& v )
 {
+    /*
     obb* bounds = query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box();
 
     if ( !bounds )
@@ -87,60 +88,13 @@ void entity::orient_to( const glm::vec3& v )
     );
 
     bounds->axes( orient );
-}
+    */
 
-void entity::add_to_world( physics_world& world )
-{
-    physics_entity* e = mPhysEnt.get();
-
-    if ( e && !e->mOwned )
-    {
-        world.mPhysEntities.push_back( e );
-        world.mDynamics->addRigidBody( e->body() );
-        e->mOwned = true;
-    }
-}
-
-void entity::remove_from_world( physics_world& world )
-{
-    physics_entity* e = mPhysEnt.get();
-
-    if ( e && e->mOwned )
-    {
-        world.mDynamics->removeRigidBody( e->body() );
-        e->mOwned = false;
-    }
+    UNUSEDPARAM( v );
 }
 
 void entity::sync( void )
 {
     if ( !mPhysEnt || !mPhysEnt->mMotionState )
         return;
-
-    btTransform worldTrans;
-    mPhysEnt->mMotionState->getWorldTransform( worldTrans );
-
-    std::unique_ptr< entity_bounds_primitive >* boundsPtr = &mBounds;
-    while ( *boundsPtr && ( *boundsPtr )->usageFlags != 0 )
-    {
-        bounds_primitive* prim = ( *boundsPtr )->bounds.get();
-        assert( prim && "Prim found in entity bounds list which is null!!!" );
-
-        switch ( prim->mType )
-        {
-            case BOUNDS_PRIM_BOX:
-            {
-                obb* bounds = prim->to_box();
-                const glm::mat3& wTm = glm::ext::from_bullet( worldTrans.getBasis() );
-                bounds->axes( wTm );
-                bounds->origin( glm::ext::from_bullet( worldTrans.getOrigin() ) );
-            }
-                break;
-
-            default:
-                break;
-        }
-
-        boundsPtr = &( *boundsPtr )->next;
-    }
 }

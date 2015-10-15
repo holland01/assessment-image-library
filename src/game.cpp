@@ -144,7 +144,7 @@ void game::clear_entities( std::vector< entity* >& list )
 {
     for ( entity* e: list )
     {
-        e->remove_from_world( mWorld );
+        e->physics_data().remove_from_world( mWorld );
     }
 
     game_app_t::clear_entities( list );
@@ -186,7 +186,7 @@ void game::fill_entities( std::vector< entity* >& list ) const
         for ( entity* e: mapTileList )
         {
             list.push_back( e );
-            e->add_to_world( mWorld );
+            e->physics_data().add_to_world( mWorld );
         }
     };
 
@@ -195,12 +195,11 @@ void game::fill_entities( std::vector< entity* >& list ) const
         if ( e )
         {
             list.push_back( e );
-            e->add_to_world( mWorld );
+            e->physics_data().add_to_world( mWorld );
         }
     };
 
     add_if_alive( camera );
-    add_if_alive( bullet.get() );
 
     map_tile_list_t walllist( std::move( wall_list() ) );
     map_tile_list_t billboardlist( std::move( billboard_list() ) );
@@ -244,12 +243,10 @@ void game::handle_event( const SDL_Event& e )
                 case SDLK_c:
                     if ( camera == &player )
                     {
-                        drawBounds = ENTITY_GET_BOX( player, ENTITY_BOUNDS_MOVE_COLLIDE );
                         camera = &spec;
                     }
                     else
                     {
-                        drawBounds = ENTITY_GET_BOX( spec, ENTITY_BOUNDS_MOVE_COLLIDE );
                         camera = &player;
                     }
                     break;
@@ -299,20 +296,16 @@ INLINE void draw_tiles( const game_app_t& game,
 {
     for ( const map_tile* tile: tiles )
     {
-        if ( tile->mType == map_tile::EMPTY )
+        /*if ( tile->mType == map_tile::EMPTY )
         {
             continue;
         }
+        */
 
-        const obb& box = *ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_AREA_EVAL );
-
-		debug_draw_quad( game, box.world_transform() * gQuadTransform, color, alpha );
+        tile->physics_data().draw( "colored_cube", "single_color",
+                                   game.camera->view_params(),
+                                   glm::vec4( color, alpha ) );
     }
-}
-
-INLINE void draw_tiles( const game_app_t& game, const std::vector< const map_tile* >& tiles, const glm::vec4& color )
-{
-    draw_tiles( game, tiles, glm::vec3( color ), color.a );
 }
 
 INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_list_t& adjRegions )
@@ -349,7 +342,7 @@ bool has_cancel_regions( void )
 }
 
 void draw_regions( game& g, bool drawAdjacent = false )
-{
+{  
     for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
     {
         ref_tile_region_t weakRegion = g.gen->mRegions[ i ];
@@ -369,7 +362,7 @@ void draw_regions( game& g, bool drawAdjacent = false )
         // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw )
         {
-            draw_tiles( g, region->mTiles, region->mColor );
+            draw_tiles( g, region->mTiles, glm::vec3( region->mColor ), region->mColor.a );
         }
 
         if ( i == regionIter && drawAdjacent )
@@ -388,13 +381,13 @@ void draw_regions( game& g, bool drawAdjacent = false )
 
 INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
 {
-    const obb& bounds = *( tile.query_bounds( ENTITY_BOUNDS_AREA_EVAL )->to_box() );
+    const glm::mat4 wT( tile.physics_data().world_transform() );
 
-	glm::vec3 boundsOrigin( bounds.origin() );
+    glm::vec3 boundsOrigin( wT[ 3 ] );
 
     billboard.load_vec3( "origin", boundsOrigin );
 
-    billboard.load_mat3( "viewOrient", bounds.axes() );
+    billboard.load_mat3( "viewOrient", glm::mat3( wT ) );
 }
 
 void process_billboards( game& game, const view_data& vp, map_tile_list_t& billboards )
@@ -415,8 +408,6 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
     {
         load_billboard_params( *tile, billboard  );
 
-		const obb* tileBounds = ENTITY_PTR_GET_BOX( tile, ENTITY_BOUNDS_MOVE_COLLIDE );
-
         singleColor.bind();
         billboard.bind();
 
@@ -426,16 +417,7 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
         billboardBuffer.render( billboard );
 		game.billTexture.release( 0 );
 
-		if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
-        {
-            debug_draw_billboard_bounds( game, vp, *tileBounds );
-
-			singleColor.load_mat4( "modelToView", vp.mTransform );
-
-			halfspace hs( glm::mat3( tileBounds->axes() ), tileBounds->origin(), 0.0f );
-			singleColor.load_vec4( "color", glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
-			hs.draw( d );
-        }
+        tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
 
         billboard.bind();
     }
@@ -501,12 +483,12 @@ static void draw_group( game& game,
         }
     }
 
-    // Draw the bounds of the camera not currently being used
-    debug_draw_bounds( game, *( game.drawBounds ), glm::vec3( 1.0f, 0.0f, 1.0f ) );
-
     singleColor.bind();
 
-    draw_regions( game, !!( gTestFlags & DRAW_REGIONS_ADJACENT ) );
+    if ( gTestFlags & DRAW_REGIONS_BOUNDS )
+    {
+        draw_regions( game, !!( gTestFlags & DRAW_REGIONS_ADJACENT ) );
+    }
 
     frameCount += 1.0f;
 

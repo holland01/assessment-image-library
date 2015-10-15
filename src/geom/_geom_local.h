@@ -6,7 +6,6 @@
 
 struct transform_data;
 struct primitive_lookup;
-struct obb;
 struct halfspace;
 struct point_project_pair;
 struct halfspace;

@@ -1,5 +1,6 @@
 #include "view.h"
 #include "base.h"
+#include "entity.h"
 
 //-------------------------------------------------------------------------------------------------------
 // Frustum
@@ -103,15 +104,14 @@ namespace {
 	}
 }
 
-bool view_frustum::intersects( const obb& box ) const
+bool view_frustum::intersects( const entity& e ) const
 {
-	obb::pointlist3D_t clipBounds;
-	box.get_world_space_points( clipBounds );
+    const std::vector< glm::vec3 > ePoints( std::move( e.physics_data().world_space_points() ) );
 
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )
 	{
-		if ( test_point_plane< 8, point_plane_predicate >( clipBounds, mFrustPlanes[ i ] ) )
+        if ( test_point_plane< point_plane_predicate >( ePoints, mFrustPlanes[ i ] ) )
 		{
 			continue;
 		}

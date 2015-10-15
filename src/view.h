@@ -71,6 +71,8 @@ enum
 	FRUST_FAR       = 5
 };
 
+struct entity;
+
 struct view_frustum
 {
     plane    mFrustPlanes[ FRUST_NUM_PLANES ];
@@ -93,7 +95,7 @@ struct view_frustum
 
     void	reset_metrics( void ) const { mRejectCount = 0; mAcceptCount = 0; }
 
-    bool    intersects( const obb& box ) const;
+    bool    intersects( const entity& e ) const;
 };
 
 INLINE void view_frustum::print_metrics( void ) const

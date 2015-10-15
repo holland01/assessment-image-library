@@ -366,26 +366,7 @@ void map_tile::set( const glm::mat4& transform )
 {
     mBounds.reset( nullptr );
 
-    float mass = 0.0f;
-
-    if ( mType == map_tile::WALL )
-    {
-        add_bounds( ENTITY_BOUNDS_AREA_EVAL, new obb( transform ) );
-    }
-    else
-    {
-        if ( mType == map_tile::BILLBOARD )
-        {
-            mass = 80.0f;
-            add_bounds( ENTITY_BOUNDS_ALL, new obb( transform ) );
-        }
-
-        // No need for physics entity, so let's bail
-        if ( mType == map_tile::EMPTY )
-        {
-            return;
-        }
-    }
+    float mass = mType == map_tile::BILLBOARD? 150.0f: 0.0f;
 
     mPhysEnt.reset( new physics_entity( mass, transform, glm::vec3( 1.0f ) ) );
 }
@@ -1014,7 +995,7 @@ void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
         tile.mSize = glm::vec3( 1.0f );
-        tile.set( get_tile_transform( tile ) );
+        tile.set( get_tile_start_transform( tile ) );
 	}
 }
 
@@ -1026,7 +1007,7 @@ namespace {
                             map_tile_list_t& freespace,
                             const view_frustum& frustum )
     {
-        if ( !frustum.intersects( *ENTITY_GET_BOX( t, ENTITY_BOUNDS_AREA_EVAL ) ) )
+        if ( !frustum.intersects( t ) )
         {
             return;
         }
@@ -1179,6 +1160,8 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
     const int32_t endX = centerX + RADIUS;
     const int32_t endZ = centerZ + RADIUS;
 
+    uint32_t total = 0;
+
     for ( int32_t z = startZ; z < endZ; ++z )
     {
         if ( z >= ( int32_t ) GRID_SIZE )
@@ -1189,16 +1172,17 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
             if ( x >= ( int32_t ) GRID_SIZE )
                 break;
 
+            total++;
+
 			int32_t index = tile_clamp_index( x, z );
 
-            if ( !mTiles[ index ].query_bounds( ENTITY_BOUNDS_ALL ) )
+            if ( mTiles[ index ].mType == map_tile::EMPTY )
                 continue;
-
-            const obb& areaBox = *ENTITY_GET_BOX( mTiles[ index ], ENTITY_BOUNDS_AREA_EVAL );
 
             // cull frustum, insert into appropriate type, etc.
-            if ( !frustum.intersects( areaBox ) )
+            if ( !frustum.intersects( mTiles[ index ] ) )
                 continue;
+
 
             switch ( mTiles[ index ].mType )
             {

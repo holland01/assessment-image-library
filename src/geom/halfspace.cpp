@@ -1,6 +1,5 @@
 #include "halfspace.h"
 #include "../renderer.h"
-#include "obb.h"
 #include "geom_util.h"
 #include "../physics_entity.h"
 
@@ -27,8 +26,6 @@ halfspace::halfspace( const glm::mat3& axes, const glm::vec3& origin, float dist
 halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
 	: halfspace( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
-	using corner_t = obb::corner_type;
-
     btTransform physEntTrans;
     physEnt.motion_state().getWorldTransform( physEntTrans );
 
@@ -67,23 +64,19 @@ halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
     };
 
 	// TODO: take into account ALL points
-	std::array< corner_t, 4 > lowerPoints =
+    std::array< int32_t, 4 > lowerPoints =
 	{{
-		obb::CORNER_MIN,
-		obb::CORNER_NEAR_DOWN_RIGHT,
-		obb::CORNER_FAR_DOWN_RIGHT,
-		obb::CORNER_FAR_DOWN_LEFT
+        0x7, // ( -x, -y, -z )
+        0x6, // ( +x, -y, -z )
+        0x2, // ( +x, -y, +z )
+        0x3  // ( -x, -y, +z )
 	}};
 
     glm::vec3 btX( glm::ext::from_bullet( ax[ 0 ] ) );
     glm::vec3 btY( glm::ext::from_bullet( ax[ 1 ] ) );
 
-	for ( corner_t face: lowerPoints )
+    for ( int32_t pointIndex: lowerPoints )
 	{
-        //glm::vec3 point( bounds.world_corner( face ) );
-
-        int32_t pointIndex = ( int32_t )obb::CORNER_MAX - ( int32_t )face;
-
         glm::vec3 point;
         {
             btVector3 vtx;

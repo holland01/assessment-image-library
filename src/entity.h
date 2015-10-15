@@ -74,13 +74,7 @@ public:
 
     const bounds_primitive* query_bounds( uint32_t flags ) const;
 
-    const obb& get_box_ref( uint32_t useFlags ) const;
-
     void orient_to( const glm::vec3& v );
-
-    void add_to_world( physics_world& world );
-
-    void remove_from_world( physics_world& world );
 
     glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 

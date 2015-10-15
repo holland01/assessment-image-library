@@ -9,7 +9,7 @@
 
 struct physics_world
 {
-    friend struct entity;
+    friend struct physics_entity;
 
     using rigid_info_t = btRigidBody::btRigidBodyConstructionInfo;
 
@@ -21,7 +21,7 @@ private:
     std::unique_ptr< btSequentialImpulseConstraintSolver > mSolver;
     std::unique_ptr< btDiscreteDynamicsWorld > mDynamics;
 
-    std::vector< physics_entity* > mPhysEntities;
+    std::vector< const physics_entity* > mPhysEntities;
 
     physics_entity mGround;
 

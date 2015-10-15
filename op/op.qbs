@@ -122,8 +122,6 @@ Product {
         "../src/geom/geom_util.h",
         "../src/geom/halfspace.cpp",
         "../src/geom/halfspace.h",
-        "../src/geom/obb.cpp",
-        "../src/geom/obb.h",
         "../src/geom/plane.h",
         "../src/geom/point_project_pair.h",
         "../src/geom/ray.h",
