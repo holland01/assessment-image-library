@@ -5,6 +5,7 @@
 
 physics_entity::physics_entity( btCollisionShape* shape, btDefaultMotionState* ms, btRigidBody* body )
     : mOwned( false ),
+      mKinematic( false ),
       mShape( shape ),
       mMotionState( ms ),
       mBody( body )
@@ -12,7 +13,9 @@ physics_entity::physics_entity( btCollisionShape* shape, btDefaultMotionState* m
 }
 
 physics_entity::physics_entity( float mass, const glm::mat4& orientAndTranslate, const glm::vec3& halfSpaceExtents )
-    : mShape( new btBoxShape( glm::ext::to_bullet( halfSpaceExtents ) ) ),
+    : mOwned( false ),
+      mKinematic( false ),
+      mShape( new btBoxShape( glm::ext::to_bullet( halfSpaceExtents ) ) ),
       mMotionState( new btDefaultMotionState( glm::ext::to_bullet( orientAndTranslate ) ) ),
       mBody( new btRigidBody( btRigidBody::btRigidBodyConstructionInfo( mass, mMotionState.get(), mShape.get() ) ) )
 {
@@ -58,6 +61,38 @@ void physics_entity::draw( imm_draw& drawer, uint32_t primType ) const
     drawer.end();
 }
 
+void physics_entity::draw( const std::string& buffer,
+                           const std::string& program,
+                           const view_data& view,
+                           const glm::vec4& color ) const
+{
+    bind_program pbind( program );
+    pbind.program().load_mat4( "modelToView", view.mTransform * world_transform() );
+    pbind.program().load_vec4( "color", color );
+
+    bind_buffer bbuff( buffer );
+    bbuff.buffer().render( pbind.program() );
+}
+
+void physics_entity::toggle_kinematic( void )
+{
+    if ( !mBody )
+        return;
+
+    mKinematic = !mKinematic;
+
+    if ( mKinematic )
+    {
+        mBody->setCollisionFlags( mBody->getCollisionFlags() | btRigidBody::CF_KINEMATIC_OBJECT );
+        mBody->forceActivationState( DISABLE_DEACTIVATION );
+    }
+    else
+    {
+        mBody->setCollisionFlags( mBody->getCollisionFlags() & ~btRigidBody::CF_KINEMATIC_OBJECT );
+        mBody->setActivationState( 0 );
+    }
+}
+
 void physics_entity::add_to_world( physics_world& world ) const
 {
     if ( !mOwned )
@@ -75,17 +110,4 @@ void physics_entity::remove_from_world( physics_world& world ) const
         world.mDynamics->removeRigidBody( mBody.get() );
         mOwned = false;
     }
-}
-
-void physics_entity::draw( const std::string& buffer,
-                           const std::string& program,
-                           const view_data& view,
-                           const glm::vec4& color ) const
-{
-    bind_program pbind( program );
-    pbind.program().load_mat4( "modelToView", view.mTransform * world_transform() );
-    pbind.program().load_vec4( "color", color );
-
-    bind_buffer bbuff( buffer );
-    bbuff.buffer().render( pbind.program() );
 }

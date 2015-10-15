@@ -115,8 +115,6 @@ Product {
         "../src/game.h",
         "../src/geom/_geom_local.cpp",
         "../src/geom/_geom_local.h",
-        "../src/geom/bounds_primitive.cpp",
-        "../src/geom/bounds_primitive.h",
         "../src/geom/geom.h",
         "../src/geom/geom_util.cpp",
         "../src/geom/geom_util.h",

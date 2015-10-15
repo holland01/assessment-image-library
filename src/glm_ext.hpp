@@ -76,6 +76,12 @@ INLINE btTransform to_bullet( const glm::mat4& m )
     return t;
 }
 
+INLINE btQuaternion to_bullet( const glm::quat& q )
+{
+    btQuaternion qbt( q.x, q.y, q.z, q.w );
+    return qbt;
+}
+
 INLINE glm::vec3 from_bullet( const btVector3& v )
 {
     return glm::vec3( v.x(), v.y(), v.z() );

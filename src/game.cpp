@@ -54,12 +54,11 @@ namespace {
 	std::unordered_map< std::string, uint32_t > gTestConfig =
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
-        { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES | DRAW_BILLBOARD_BOUNDS },
-		{ "collision_test", DRAW_WALLS | DRAW_BILLBOARDS | DRAW_HALFSPACES | COLLIDE_BILLBOARDS | COLLIDE_WALLS },
+        { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES },
         { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
     };
 
-	uint32_t gTestFlags = gTestConfig[ "collision_test" ];
+    uint32_t gTestFlags = gTestConfig[ "default" ];
 }
 
 game::game( uint32_t width, uint32_t height )
@@ -296,12 +295,6 @@ INLINE void draw_tiles( const game_app_t& game,
 {
     for ( const map_tile* tile: tiles )
     {
-        /*if ( tile->mType == map_tile::EMPTY )
-        {
-            continue;
-        }
-        */
-
         tile->physics_data().draw( "colored_cube", "single_color",
                                    game.camera->view_params(),
                                    glm::vec4( color, alpha ) );
@@ -315,9 +308,7 @@ INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_l
         auto adj = br.mRegion.lock();
 
         if ( !adj )
-        {
             continue;
-        }
 
         draw_tiles( game, adj->mTiles, glm::vec3( adj->mColor ), 1.0f );
     }
@@ -326,12 +317,8 @@ INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_l
 INLINE bool in_adjacent_region_list( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
 {
     for ( const adjacent_region& r: adjRegions )
-    {
         if ( source == r.mRegion )
-        {
             return true;
-        }
-    }
 
     return false;
 }
@@ -348,9 +335,7 @@ void draw_regions( game& g, bool drawAdjacent = false )
         ref_tile_region_t weakRegion = g.gen->mRegions[ i ];
         auto region = weakRegion.lock();
         if ( !region )
-        {
             continue;
-        }
 
         bool canDraw = g.gen->mRegions[ regionIter ] != region
                 && !in_adjacent_region_list( weakRegion, g.gen->mRegions[ regionIter ]->mAdjacent )
@@ -361,21 +346,10 @@ void draw_regions( game& g, bool drawAdjacent = false )
         // despite being rendered previously, this pass will overwrite
         // following draw pass in the color buffer, which produces inaccurate results.
         if ( canDraw )
-        {
             draw_tiles( g, region->mTiles, glm::vec3( region->mColor ), region->mColor.a );
-        }
 
         if ( i == regionIter && drawAdjacent )
-        {
-            // Note: if drawAdjacent is turned on,
-            // it's pretty hard seeing which tile is current
-            // without a full alpha channel.
-
-            if ( drawAdjacent )
-            {
-                draw_adjacent_tiles( g, region->mAdjacent );
-            }
-        }
+            draw_adjacent_tiles( g, region->mAdjacent );
     }
 }
 
@@ -417,7 +391,19 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
         billboardBuffer.render( billboard );
 		game.billTexture.release( 0 );
 
-        tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
+        // Draw forward direction
+        {
+            btTransform wT;
+            tile->physics_data().motion_state().getWorldTransform( wT );
+            const btMatrix3x3& orientation = wT.getBasis();;
+
+            d.begin( GL_LINES );
+            d.vertex( glm::vec3( 0.0f ) );
+            d.vertex( glm::ext::from_bullet( orientation[ 2 ] ) );
+            d.end();
+        }
+        if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
+            tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
 
         billboard.bind();
     }

@@ -23,6 +23,8 @@ protected:
 private:
     mutable bool mOwned;
 
+    bool mKinematic;
+
     std::unique_ptr< btCollisionShape > mShape;
 
     std::unique_ptr< btDefaultMotionState > mMotionState;
@@ -38,15 +40,25 @@ public:
 
     physics_entity( void );
 
-    const btBoxShape* shape_as_box( void ) const { return ( const btBoxShape* ) mShape.get(); }
+    const btBoxShape* box_shape( void ) const { return ( const btBoxShape* ) mShape.get(); }
 
-    const btPolyhedralConvexShape* shape_as_polyhedral( void ) const { return ( const btPolyhedralConvexShape* )mShape.get(); }
+    const btPolyhedralConvexShape* polyhedral_shape( void ) const { return ( const btPolyhedralConvexShape* )mShape.get(); }
 
-    const btDefaultMotionState& motion_state( void ) const { return *mMotionState; }
+    const btDefaultMotionState& motion_state( void ) const { assert( mMotionState ); return *mMotionState; }
+
+    btDefaultMotionState& motion_state( void ) { assert( mMotionState ); return *mMotionState; }
 
     glm::mat4 world_transform( void ) const;
 
     std::vector< glm::vec3 > world_space_points( void ) const;
+
+    void toggle_kinematic( void );
+
+    void add_to_world( physics_world& world ) const;
+
+    void remove_from_world( physics_world& world ) const;
+
+    void iterate_collision_points( collision_point_fn_t callback ) const;
 
     void draw( imm_draw& drawer, uint32_t primType ) const;
 
@@ -54,12 +66,6 @@ public:
                const std::string& program,
                const view_data& view,
                const glm::vec4& color ) const;
-
-    void add_to_world( physics_world& world ) const;
-
-    void remove_from_world( physics_world& world ) const;
-
-    void iterate_collision_points( collision_point_fn_t callback ) const;
 };
 
 INLINE glm::mat4 physics_entity::world_transform( void ) const
@@ -73,7 +79,7 @@ INLINE glm::mat4 physics_entity::world_transform( void ) const
 
     if ( mShape->getShapeType() == BOX_SHAPE_PROXYTYPE )
     {
-        const btBoxShape* shape = shape_as_box();
+        const btBoxShape* shape = box_shape();
 
         glm::vec3 halfExtents( glm::ext::from_bullet( shape->getHalfExtentsWithMargin() ) );
 
@@ -87,7 +93,7 @@ INLINE glm::mat4 physics_entity::world_transform( void ) const
 
 INLINE std::vector< glm::vec3 > physics_entity::world_space_points( void ) const
 {
-    const btPolyhedralConvexShape* thisShape = shape_as_polyhedral();
+    const btPolyhedralConvexShape* thisShape = polyhedral_shape();
 
     std::vector< glm::vec3 > points;
     points.reserve( thisShape->getNumVertices() );

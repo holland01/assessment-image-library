@@ -16,8 +16,7 @@ halfspace::halfspace( void )
 }
 
 halfspace::halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance_ )
-    :   bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
-        mAxes( glm::ext::to_bullet( axes ), glm::ext::to_bullet( origin ) ),
+    :   mAxes( glm::ext::to_bullet( axes ), glm::ext::to_bullet( origin ) ),
         mDistance( distance_ ),
         mBox( new btBox2dShape( mAxes.getBasis()[ 0 ] + mAxes.getBasis()[ 1 ] + mAxes.getBasis()[ 2 ] ), shape_deleter )
 {
@@ -31,9 +30,9 @@ halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
 
     glm::mat3 entAx( glm::ext::from_bullet( physEntTrans.getBasis() ) );
     glm::vec3 origin( glm::ext::from_bullet( physEntTrans.getOrigin() ) );
-    glm::vec3 extents( glm::ext::from_bullet( physEnt.shape_as_box()->getHalfExtentsWithMargin() ) );
+    glm::vec3 extents( glm::ext::from_bullet( physEnt.box_shape()->getHalfExtentsWithMargin() ) );
 
-    const btBoxShape& box = *( physEnt.shape_as_box() );
+    const btBoxShape& box = *( physEnt.box_shape() );
 
     glm::vec3 upAxis( entAx[ 1 ] );
     glm::vec3 boundsOrigin( origin );
@@ -111,8 +110,7 @@ halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
 }
 
 halfspace::halfspace( const halfspace& hs )
-    : bounds_primitive( BOUNDS_PRIM_HALFSPACE ),
-      mAxes( hs.mAxes ),
+    : mAxes( hs.mAxes ),
       mDistance( hs.mDistance ),
       mBox( new btBox2dShape( hs.mBox->getHalfExtentsWithoutMargin() ), shape_deleter )
 {

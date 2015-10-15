@@ -1,7 +1,6 @@
 #pragma once
 
 #include "_geom_local.h"
-#include "bounds_primitive.h"
 #include "transform_data.h"
 #include <bullet3/BulletCollision/CollisionShapes/btBox2dShape.h>
 #include <bullet3/LinearMath/btConvexHull.h>
@@ -15,7 +14,7 @@ struct imm_draw;
 
 struct physics_entity;
 
-struct halfspace : public bounds_primitive
+struct halfspace
 {
 private:
     btTransform mAxes;

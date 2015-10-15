@@ -24,7 +24,6 @@ namespace {
     std::random_device gRandDevice;
     std::mt19937 randEngine( gRandDevice() );
 	std::uniform_int_distribution< uint32_t > wallDet( 0, 100 );
-    std::uniform_int_distribution< uint16_t > randByte( 0, 255 );
 
     INLINE glm::vec4 make_random_color( void )
 	{
@@ -59,7 +58,7 @@ namespace {
 		}
 	}};
 
-    INLINE int32_t GridRange( int32_t x )
+    INLINE int32_t grid_range( int32_t x )
     {
         return glm::clamp( x, map_tile_generator::GRID_START, map_tile_generator::GRID_END - 1 );
     }
@@ -71,13 +70,13 @@ namespace {
 
 	INLINE int32_t tile_clamp_index( int32_t x, int32_t z )
     {
-        z = GridRange( z );
-        x = GridRange( x );
+        z = grid_range( z );
+        x = grid_range( x );
 
 		return tile_index( x, z );
     }
 
-    bool MergeRegions( shared_tile_region_t& merged, map_tile_region* r0 )
+    bool merge_regions( shared_tile_region_t& merged, map_tile_region* r0 )
     {
         if ( !merged ) return false;
         if ( !r0 ) return false;
@@ -97,7 +96,7 @@ namespace {
         return true;
     }
 
-    void Merge( shared_tile_region_t& merged,
+    void merge( shared_tile_region_t& merged,
                 ref_tile_region_t region,
                 region_merge_predicates_t predicates,
                 const uint32_t currDepth,
@@ -120,7 +119,7 @@ namespace {
             merged->mOrigin = r->mOrigin;
         }
 
-        MergeRegions( merged, r.get() );
+        merge_regions( merged, r.get() );
 
         std::vector< ref_tile_region_t > checkList;
 
@@ -148,7 +147,7 @@ namespace {
 
         for ( ref_tile_region_t a: checkList )
         {
-            Merge( merged, a, predicates, currDepth + 1, maxDepth );
+            merge( merged, a, predicates, currDepth + 1, maxDepth );
         }
     }
 
@@ -163,11 +162,11 @@ namespace {
             add = -1;
         }
 
-        int32_t x0 = GridRange( t.mX + startOffset );
-        int32_t z0 = GridRange( t.mZ + startOffset );
+        int32_t x0 = grid_range( t.mX + startOffset );
+        int32_t z0 = grid_range( t.mZ + startOffset );
 
-        int32_t xe = GridRange( t.mX + endOffset );
-        int32_t ze = GridRange( t.mZ + endOffset );
+        int32_t xe = grid_range( t.mX + endOffset );
+        int32_t ze = grid_range( t.mZ + endOffset );
 
         for ( int32_t z = z0; z <= ze; z += add )
         {
@@ -364,11 +363,14 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
-    mBounds.reset( nullptr );
-
     float mass = mType == map_tile::BILLBOARD? 150.0f: 0.0f;
 
     mPhysEnt.reset( new physics_entity( mass, transform, glm::vec3( 1.0f ) ) );
+
+    if ( mType == map_tile::BILLBOARD )
+    {
+        mPhysEnt->toggle_kinematic();
+    }
 }
 
 void map_tile::add_halfspace_lookup( int32_t index )
@@ -376,9 +378,6 @@ void map_tile::add_halfspace_lookup( int32_t index )
     assert( mType == map_tile::WALL && "map_tile::add_halfspace_lookup called with mType != map_tile::WALL" );
 
     mHalfSpaceIndex = index;
-
-    add_bounds( ENTITY_BOUNDS_AIR_COLLIDE | ENTITY_BOUNDS_MOVE_COLLIDE,
-               new primitive_lookup( BOUNDS_PRIM_HALFSPACE, mHalfSpaceIndex ) );
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -912,16 +911,16 @@ void map_tile_generator::merge_regions( const region_merge_predicates_t& predica
 
     for ( ref_tile_region_t region: mRegions )
     {
-        shared_tile_region_t merge( new map_tile_region() );
+        shared_tile_region_t mergeRegion( new map_tile_region() );
 
-        Merge( merge, region, predicates, 0, maxDepth );
+        merge( mergeRegion, region, predicates, 0, maxDepth );
 
-        if ( merge->mTiles.empty() )
+        if ( mergeRegion->mTiles.empty() )
         {
             continue;
         }
 
-        merged.push_back( std::move( merge ) );
+        merged.push_back( std::move( mergeRegion ) );
     }
 
     purge_defunct_regions();
@@ -959,7 +958,6 @@ void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
         isWall = range_count( tile, -1, 1 ) >= 5 || predicates[ pass - 1 ]( range_count( tile, -2, 2 ) );
 	}
 
-    tile.mBounds.reset();
     tile.mType = map_tile::EMPTY;
 
 	// Multiply x and z values by 2 to accomodate for bounds scaling on the axis
