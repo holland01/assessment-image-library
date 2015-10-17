@@ -39,7 +39,7 @@ public:
 
     entity( const glm::vec4& color = glm::vec4( 1.0f ) );
 
-    void toggle_kinematic( void );
+    void toggle_kinematic( bool addMotionState = true );
 
     glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
 
@@ -54,6 +54,10 @@ public:
     entity_move_state move_state( void ) const { return mMoveState; }
 
     void flip_move_state( void );
+
+    void add_to_world( void );
+
+    void remove_from_world( void );
 
     virtual void sync( void );
 };
@@ -77,5 +81,23 @@ INLINE void entity::set_normal_body_activation_state( int32_t state )
 {
     if ( mPhysEnt )
         mPhysEnt->set_activation_state( state );
+}
+
+INLINE void entity::add_to_world( void )
+{
+    if ( mKinematicEnt )
+        mKinematicEnt->add_to_world();
+
+    if ( mPhysEnt )
+        mPhysEnt->add_to_world();
+}
+
+INLINE void entity::remove_from_world( void )
+{
+    if ( mKinematicEnt )
+        mKinematicEnt->remove_from_world();
+
+    if ( mPhysEnt )
+        mPhysEnt->remove_from_world();
 }
 

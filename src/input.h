@@ -39,6 +39,11 @@ enum class input_key : uint32_t
 
 struct input_client : public entity
 {
+private:
+    physics_body* get_body( void ) { return mMode == MODE_SPEC? mKinematicEnt.get(): mPhysEnt.get(); }
+
+public:
+
     view_data mViewParams;
 
     std::array< uint8_t, 8 > mKeysPressed;

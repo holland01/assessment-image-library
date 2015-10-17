@@ -170,9 +170,12 @@ void input_client::add_dir( const glm::vec3& dir, float scale )
 {
     glm::vec3 f( dir * scale );
 
-    if ( mPhysEnt )
+    // spectating allows us to move throughout the world without interference of physics gravity
+    physics_body* pb = get_body();
+
+    if ( pb )
     {
-        mPhysEnt->mBody->translate( glm::ext::to_bullet( f ) );
+        pb->mBody->translate( glm::ext::to_bullet( f ) );
     }
     else
     {
@@ -223,16 +226,27 @@ void input_client::update_view_data( void )
 
 void input_client::sync( void )
 {
-    if ( mPhysEnt && mPhysEnt->mBody )
+    physics_body* body = get_body();
+
+    if ( body )
     {
         update_view_data();
 
-        const btMotionState& ms = mPhysEnt->motion_state();
+        glm::mat4 gBasis( 1.0f );
 
-        btTransform worldT;
-        ms.getWorldTransform( worldT );
+        if ( body->mMotionState )
+        {
+            const btMotionState& ms = body->motion_state();
 
-        glm::mat4 gBasis( glm::ext::from_bullet( worldT ) );
+            btTransform worldT;
+            ms.getWorldTransform( worldT );
+
+            gBasis = glm::ext::from_bullet( worldT );
+        }
+        else
+        {
+            gBasis = glm::ext::from_bullet( body->mBody->getCenterOfMassTransform() );
+        }
 
         mViewParams.mTransform = mViewParams.mOrientation * glm::inverse( gBasis );
         mViewParams.mOrigin = glm::vec3( gBasis[ 3 ] );

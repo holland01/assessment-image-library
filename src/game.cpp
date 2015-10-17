@@ -72,6 +72,10 @@ game::game( uint32_t width, uint32_t height )
     camera = &player;
     camera->position( gen->scale_to_world( glm::vec3( startTile->mX, 0.0f, startTile->mZ ) ) );
     camera->set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), camera->position() ) );
+
+    spec.set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 10.0f, 0.0f ) ) );
+    spec.toggle_kinematic( false );
+    spec.flip_move_state();
 }
 
 void game::fill_orient_map( void )
@@ -145,7 +149,7 @@ void game::clear_entities( std::vector< entity* >& list )
 {
     for ( entity* e: list )
     {
-        e->normal_body().remove_from_world();
+        e->remove_from_world();
     }
 
     game_app_t::clear_entities( list );
@@ -182,22 +186,19 @@ void game::fill_entities( std::vector< entity* >& list ) const
     // kinda sorta shouldn't be called from here, but whatever - it works for now.
     update_billboards( *this );
 
-    auto add_to_list = [ &list, this ]( map_tile_list_t& mapTileList ) -> void
-    {
-        for ( entity* e: mapTileList )
-        {
-            list.push_back( e );
-            e->normal_body().add_to_world();
-        }
-    };
-
     auto add_if_alive = [ &list, this ]( entity* e ) -> void
     {
         if ( e )
         {
             list.push_back( e );
-            e->normal_body().add_to_world();
+            e->add_to_world();
         }
+    };
+
+    auto add_to_list = [ &list, &add_if_alive, this ]( map_tile_list_t& mapTileList ) -> void
+    {
+        for ( entity* e: mapTileList )
+            add_if_alive( e );
     };
 
     add_if_alive( camera );
@@ -207,7 +208,9 @@ void game::fill_entities( std::vector< entity* >& list ) const
 
     list.reserve( walllist.size() + billboardlist.size() + 1 );
     add_to_list( walllist );
-    add_to_list( billboardlist );
+
+    if ( gTestFlags & DRAW_BILLBOARDS )
+        add_to_list( billboardlist );
 }
 
 void game::draw( void )

@@ -15,7 +15,7 @@ entity::entity( const glm::vec4& color )
 {
 }
 
-void entity::toggle_kinematic( void )
+void entity::toggle_kinematic( bool addMotionState )
 {
     if ( !mKinematicEnt )
     {
@@ -24,12 +24,17 @@ void entity::toggle_kinematic( void )
         btTransform t;
         mPhysEnt->motion_state().getWorldTransform( t );
 
-        btMotionState* ms = new btDefaultMotionState( t );
+        btMotionState* ms = nullptr;
+
+        if ( addMotionState )
+            ms = new btDefaultMotionState( t );
 
         btRigidBody* kinematicBody = new btRigidBody(
                     btRigidBody::btRigidBodyConstructionInfo( mPhysEnt->mass(),
-                                                              ms,
-                                                              box ) );
+                                                              ms, box ) );
+
+        if ( !addMotionState )
+            kinematicBody->setCenterOfMassTransform( t );
 
         mKinematicEnt.reset( new physics_body( box,
                                                  ms,
@@ -37,7 +42,6 @@ void entity::toggle_kinematic( void )
 
         mKinematicEnt->toggle_kinematic();
         mKinematicEnt->mBody->setIgnoreCollisionCheck( mPhysEnt->mBody.get(), true );
-        mKinematicEnt->add_to_world();
     }
 }
 
@@ -48,13 +52,33 @@ void entity::sync( void )
 
     auto do_update = [ this ]( physics_body* dest, const physics_body* src ) -> void
     {
-        btTransform tSrc;
-        src->motion_state().getWorldTransform( tSrc );
+        if ( dest->mMotionState && src->mMotionState )
+        {
+            btTransform tSrc;
+            src->motion_state().getWorldTransform( tSrc );
 
-        btTransform tDest;
-        dest->motion_state().getWorldTransform( tDest );
-        tDest.setOrigin( tSrc.getOrigin() );
-        dest->motion_state().setWorldTransform( tDest );
+            btTransform tDest;
+            dest->motion_state().getWorldTransform( tDest );
+            tDest.setOrigin( tSrc.getOrigin() );
+            dest->motion_state().setWorldTransform( tDest );
+        }
+        else if ( dest->mMotionState )
+        {
+            btTransform tDest;
+            dest->motion_state().getWorldTransform( tDest );
+            tDest.setOrigin( src->mBody->getCenterOfMassPosition() );
+            dest->motion_state().setWorldTransform( tDest );
+        }
+        else if ( src->mMotionState )
+        {
+            btTransform tSrc;
+            src->motion_state().getWorldTransform( tSrc );
+            dest->mBody->translate( tSrc.getOrigin() - dest->mBody->getCenterOfMassPosition() );
+        }
+        else
+        {
+            dest->mBody->translate( src->mBody->getCenterOfMassPosition() - dest->mBody->getCenterOfMassPosition() );
+        }
     };
 
     switch ( mMoveState )
