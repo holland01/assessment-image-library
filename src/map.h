@@ -8,6 +8,16 @@
 #include <set>
 #include <unordered_set>
 
+////-------------------------------------------------------------------------------------------------------
+//// brief
+///
+///  This file is used for map generation. Currently, the implementation uses a simple algorithm which is based
+///  off of rogue-like cave generation (mapped to a 3 dimensional axis). Everything is tile based,
+///  and a tile is represented via its (X, Z) coordinates (they only lie in the xz plane at the moment).
+///
+///  We partition different areas into specific regions, which will be used for portal based rendering techniques/space partitioning.
+////-------------------------------------------------------------------------------------------------------
+
 struct view_frustum;
 struct input_client;
 
@@ -189,13 +199,15 @@ public:
 
     static const int32_t TABLE_SIZE = GRID_SIZE * GRID_SIZE;
 
-    static const int32_t GRID_START = 0;
+    static const int32_t GRID_START = -50;
 
-    static const int32_t GRID_END = GRID_SIZE;
+    static const int32_t GRID_END = 50;
 
     static constexpr int32_t MIN_REGION_SIZE = int32_t( float( TABLE_SIZE ) * 0.01f );
 
     static constexpr float TRANSLATE_STRIDE = 2.0f; // for rendering
+
+    static constexpr float INV_TRANSLATE_STRIDE = 1.0f / TRANSLATE_STRIDE;
 
     using region_table_t = std::array< ref_tile_region_t, TABLE_SIZE >;
 
@@ -289,11 +301,23 @@ public:
 // util
 //-------------------------------------------------------------------------------------------------------
 
+template < typename type_t >
+INLINE type_t get_map_buffer_range( type_t x )
+{
+    return x + ( type_t )( 0.5f * float( map_tile_generator::GRID_SIZE ) );
+}
+
+template < typename type_t >
+INLINE type_t get_map_tile_range( int32_t x )
+{
+    return x - ( type_t )( 0.5f * float( map_tile_generator::GRID_SIZE ) );
+}
+
 template< typename type_t >
 static INLINE void get_tile_coords( type_t& x, type_t& z, const glm::vec3& v )
 {
-   x = ( type_t )( v.x * 0.5f );
-   z = ( type_t )( v.z * 0.5f );
+   x = ( type_t )( v.x * map_tile_generator::INV_TRANSLATE_STRIDE );
+   z = ( type_t )( v.z * map_tile_generator::INV_TRANSLATE_STRIDE );
 }
 
 static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile )
@@ -305,7 +329,7 @@ static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile )
                             y,
                             map_tile_generator::TRANSLATE_STRIDE * tile.mZ ) ) );
 
-    return std::move( t * tile.scale_transform() );
+    return t * tile.scale_transform();
 }
 
 

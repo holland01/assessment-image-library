@@ -137,6 +137,8 @@ void game::frame( void )
     draw();
 
     mWorld.clear_physics_entities();
+
+    printf( "Position: %s\n", glm::to_string( camera->position() ).c_str() );
 }
 
 void game::clear_entities( std::vector< entity* >& list )

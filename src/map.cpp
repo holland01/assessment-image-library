@@ -63,8 +63,18 @@ namespace {
         return glm::clamp( x, map_tile_generator::GRID_START, map_tile_generator::GRID_END - 1 );
     }
 
+    INLINE bool in_grid_range( int32_t x )
+    {
+        return map_tile_generator::GRID_START <= x && x < map_tile_generator::GRID_END;
+    }
+
 	INLINE int32_t tile_index( int32_t x, int32_t z )
     {
+        if ( map_tile_generator::GRID_START < 0 )
+        {
+            return get_map_buffer_range( z ) * map_tile_generator::GRID_SIZE + get_map_buffer_range( x );
+        }
+
         return z * map_tile_generator::GRID_SIZE + x;
     }
 
@@ -403,13 +413,15 @@ glm::vec3 map_tile_generator::scale_to_world( const glm::vec3& v )
 map_tile_generator::map_tile_generator( void )
     : mWallData( new map_wall_data() )
 {
+    static_assert( GRID_SIZE == GRID_END - GRID_START, "map_tile_generator::GRID_SIZE must be equal to map_tile_generator::GRID_END - map_tile_generator::GRID_START" );
+
     mTiles.resize( GRID_SIZE * GRID_SIZE );
 
     for ( uint32_t pass = 0; pass < GEN_PASS_COUNT; ++pass )
 	{
-		for ( uint32_t z = 0; z < GRID_SIZE; ++z )
+        for ( int32_t z = GRID_START; z < GRID_END; ++z )
 		{
-			for ( uint32_t x = 0; x < GRID_SIZE; ++x )
+            for ( int32_t x = GRID_START; x < GRID_END; ++x )
 			{
 				int32_t index = tile_index( x, z );
 
@@ -733,6 +745,12 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         int32_t endZ = ( zp > GRID_START )? GRID_END: GRID_START - 1;
         int32_t endX = ( xp > GRID_START )? GRID_END: GRID_START - 1;
 
+        if ( xp < 0 && endX >= 0 )
+            endX = -endX;
+
+        if ( zp < 0 && endZ >= 0 )
+            endZ = -endZ;
+
         // Move in that direction; a wall which is found in the X or Z direction marks the end,
         // of the X or Z value, respectively. For example, if x starts at 0, but has a wall at x = 5, z
         // starts at 0 and z has a wall at z = 5, then we have a region entirely within the area covered
@@ -940,6 +958,9 @@ void map_tile_generator::merge_regions( const region_merge_predicates_t& predica
 int32_t map_tile_generator::range_count( const map_tile& t, int32_t startOffset, int32_t endOffset )
 {
     int32_t count = 0;
+
+    startOffset = grid_range( startOffset );
+    endOffset = grid_range( endOffset );
 
     IterateTileRange( t, startOffset, endOffset, [ this, &count ]( const map_tile& tile, int32_t x, int32_t z )
     {
@@ -1162,26 +1183,20 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
     }
 
     const int32_t RADIUS = 10;
-    const int32_t startX = centerX - RADIUS;
-    const int32_t startZ = centerZ - RADIUS;
-    const int32_t endX = centerX + RADIUS;
-    const int32_t endZ = centerZ + RADIUS;
+    const int32_t startX = grid_range( centerX - RADIUS );
+    const int32_t startZ = grid_range( centerZ - RADIUS );
+    const int32_t endX = grid_range( centerX + RADIUS );
+    const int32_t endZ = grid_range( centerZ + RADIUS );
 
     uint32_t total = 0;
 
-    for ( int32_t z = startZ; z < endZ; ++z )
+    for ( int32_t z = startZ; z < endZ && in_grid_range( z ); ++z )
     {
-        if ( z >= ( int32_t ) GRID_SIZE )
-            break;
-
-        for ( int32_t x = startX; x < endX; ++x )
+        for ( int32_t x = startX; x < endX && in_grid_range( x ); ++x )
         {
-            if ( x >= ( int32_t ) GRID_SIZE )
-                break;
-
             total++;
 
-			int32_t index = tile_clamp_index( x, z );
+            int32_t index = tile_index( x, z );
 
             if ( mTiles[ index ].mType == map_tile::EMPTY )
                 continue;
@@ -1189,7 +1204,6 @@ void map_tile_generator::find_entities_radius( map_tile_list_t &billboards,
             // cull frustum, insert into appropriate type, etc.
             if ( !frustum.intersects( mTiles[ index ] ) )
                 continue;
-
 
             switch ( mTiles[ index ].mType )
             {
