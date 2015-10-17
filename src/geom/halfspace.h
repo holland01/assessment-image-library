@@ -12,7 +12,7 @@
 
 struct imm_draw;
 
-struct physics_entity;
+struct physics_body;
 
 struct halfspace
 {
@@ -26,7 +26,7 @@ public:
 
 	halfspace( const glm::mat3& axes, const glm::vec3& origin, float distance );
 
-    halfspace( const physics_entity& physEnt, const glm::vec3& normal );
+    halfspace( const physics_body& physEnt, const glm::vec3& normal );
 
     halfspace( const halfspace& c );
 

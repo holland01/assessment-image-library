@@ -74,7 +74,7 @@ Product {
 
         linkFlags.push("-L" + qbs.getEnv("DEVLIB_ROOT") + "/bullet3/bin");
 
-        var bulletSuffix = "_gmake_x64_release";
+        var bulletSuffix = "_gmake_x64_debug";
 
         var bulletLibs = [
             "-lBulletDynamics",
@@ -102,6 +102,7 @@ Product {
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
+        "../src/bullet_ext.hpp",
         "../src/current.todo",
         "../src/debug.cpp",
         "../src/debug.h",
@@ -133,8 +134,8 @@ Product {
         "../src/map.h",
         "../src/map.inl",
         "../src/opengl.h",
-        "../src/physics_entity.cpp",
-        "../src/physics_entity.h",
+        "../src/physics_body.cpp",
+        "../src/physics_body.h",
         "../src/physics_simulation.cpp",
         "../src/physics_simulation.h",
         "../src/physics_world.cpp",

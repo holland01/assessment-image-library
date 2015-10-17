@@ -6,44 +6,69 @@
 // entity_bounds_primitive_t
 //-------------------------------------------------------------------------------------------------------
 
-entity::entity(const glm::vec4& color )
+entity::entity( const glm::vec4& color )
     : mPhysEnt( nullptr ),
+      mKinematicEnt( nullptr ),
+      mMoveState( entity_move_state::automatic ),
       mColor( color ),
       mSize( 1.0f )
 {
 }
 
-void entity::orient_to( const glm::vec3& v )
+void entity::toggle_kinematic( void )
 {
-    if ( !mPhysEnt )
-        return;
+    if ( !mKinematicEnt )
+    {
+        btCollisionShape* box = new btBoxShape( mPhysEnt->box_shape()->getHalfExtentsWithMargin() );
 
-    btDefaultMotionState& motionState = mPhysEnt->motion_state();
+        btTransform t;
+        mPhysEnt->motion_state().getWorldTransform( t );
 
-    btTransform worldTrans;
-    motionState.getWorldTransform( worldTrans );
+        btMotionState* ms = new btDefaultMotionState( t );
 
-    glm::vec3 boundsOrigin( glm::ext::from_bullet( worldTrans.getOrigin() ) );
+        btRigidBody* kinematicBody = new btRigidBody(
+                    btRigidBody::btRigidBodyConstructionInfo( mPhysEnt->mass(),
+                                                              ms,
+                                                              box ) );
 
-    glm::vec3 dir( v - boundsOrigin );
-    dir.y = 0.0f;
-    dir = glm::normalize( dir );
+        mKinematicEnt.reset( new physics_body( box,
+                                                 ms,
+                                                 kinematicBody ) );
 
-    glm::mat3 orient(
-        orient_by_direction(
-                dir,
-                glm::vec3( 0.0f, 0.0f, 1.0f ),
-                glm::vec3( -1.0f, 0.0f, 0.0f )
-        )
-    );
-
-    glm::quat q( glm::quat_cast( orient ) );
-    worldTrans.setRotation( glm::ext::to_bullet( q ) );
-    motionState.setWorldTransform( worldTrans );
+        mKinematicEnt->toggle_kinematic();
+        mKinematicEnt->mBody->setIgnoreCollisionCheck( mPhysEnt->mBody.get(), true );
+        mKinematicEnt->add_to_world();
+    }
 }
 
 void entity::sync( void )
 {
-    if ( !mPhysEnt || !mPhysEnt->mMotionState )
+    if ( !mPhysEnt || !mKinematicEnt )
         return;
+
+    auto do_update = [ this ]( physics_body* dest, const physics_body* src ) -> void
+    {
+        btTransform tSrc;
+        src->motion_state().getWorldTransform( tSrc );
+
+        btTransform tDest;
+        dest->motion_state().getWorldTransform( tDest );
+        tDest.setOrigin( tSrc.getOrigin() );
+        dest->motion_state().setWorldTransform( tDest );
+    };
+
+    switch ( mMoveState )
+    {
+        case entity_move_state::automatic:
+        {
+            do_update( mKinematicEnt.get(), mPhysEnt.get() );
+        }
+            break;
+
+        case entity_move_state::manual:
+        {
+            do_update( mPhysEnt.get(), mKinematicEnt.get() );
+        }
+            break;
+    }
 }

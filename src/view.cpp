@@ -106,7 +106,7 @@ namespace {
 
 bool view_frustum::intersects( const entity& e ) const
 {
-    const std::vector< glm::vec3 > ePoints( std::move( e.physics_data().world_space_points() ) );
+    const std::vector< glm::vec3 > ePoints( std::move( e.normal_body().world_space_points() ) );
 
 	// Test each corner against every plane normal
 	for ( int i = 0; i < 4; ++i )

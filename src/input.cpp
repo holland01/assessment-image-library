@@ -1,5 +1,6 @@
 #include "input.h"
 #include <glm/gtx/string_cast.hpp>
+#include "bullet_ext.hpp"
 
 static const float MOUSE_SENSE = 0.1f;
 
@@ -165,6 +166,20 @@ bool input_client::eval_key_release( input_key key )
     return pressed;
 }
 
+void input_client::add_dir( const glm::vec3& dir, float scale )
+{
+    glm::vec3 f( dir * scale );
+
+    if ( mPhysEnt )
+    {
+        mPhysEnt->mBody->translate( glm::ext::to_bullet( f ) );
+    }
+    else
+    {
+        mViewParams.mOrigin += f;
+    }
+}
+
 void input_client::update_view_data( void )
 {
     if ( mMode == MODE_PLAY )
@@ -210,14 +225,14 @@ void input_client::sync( void )
 {
     if ( mPhysEnt && mPhysEnt->mBody )
     {
-        const btDefaultMotionState& ms = mPhysEnt->motion_state();
+        update_view_data();
+
+        const btMotionState& ms = mPhysEnt->motion_state();
 
         btTransform worldT;
         ms.getWorldTransform( worldT );
 
         glm::mat4 gBasis( glm::ext::from_bullet( worldT ) );
-
-        update_view_data();
 
         mViewParams.mTransform = mViewParams.mOrientation * glm::inverse( gBasis );
         mViewParams.mOrigin = glm::vec3( gBasis[ 3 ] );
@@ -232,7 +247,8 @@ void input_client::sync( void )
 
 void input_client::set_physics( float mass, const glm::mat4& orientAndTranslate )
 {
-    mPhysEnt.reset( new physics_entity( mass, orientAndTranslate, glm::vec3( 1.0f ) ) );
+    mPhysEnt.reset( new physics_body( mass, orientAndTranslate, glm::vec3( 1.0f ) ) );
+    mPhysEnt->set_activation_state( DISABLE_DEACTIVATION );
 }
 
 void input_client::print_origin( void ) const

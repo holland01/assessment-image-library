@@ -363,13 +363,22 @@ map_tile::map_tile( void )
 
 void map_tile::set( const glm::mat4& transform )
 {
+    if ( mPhysEnt )
+    {
+        mPhysEnt->remove_from_world();
+    }
+
     float mass = mType == map_tile::BILLBOARD? 150.0f: 0.0f;
 
-    mPhysEnt.reset( new physics_entity( mass, transform, glm::vec3( 1.0f ) ) );
+    mPhysEnt.reset( new physics_body( mass, transform, glm::vec3( 1.0f ) ) );
 
     if ( mType == map_tile::BILLBOARD )
     {
-        mPhysEnt->toggle_kinematic();
+        toggle_kinematic();
+    }
+    else if ( mType == map_tile::WALL )
+    {
+        mPhysEnt->toggle_static();
     }
 }
 
@@ -595,28 +604,28 @@ void map_tile_generator::try_gen_halfspace( map_tile* wall )
     if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
          && ( wall->mX - 1 ) >= 0 )
     {
-        halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::left );
+        halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::left );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
          && ( wall->mZ - 1 ) >= 0 )
     {
-        halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::forward );
+        halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::forward );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
          && ( wall->mX + 1 ) < GRID_SIZE )
     {
-        halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::right );
+        halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::right );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
          && ( wall->mZ + 1 ) < GRID_SIZE )
     {
-        halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->physics_data(), collision_face_type::back );
+        halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::back );
         hasHalfSpace = true;
     }
 

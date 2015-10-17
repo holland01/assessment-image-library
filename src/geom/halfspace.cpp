@@ -1,7 +1,7 @@
 #include "halfspace.h"
 #include "../renderer.h"
 #include "geom_util.h"
-#include "../physics_entity.h"
+#include "../physics_body.h"
 
 namespace {
     void shape_deleter( btBox2dShape* s )
@@ -22,7 +22,7 @@ halfspace::halfspace( const glm::mat3& axes, const glm::vec3& origin, float dist
 {
 }
 
-halfspace::halfspace( const physics_entity& physEnt, const glm::vec3& normal )
+halfspace::halfspace( const physics_body& physEnt, const glm::vec3& normal )
 	: halfspace( glm::mat3( 1.0f ), glm::vec3( 0.0f ), 0.0f )
 {
     btTransform physEntTrans;

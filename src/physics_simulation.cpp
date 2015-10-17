@@ -1,7 +1,7 @@
 #include "physics_simulation.h"
 #include "debug_app.h"
 #include "application_update.h"
-#include "physics_entity.h"
+#include "physics_body.h"
 #include <bullet3/btBulletDynamicsCommon.h>
 
 using namespace std;
@@ -40,7 +40,7 @@ namespace {
         unique_ptr< btRigidBody > mGroundRigidBody, mFallRigidBody, mFall2RigidBody;
         unique_ptr< btSliderConstraint > mSliderConst;
 
-        std::array< physics_entity, 4 > mWalls;
+        std::array< physics_body, 4 > mWalls;
 
         physics_sys( void )
             : mBroadphase( new btDbvtBroadphase() ),
@@ -123,7 +123,7 @@ namespace {
                                                                    btVector3( 0, 0, 0 ) ) );
 
 
-                mWalls[ i ] = physics_entity( shape, motionState, body );
+                mWalls[ i ] = physics_body( shape, motionState, body );
 
                 mDynamics->addRigidBody( body );
             }

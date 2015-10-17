@@ -143,7 +143,7 @@ void game::clear_entities( std::vector< entity* >& list )
 {
     for ( entity* e: list )
     {
-        e->physics_data().remove_from_world( mWorld );
+        e->normal_body().remove_from_world();
     }
 
     game_app_t::clear_entities( list );
@@ -167,7 +167,7 @@ namespace {
             {
                 if ( g.billboard_oriented( *t ) )
                 {
-                    t->orient_to( g.camera->view_params().mOrigin );
+                    t->orient_kinematic_to( g.camera->view_params().mOrigin );
                 }
             }
         }
@@ -185,7 +185,7 @@ void game::fill_entities( std::vector< entity* >& list ) const
         for ( entity* e: mapTileList )
         {
             list.push_back( e );
-            e->physics_data().add_to_world( mWorld );
+            e->normal_body().add_to_world();
         }
     };
 
@@ -194,7 +194,7 @@ void game::fill_entities( std::vector< entity* >& list ) const
         if ( e )
         {
             list.push_back( e );
-            e->physics_data().add_to_world( mWorld );
+            e->normal_body().add_to_world();
         }
     };
 
@@ -295,7 +295,7 @@ INLINE void draw_tiles( const game_app_t& game,
 {
     for ( const map_tile* tile: tiles )
     {
-        tile->physics_data().draw( "colored_cube", "single_color",
+        tile->normal_body().draw( "colored_cube", "single_color",
                                    game.camera->view_params(),
                                    glm::vec4( color, alpha ) );
     }
@@ -355,7 +355,7 @@ void draw_regions( game& g, bool drawAdjacent = false )
 
 INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
 {
-    const glm::mat4 wT( tile.physics_data().world_transform() );
+    const glm::mat4 wT( tile.kinematic_body().world_transform() );
 
     glm::vec3 boundsOrigin( wT[ 3 ] );
 
@@ -394,8 +394,8 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
         // Draw forward direction
         {
             btTransform wT;
-            tile->physics_data().motion_state().getWorldTransform( wT );
-            const btMatrix3x3& orientation = wT.getBasis();;
+            tile->kinematic_body().motion_state().getWorldTransform( wT );
+            const btMatrix3x3& orientation = wT.getBasis();
 
             d.begin( GL_LINES );
             d.vertex( glm::vec3( 0.0f ) );
@@ -403,7 +403,7 @@ void process_billboards( game& game, const view_data& vp, map_tile_list_t& billb
             d.end();
         }
         if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
-            tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
+            tile->normal_body().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
 
         billboard.bind();
     }
@@ -434,7 +434,7 @@ static void draw_group( game& game,
     {
         for ( const map_tile* tile: walls )
         {
-            tile->physics_data().draw( "colored_cube", "single_color", game.camera->view_params(), glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
+            tile->normal_body().draw( "colored_cube", "single_color", game.camera->view_params(), glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
         }
     }
 

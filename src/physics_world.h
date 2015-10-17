@@ -5,11 +5,11 @@
 #include <vector>
 #include <bullet3/btBulletCollisionCommon.h>
 #include <bullet3/btBulletDynamicsCommon.h>
-#include "physics_entity.h"
+#include "physics_body.h"
 
 struct physics_world
 {
-    friend struct physics_entity;
+    friend struct physics_body;
 
     using rigid_info_t = btRigidBody::btRigidBodyConstructionInfo;
 
@@ -21,9 +21,9 @@ private:
     std::unique_ptr< btSequentialImpulseConstraintSolver > mSolver;
     std::unique_ptr< btDiscreteDynamicsWorld > mDynamics;
 
-    std::vector< const physics_entity* > mPhysEntities;
+    std::vector< const physics_body* > mPhysEntities;
 
-    physics_entity mGround;
+    physics_body mGround;
 
 public:
 

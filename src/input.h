@@ -7,6 +7,8 @@
 #include "entity.h"
 #include "view.h"
 
+// Simple API for first-person camera, using bullet physics bodies for physics/collision/etc.
+
 enum class input_key : uint32_t
 {
 #ifdef EMSCRIPTEN
@@ -98,20 +100,6 @@ INLINE glm::vec3 input_client::calc_direction( const glm::vec3& d ) const
     // with the inverse orientation transform computed from the camera already;
     // this avoids a double transformation which screws things up.
     return world_direction( d );
-}
-
-INLINE void input_client::add_dir( const glm::vec3& dir, float scale )
-{
-    glm::vec3 f( dir * scale );
-
-    if ( mPhysEnt )
-    {
-        mPhysEnt->mBody->translate( glm::ext::to_bullet( f ) );
-    }
-    else
-    {
-        mViewParams.mOrigin += f;
-    }
 }
 
 INLINE glm::vec3 input_client::world_direction( const glm::vec3& v ) const
