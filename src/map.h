@@ -31,7 +31,7 @@ using shared_tile_region_t = std::shared_ptr< map_tile_region >;
 
 struct region_merge_predicates_t;
 
-static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile );
+static INLINE glm::mat4 map_get_tile_start_transform( const map_tile& tile );
 
 //-------------------------------------------------------------------------------------------------------
 // adjacent_region_t
@@ -121,7 +121,7 @@ public:
 INLINE void map_tile::set( map_tile_type newType )
 {
     mType = newType;
-    set( get_tile_start_transform( *this ) );
+    set( map_get_tile_start_transform( *this ) );
 }
 
 INLINE void map_tile::owner( shared_tile_region_t& r ) const
@@ -302,27 +302,27 @@ public:
 //-------------------------------------------------------------------------------------------------------
 
 template < typename type_t >
-INLINE type_t get_map_buffer_range( type_t x )
+INLINE type_t map_get_map_buffer_range( type_t x )
 {
     return x + ( type_t )( 0.5f * float( map_tile_generator::GRID_SIZE ) );
 }
 
 template < typename type_t >
-INLINE type_t get_map_tile_range( int32_t x )
+INLINE type_t map_get_map_tile_range( int32_t x )
 {
     return x - ( type_t )( 0.5f * float( map_tile_generator::GRID_SIZE ) );
 }
 
 template< typename type_t >
-static INLINE void get_tile_coords( type_t& x, type_t& z, const glm::vec3& v )
+static INLINE void map_get_tile_coords( type_t& x, type_t& z, const glm::vec3& v )
 {
    x = ( type_t )( v.x * map_tile_generator::INV_TRANSLATE_STRIDE );
    z = ( type_t )( v.z * map_tile_generator::INV_TRANSLATE_STRIDE );
 }
 
-static INLINE glm::mat4 get_tile_start_transform( const map_tile& tile )
+static INLINE glm::mat4 map_get_tile_start_transform( const map_tile& tile )
 {
-    float y = tile.mType == map_tile::WALL? 1.0f: 10.0f;
+    float y = tile.mType == map_tile::BILLBOARD? 10.0f: 1.0f;
 
     glm::mat4 t( glm::translate( glm::mat4( 1.0f ),
                  glm::vec3( map_tile_generator::TRANSLATE_STRIDE * tile.mX,

@@ -24,7 +24,7 @@ physics_world::physics_world( void )
                }() ) )
 {
     mDynamics->setGravity( btVector3( 0, -1.0f, 0 ) );
-    mDynamics->setSynchronizeAllMotionStates( true );
+  //  mDynamics->setSynchronizeAllMotionStates( true );
     physics_body::set_physics_world( *this );
     mGround.add_to_world();
 }

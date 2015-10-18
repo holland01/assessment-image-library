@@ -53,12 +53,12 @@ namespace {
 
 	std::unordered_map< std::string, uint32_t > gTestConfig =
     {
-        { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS },
+        { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS | DRAW_REGIONS_BOUNDS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES },
-        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_CANCEL_REGIONS }
+        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_WALLS | DRAW_REGIONS_ADJACENT }
     };
 
-    uint32_t gTestFlags = gTestConfig[ "default" ];
+    uint32_t gTestFlags = gTestConfig[ "bounds_tiles_test" ];
 }
 
 game::game( uint32_t width, uint32_t height )
@@ -76,6 +76,7 @@ game::game( uint32_t width, uint32_t height )
     spec.set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 10.0f, 0.0f ) ) );
     spec.toggle_kinematic( false );
     spec.flip_move_state();
+    spec.move_step( 1.0f );
 }
 
 void game::fill_orient_map( void )
@@ -300,7 +301,7 @@ INLINE void draw_tiles( const game_app_t& game,
 {
     for ( const map_tile* tile: tiles )
     {
-        tile->normal_body().draw( "colored_cube", "single_color",
+         tile->normal_body().draw( "colored_cube", "single_color",
                                    game.camera->view_params(),
                                    glm::vec4( color, alpha ) );
     }
@@ -444,9 +445,7 @@ static void draw_group( game& game,
     }
 
 	if ( gTestFlags & DRAW_BILLBOARDS )
-    {
         process_billboards( game, vp, billboards );
-    }
 
     singleColor.bind();
     singleColor.load_mat4( "modelToView", vp.mTransform );
@@ -483,9 +482,12 @@ static void draw_group( game& game,
 
     frameCount += 1.0f;
 
-    if ( regionIter == game.gen->mRegions.size() )
+    if ( frameCount >= 60.0f )
     {
-        regionIter = 0;
+        frameCount = 0.0f;
+
+        if ( ++regionIter == game.gen->mRegions.size() )
+            regionIter = 0;
     }
 
     singleColor.release();

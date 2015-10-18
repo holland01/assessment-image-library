@@ -72,7 +72,7 @@ namespace {
     {
         if ( map_tile_generator::GRID_START < 0 )
         {
-            return get_map_buffer_range( z ) * map_tile_generator::GRID_SIZE + get_map_buffer_range( x );
+            return map_get_map_buffer_range( z ) * map_tile_generator::GRID_SIZE + map_get_map_buffer_range( x );
         }
 
         return z * map_tile_generator::GRID_SIZE + x;
@@ -118,52 +118,45 @@ namespace {
         if ( !predicates.entry( merged ) ) return;
         if ( currDepth == maxDepth ) return;
 
-        auto r = region.lock();
-        if ( !r )
-        {
+        auto candidate = region.lock();
+        if ( !candidate )
             return;
-        }
 
-        if ( merged->mTiles.size() < r->mTiles.size() )
-        {
-            merged->mOrigin = r->mOrigin;
-        }
+        // Can't remember why we take on the origin of the larger region...
+        if ( merged->mTiles.size() < candidate->mTiles.size() )
+            merged->mOrigin = candidate->mOrigin;
 
-        merge_regions( merged, r.get() );
+        merge_regions( merged, candidate.get() );
 
         std::vector< ref_tile_region_t > checkList;
 
-        for ( auto i = r->mAdjacent.begin(); i != r->mAdjacent.end(); ++i )
+        // Grab all regions adjacent to our candidate; we then try and absorb those regions as well...
+        for ( auto i = candidate->mAdjacent.begin(); i != candidate->mAdjacent.end(); ++i )
         {
             {
                 auto adj = ( *i ).mRegion.lock();
 
                 if ( !adj )
-                {
                     continue;
-                }
 
                 if ( !predicates.adjacent( merged, adj ) )
-                {
                     continue;
-                }
             }
 
             checkList.push_back( ( *i ).mRegion );
-
         }
 
-        r->mAdjacent.clear();
+        candidate->mAdjacent.clear();
 
+        // Absorb those in checkList into our merged region. Use these regions to extend out to other regions
+        // until we've hit our maxDepth as well.
         for ( ref_tile_region_t a: checkList )
-        {
             merge( merged, a, predicates, currDepth + 1, maxDepth );
-        }
     }
 
     using iteration_fn_t = std::function< void( const map_tile& t, int32_t x, int32_t z ) >;
 
-    void IterateTileRange( const map_tile& t, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
+    void iterate_tile_range( const map_tile& t, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
     {
         int32_t add = 1;
 
@@ -187,17 +180,17 @@ namespace {
         }
     }
 
-    void IterateTileListRange( std::vector< const map_tile* >& tiles, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
+    void iterate_tile_list_range( std::vector< const map_tile* >& tiles, int32_t startOffset, int32_t endOffset, iteration_fn_t process )
     {
         for ( const map_tile* t: tiles )
         {
-            IterateTileRange( *t, startOffset, endOffset, process );
+            iterate_tile_range( *t, startOffset, endOffset, process );
         }
     }
 
     using integration_fn_t = std::function< void( float x, float fx, float gx ) >;
 
-    void IntegrateTiles( const std::vector< const map_tile* >& functionTiles, integration_fn_t F )
+    void integrate_tiles( const std::vector< const map_tile* >& functionTiles, integration_fn_t F )
     {
         uint32_t i = 0;
 
@@ -217,7 +210,7 @@ namespace {
 
     // Origin of a region is basically it's centroid. We find it
     // using poor man's integration...
-    bool ComputeOrigin( ref_tile_region_t region, const std::vector< map_tile >& tiles )
+    bool compute_origin( ref_tile_region_t region, const std::vector< map_tile >& tiles )
     {
         auto p = region.lock();
         if ( !p )
@@ -250,14 +243,14 @@ namespace {
         });
 
         float area = 0.0f;
-        IntegrateTiles( sorted, [ &area ]( float x, float fx, float gx )
+        integrate_tiles( sorted, [ &area ]( float x, float fx, float gx )
         {
             UNUSEDPARAM( x );
             area += fx - gx;
         });
 
         glm::vec2 v( 0.0f );
-        IntegrateTiles( sorted, [ &v ]( float x, float fx, float gx )
+        integrate_tiles( sorted, [ &v ]( float x, float fx, float gx )
         {
             v.x += x * ( fx - gx );
             v.y += ( fx + gx ) * 0.5f * ( fx - gx );
@@ -268,19 +261,19 @@ namespace {
         // Flooring or ceiling v may or may not produce better values -- not sure.
         glm::ivec2 index( glm::round( v ) );
 
-        assert( index.x < map_tile_generator::GRID_SIZE );
-        assert( index.y < map_tile_generator::GRID_SIZE );
+        assert( in_grid_range( index.x ) );
+        assert( in_grid_range( index.y ) );
 
 		p->mOrigin = &tiles[ tile_index( index.x, index.y ) ];
 
         return true;
     }
 
-    void PurgeFromAdjacent( std::vector< shared_tile_region_t >& regions, const shared_tile_region_t& target )
+    void purge_from_adjacent( std::vector< shared_tile_region_t >& regions, const shared_tile_region_t& target )
     {
         using predicate_t = std::function< bool( const adjacent_region& ) >;
 
-        auto LEraseIf = [ &target ]( const adjacent_region& br ) -> bool
+        auto erase_if = [ &target ]( const adjacent_region& br ) -> bool
         {
             return br.mRegion.lock() == target;
         };
@@ -288,14 +281,12 @@ namespace {
         for ( shared_tile_region_t& r: regions )
         {
             if ( r )
-            {
-                vector_erase_if< adjacent_region, predicate_t >( r->mAdjacent, LEraseIf );
-            }
+                vector_erase_if< adjacent_region, predicate_t >( r->mAdjacent, erase_if );
         }
     }
 
     // Basic assertions we run at the end of generation
-    bool GeneratorTest( map_tile_generator& gen )
+    bool generator_test( map_tile_generator& gen )
     {
         for ( ref_tile_region_t ref: gen.mRegions )
         {
@@ -372,24 +363,20 @@ map_tile::map_tile( void )
 }
 
 void map_tile::set( const glm::mat4& transform )
-{
+{ 
     if ( mPhysEnt )
-    {
         mPhysEnt->remove_from_world();
-    }
 
     float mass = mType == map_tile::BILLBOARD? 150.0f: 0.0f;
 
     mPhysEnt.reset( new physics_body( mass, transform, glm::vec3( 1.0f ) ) );
 
     if ( mType == map_tile::BILLBOARD )
-    {
         toggle_kinematic();
-    }
     else if ( mType == map_tile::WALL )
-    {
         mPhysEnt->toggle_static();
-    }
+    else
+        mPhysEnt->set_activation_state( DISABLE_SIMULATION );
 }
 
 void map_tile::add_halfspace_lookup( int32_t index )
@@ -484,7 +471,7 @@ map_tile_generator::map_tile_generator( void )
         merge_regions( predicates, 6 );
     }
 
-    // Merging kills all original regions (mostly), so we need to do this a second time
+    // Merging kills all original regions (mostly), so we need to do this again
     find_adjacent_regions();
 
     {
@@ -506,12 +493,13 @@ map_tile_generator::map_tile_generator( void )
         merge_regions( predicates, 4 );
     }
 
+    // last time...
     find_adjacent_regions();
 
     purge_defunct_regions();
 
     using transfer_predicate_t = std::function< bool( map_tile* ) >;
-    transfer_predicate_t LDoSwapIf = [ this ]( map_tile* t ) -> bool
+    transfer_predicate_t do_swap_if = [ this ]( map_tile* t ) -> bool
     {
         bool needsSwap = !t->owned();
 
@@ -524,8 +512,8 @@ map_tile_generator::map_tile_generator( void )
         return needsSwap;
     };
 
-    vector_transfer_if< map_tile*, transfer_predicate_t >( mWalls, mFreeSpace, LDoSwapIf );
-    vector_transfer_if< map_tile*, transfer_predicate_t >( mWalls, mBillboards, LDoSwapIf );
+    vector_transfer_if< map_tile*, transfer_predicate_t >( mWalls, mFreeSpace, do_swap_if );
+    vector_transfer_if< map_tile*, transfer_predicate_t >( mWalls, mBillboards, do_swap_if );
 
     // Compute tile boundries for every region
     for ( ref_tile_region_t region: mRegions )
@@ -536,7 +524,7 @@ map_tile_generator::map_tile_generator( void )
         // NOTE: it's important to remember that, since we're searching [ x - 1, x + 1 ] and [ z - 1, z + 1 ]
         // entirely, that tiles which are only diagnolly adjacent to either a wall or a different region
         // will also be added. This may or may not be desired.
-        IterateTileListRange( r->mTiles, -1, 1, [ this, &r ]( const map_tile& tile, int32_t x, int32_t z )
+        iterate_tile_list_range( r->mTiles, -1, 1, [ this, &r ]( const map_tile& tile, int32_t x, int32_t z )
         {
 			int32_t index = tile_clamp_index( x, z );
             auto r0 = mTiles[ index ].owner().lock();
@@ -563,10 +551,9 @@ map_tile_generator::map_tile_generator( void )
                     // We'll be testing wall collisions
                     // in the region's quad tree, so it's important that
                     // we don't add any walls which lack half spaces
+                    // FIXME: quad tree has been removed - is this check still necessary?
                     if ( t->mHalfSpaceIndex < 0 )
-                    {
                         return;
-                    }
 
                     // If we already have an adjacent_wall_t member, add it to the adjacency list.
                     // Otherwise, create a new one.
@@ -594,11 +581,11 @@ map_tile_generator::map_tile_generator( void )
     // Do an integration...
     for ( ref_tile_region_t region: mRegions )
     {
-        bool success = ComputeOrigin( region, mTiles );
+        bool success = compute_origin( region, mTiles );
         assert( success );
     }
 
-    assert( GeneratorTest( *this ) );
+    assert( generator_test( *this ) );
 }
 
 void map_tile_generator::try_gen_halfspace( map_tile* wall )
@@ -614,28 +601,28 @@ void map_tile_generator::try_gen_halfspace( map_tile* wall )
     bool hasHalfSpace = false;
 
     if ( glm::ext::bound_range_max( left, 0, TABLE_SIZE ) && mTiles[ left ].mType != map_tile::WALL
-         && ( wall->mX - 1 ) >= 0 )
+         && in_grid_range( wall->mX - 1 ) )
     {
         halfSpaces[ collision_face_type::left ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::left );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( forward, 0, TABLE_SIZE ) && mTiles[ forward ].mType != map_tile::WALL
-         && ( wall->mZ - 1 ) >= 0 )
+         && in_grid_range( wall->mZ - 1 ) )
     {
         halfSpaces[ collision_face_type::forward ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::forward );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( right, 0, TABLE_SIZE ) && mTiles[ right ].mType != map_tile::WALL
-         && ( wall->mX + 1 ) < GRID_SIZE )
+         && in_grid_range( wall->mX + 1 ) )
     {
         halfSpaces[ collision_face_type::right ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::right );
         hasHalfSpace = true;
     }
 
     if ( glm::ext::bound_range_max( back, 0, TABLE_SIZE ) && mTiles[ back ].mType != map_tile::WALL
-         && ( wall->mZ + 1 ) < GRID_SIZE )
+         && in_grid_range( wall->mZ + 1 ) )
     {
         halfSpaces[ collision_face_type::back ] = ( int32_t )mWallData->gen_half_space( wall->normal_body(), collision_face_type::back );
         hasHalfSpace = true;
@@ -659,7 +646,7 @@ namespace {
 shared_tile_region_t map_tile_generator::fetch_region( const glm::vec3& p )
 {
     int32_t x, z;
-    get_tile_coords( x, z, p );
+    map_get_tile_coords( x, z, p );
 
 	auto pRegion = mTiles[ tile_index( x, z ) ].owner().lock();
 
@@ -690,7 +677,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 
     shared_tile_region_t regionPtr( new map_tile_region( tile ) );
 
-    auto LSetTableEntry = []( shared_tile_region_t& region, const map_tile& t )
+    auto set_table_entry = []( shared_tile_region_t& region, const map_tile& t )
     {
         t.owner( region );
         region->mTiles.push_back( &t );
@@ -699,16 +686,12 @@ bool map_tile_generator::find_regions( const map_tile* tile )
     for ( int32_t i = 0; i < ( int32_t ) hst.size(); ++i )
     {
         if ( hst[ i ] < 0 )
-        {
             continue;
-        }
 
         int32_t j = ( i + 1 ) % hst.size();
 
         if ( hst[ j ] < 0 )
-        {
             continue;
-        }
 
         glm::mat3 axi( mWallData->mHalfSpaces[ hst[ i ] ].axes() );
         glm::mat3 axj( mWallData->mHalfSpaces[ hst[ j ] ].axes() );
@@ -719,23 +702,17 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 
         int32_t zp, xp;
 
+        // The non-zero component indicates the direction of our normal, which is either
+        // paralell or perpendicular to the world axes
         if ( e1.x != 0.0f )
-        {
             xp = int32_t( e1.x );
-        }
         else
-        {
             zp = int32_t( e1.z );
-        }
 
         if ( e2.x != 0.0f )
-        {
             xp = int32_t( e2.x );
-        }
         else
-        {
             zp = int32_t( e2.z );
-        }
 
         const map_tile* zWall = nullptr;
         const map_tile* xWall = nullptr;
@@ -745,6 +722,7 @@ bool map_tile_generator::find_regions( const map_tile* tile )
         int32_t endZ = ( zp > GRID_START )? GRID_END: GRID_START - 1;
         int32_t endX = ( xp > GRID_START )? GRID_END: GRID_START - 1;
 
+        // Prevent infinite loops
         if ( xp < 0 && endX >= 0 )
             endX = -endX;
 
@@ -760,32 +738,24 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 			const map_tile& ztest = mTiles[ tile_index( tile->mX, z ) ];
 
             if ( ztest.mType == map_tile::WALL && !zWall && &ztest != tile )
-            {
                 zWall = &ztest;
-            }
 
             for ( int32_t x = tile->mX; x != endX; x += xp )
             {
 				const map_tile& xtest = mTiles[ tile_index( x, tile->mZ ) ];
 
                 if ( xtest.mType == map_tile::WALL && !xWall && &xtest != tile )
-                {
                     xWall = &xtest;
-                }
 
 				int32_t index = tile_index( x, z );
 
                 const map_tile& t = mTiles[ index ];
 
                 if ( &t == xWall )
-                {
                     break;
-                }
 
                 if ( &t == tile || t.mType == map_tile::WALL )
-                {
                     continue;
-                }
 
                 // If a region is already active here,
                 // it's important that we only swap tiles
@@ -824,23 +794,21 @@ bool map_tile_generator::find_regions( const map_tile* tile )
                     }
                     else
                     {
-                        LSetTableEntry( regionPtr, t );
+                        set_table_entry( regionPtr, t );
                     }
                 }
 
                 for ( const region_swap_entry_t& e: regionSwaps )
                 {
                     vector_remove_ptr< const map_tile* >( regionToSwap->mTiles, e.t );
-                    LSetTableEntry( regionPtr, *e.t );
+                    set_table_entry( regionPtr, *e.t );
                 }
             }
 
             // finding zWall implies a last iteration;
             // Since the x has finished, we're pretty much done here
             if ( zWall )
-            {
                 break;
-            }
         }
     }
 
@@ -851,14 +819,12 @@ bool map_tile_generator::find_regions( const map_tile* tile )
 
 void map_tile_generator::find_adjacent_regions( void )
 {
-    // Clear out any prior adjacent regions
+    // Any prior adjacent regions are useless now.
     for ( ref_tile_region_t ref: mRegions )
     {
         auto p = ref.lock();
         if ( p )
-        {
             p->mAdjacent.clear();
-        }
     }
 
     // Find all regions which lie adjacent to each individual region
@@ -869,7 +835,7 @@ void map_tile_generator::find_adjacent_regions( void )
         assert( r0 );
 
         // For every tile in r0, look for adjacent tiles which reside in a different region than r0.
-        IterateTileListRange( r0->mTiles, -1, 1, [ this, &r0, &unique ]( const map_tile& t, int32_t x, int32_t z )
+        iterate_tile_list_range( r0->mTiles, -1, 1, [ this, &r0, &unique ]( const map_tile& t, int32_t x, int32_t z )
         {
             UNUSEDPARAM( t );
 
@@ -895,9 +861,7 @@ void map_tile_generator::find_adjacent_regions( void )
         {
             assert( r.mRegion != region );
             if ( !vector_contains( r0->mAdjacent, r ) )
-            {
                 r0->mAdjacent.push_back( r );
-            }
         }
     }
 }
@@ -923,7 +887,7 @@ void map_tile_generator::purge_defunct_regions( void )
 
             r = mRegions.erase( r );
 
-            PurgeFromAdjacent( mRegions, p );
+            purge_from_adjacent( mRegions, p );
         }
         else
         {
@@ -943,9 +907,7 @@ void map_tile_generator::merge_regions( const region_merge_predicates_t& predica
         merge( mergeRegion, region, predicates, 0, maxDepth );
 
         if ( mergeRegion->mTiles.empty() )
-        {
             continue;
-        }
 
         merged.push_back( std::move( mergeRegion ) );
     }
@@ -962,7 +924,7 @@ int32_t map_tile_generator::range_count( const map_tile& t, int32_t startOffset,
     startOffset = grid_range( startOffset );
     endOffset = grid_range( endOffset );
 
-    IterateTileRange( t, startOffset, endOffset, [ this, &count ]( const map_tile& tile, int32_t x, int32_t z )
+    iterate_tile_range( t, startOffset, endOffset, [ this, &count ]( const map_tile& tile, int32_t x, int32_t z )
     {
         UNUSEDPARAM( tile );
 
@@ -1023,7 +985,7 @@ void map_tile_generator::make_tile( map_tile& tile, int32_t pass )
     if ( pass == GEN_PASS_COUNT - 1 )
 	{
         tile.mSize = glm::vec3( 1.0f );
-        tile.set( get_tile_start_transform( tile ) );
+        tile.set( map_get_tile_start_transform( tile ) );
 	}
 }
 
@@ -1060,7 +1022,7 @@ namespace {
     {
         const view_data& viewParams = camera.view_params();
 
-        get_tile_coords( x, y, viewParams.mOrigin );
+        map_get_tile_coords( x, y, viewParams.mOrigin );
 
         if ( x < type_t( map_tile_generator::GRID_START ) || y < type_t( map_tile_generator::GRID_START ) )
         {

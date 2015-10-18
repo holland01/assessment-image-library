@@ -82,6 +82,8 @@ public:
 
     void	position( const glm::vec3& origin );
 
+    void    move_step( float s );
+
     const glm::vec3& position( void ) const;
 
     glm::vec3   calc_direction( const glm::vec3& d ) const;
@@ -111,6 +113,11 @@ INLINE glm::vec3 input_client::world_direction( const glm::vec3& v ) const
 {
     glm::vec3 u( mViewParams.mInverseOrient * glm::vec4( v, 1.0f ) );
     return  glm::normalize( u );
+}
+
+INLINE void input_client::move_step( float s )
+{
+    mViewParams.mMoveStep = s;
 }
 
 INLINE void input_client::perspective( float fovy, float width, float height, float zNear, float zFar )
