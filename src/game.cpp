@@ -336,26 +336,21 @@ bool has_cancel_regions( void )
 
 void draw_regions( game& g, bool drawAdjacent = false )
 {  
-    for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
-    {
-        ref_tile_region_t weakRegion = g.gen->mRegions[ i ];
-        auto region = weakRegion.lock();
-        if ( !region )
-            continue;
+    UNUSEDPARAM( drawAdjacent );
 
-        bool canDraw = g.gen->mRegions[ regionIter ] != region
-                && !in_adjacent_region_list( weakRegion, g.gen->mRegions[ regionIter ]->mAdjacent )
-                && !has_cancel_regions();
+    //for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
+    {
+        ref_tile_region_t weakRegion = g.gen->mRegions[ regionIter ];
+        auto region = weakRegion.lock();
+        assert( region );
 
         // If drawAdjacent is turned on, then we cannot draw
         // the regions as normal if i == regionIter: for some reason,
         // despite being rendered previously, this pass will overwrite
         // following draw pass in the color buffer, which produces inaccurate results.
-        if ( canDraw )
-            draw_tiles( g, region->mTiles, glm::vec3( region->mColor ), region->mColor.a );
 
-        if ( i == regionIter && drawAdjacent )
-            draw_adjacent_tiles( g, region->mAdjacent );
+        draw_tiles( g, region->mTiles, glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
+        draw_adjacent_tiles( g, region->mAdjacent );
     }
 }
 

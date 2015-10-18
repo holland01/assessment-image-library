@@ -161,19 +161,17 @@ namespace {
         int32_t add = 1;
 
         if ( startOffset > endOffset )
-        {
             add = -1;
-        }
 
-        int32_t x0 = grid_range( t.mX + startOffset );
-        int32_t z0 = grid_range( t.mZ + startOffset );
+        int32_t x0 = t.mX + startOffset;
+        int32_t z0 = t.mZ + startOffset;
 
-        int32_t xe = grid_range( t.mX + endOffset );
-        int32_t ze = grid_range( t.mZ + endOffset );
+        int32_t xe = t.mX + endOffset;
+        int32_t ze = t.mZ + endOffset;
 
-        for ( int32_t z = z0; z <= ze; z += add )
+        for ( int32_t z = z0; z <= ze && in_grid_range( z ); z += add )
         {
-            for ( int32_t x = x0; x <= xe; x += add )
+            for ( int32_t x = x0; x <= xe && in_grid_range( x ); x += add )
             {
                 process( t, x, z );
             }
