@@ -46,7 +46,8 @@ namespace {
         DRAW_QUAD_REGIONS = 1 << 6,
 		DRAW_CANCEL_REGIONS = 1 << 7,
 		COLLIDE_BILLBOARDS = 1 << 8,
-		COLLIDE_WALLS = 1 << 9
+        COLLIDE_WALLS = 1 << 9,
+        DRAW_REGIONS_WALLS = 1 << 10
     };
 
     const float DISTANCE_THRESHOLD = 2.0f;
@@ -55,10 +56,11 @@ namespace {
     {
         { "adjacency_test", DRAW_REGIONS_ADJACENT | DRAW_WALLS | DRAW_REGIONS_BOUNDS },
         { "default", DRAW_BILLBOARDS | DRAW_WALLS | DRAW_HALFSPACES },
-        { "bounds_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_WALLS | DRAW_REGIONS_ADJACENT }
+        { "region_tiles_test", DRAW_REGIONS_BOUNDS | DRAW_WALLS | DRAW_REGIONS_ADJACENT },
+        { "region_wall_tiles_test", DRAW_WALLS | DRAW_REGIONS_WALLS }
     };
 
-    uint32_t gTestFlags = gTestConfig[ "bounds_tiles_test" ];
+    uint32_t gTestFlags = gTestConfig[ "region_wall_tiles_test" ];
 }
 
 game::game( uint32_t width, uint32_t height )
@@ -295,15 +297,20 @@ glm::mat4 gQuadTransform(
     }()
 );
 
+INLINE void draw_tile( const game_app_t& game, const map_tile& t, const glm::vec3& color, float alpha = 1.0f )
+{
+    t.normal_body().draw( "colored_cube", "single_color",
+                              game.camera->view_params(),
+                              glm::vec4( color, alpha ) );
+}
+
 INLINE void draw_tiles( const game_app_t& game,
                         const std::vector< const map_tile* >& tiles,
                         const glm::vec3& color, float alpha = 1.0f )
 {
     for ( const map_tile* tile: tiles )
     {
-         tile->normal_body().draw( "colored_cube", "single_color",
-                                   game.camera->view_params(),
-                                   glm::vec4( color, alpha ) );
+        draw_tile( game, *tile, color, alpha );
     }
 }
 
@@ -336,21 +343,25 @@ bool has_cancel_regions( void )
 
 void draw_regions( game& g, bool drawAdjacent = false )
 {  
-    UNUSEDPARAM( drawAdjacent );
-
-    //for ( uint32_t i = 0; i < g.gen->mRegions.size(); ++i )
     {
         ref_tile_region_t weakRegion = g.gen->mRegions[ regionIter ];
         auto region = weakRegion.lock();
         assert( region );
 
-        // If drawAdjacent is turned on, then we cannot draw
-        // the regions as normal if i == regionIter: for some reason,
-        // despite being rendered previously, this pass will overwrite
-        // following draw pass in the color buffer, which produces inaccurate results.
-
         draw_tiles( g, region->mTiles, glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
-        draw_adjacent_tiles( g, region->mAdjacent );
+
+        if ( drawAdjacent )
+        {
+            draw_adjacent_tiles( g, region->mAdjacent );
+        }
+        else
+        {
+            for ( const adjacent_wall& w: region->mWalls )
+            {
+                draw_tile( g, *( w.mSource ), glm::vec3( w.mSource->mColor ), 1.0f );
+                draw_tiles( g, w.mWalls, glm::vec3( 1.0f ) );
+            }
+        }
     }
 }
 
@@ -470,7 +481,8 @@ static void draw_group( game& game,
 
     singleColor.bind();
 
-    if ( gTestFlags & DRAW_REGIONS_BOUNDS )
+    if ( !!( gTestFlags & DRAW_REGIONS_BOUNDS )
+         || !!( gTestFlags & DRAW_REGIONS_WALLS ) )
     {
         draw_regions( game, !!( gTestFlags & DRAW_REGIONS_ADJACENT ) );
     }
