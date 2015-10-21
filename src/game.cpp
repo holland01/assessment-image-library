@@ -28,12 +28,6 @@ void exec_frame( void );
 
 unsigned int gDebugFlag = 0;
 
-static void draw_group( game& game,
-                 const view_data& vp,
-                 map_tile_list_t& billboards,
-                 map_tile_list_t& walls,
-                 map_tile_list_t& freeSpace );
-
 namespace {
     enum
     {
@@ -70,9 +64,8 @@ game::game( uint32_t width, uint32_t height )
     billTexture.open_file( "asset/mooninite.png" );
     billTexture.load_2d();
 
-    const map_tile* startTile = reset_map();
     camera = &player;
-    camera->position( gen->scale_to_world( glm::vec3( startTile->mX, 0.0f, startTile->mZ ) ) );
+    camera->position( glm::vec3( 0.0f ) );
     camera->set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), camera->position() ) );
 
     spec.set_physics( 80.0f, glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 10.0f, 0.0f ) ) );
@@ -85,25 +78,7 @@ void game::fill_orient_map( void )
 {
     mBillboardsOriented.clear();
 
-    for ( const map_tile* b: gen->mBillboards )
-    {
-        billboard_oriented( *b, true );
-    }
-}
-
-const map_tile* game::reset_map( void )
-{
-    gen.reset( new map_tile_generator() );
-    fill_orient_map();
-
-    std::sort( gen->mFreeSpace.begin(), gen->mFreeSpace.end(), []( const map_tile* a, const map_tile* b ) -> bool
-    {
-        glm::vec2 va( a->mX, a->mZ ), vb( b->mX, b->mZ );
-
-        return glm::length( va ) < glm::length( vb );
-    });
-
-    return gen->mFreeSpace[ gen->mFreeSpace.size() / 2 ];
+    // TODO: iterate through billboards heres
 }
 
 void game::fire_gun( void )
@@ -136,11 +111,6 @@ void game::frame( void )
     }
 #endif
 
-    if ( !drawAll )
-    {
-        gen->find_entities( billboards, walls, freeSpace, frustum, *( camera ) );
-    };
-
     draw();
 
     mWorld.clear_physics_entities();
@@ -168,18 +138,8 @@ void game::update( void )
 namespace {
     INLINE void update_billboards( const game& g )
     {
-        map_tile_list_t billboards = std::move( g.billboard_list() );
-
-        for ( map_tile* t: billboards )
-        {
-            if ( t )
-            {
-                if ( g.billboard_oriented( *t ) )
-                {
-                    t->orient_kinematic_to( g.camera->view_params().mOrigin );
-                }
-            }
-        }
+        UNUSEDPARAM( g );
+        // TODO: orient billboards here
     }
 
 }
@@ -198,36 +158,15 @@ void game::fill_entities( std::vector< entity* >& list ) const
         }
     };
 
-    auto add_to_list = [ &list, &add_if_alive, this ]( map_tile_list_t& mapTileList ) -> void
-    {
-        for ( entity* e: mapTileList )
-            add_if_alive( e );
-    };
-
     add_if_alive( camera );
-
-    map_tile_list_t walllist( std::move( wall_list() ) );
-    map_tile_list_t billboardlist( std::move( billboard_list() ) );
-
-    list.reserve( walllist.size() + billboardlist.size() + 1 );
-    add_to_list( walllist );
-
-    if ( gTestFlags & DRAW_BILLBOARDS )
-        add_to_list( billboardlist );
 }
 
 void game::draw( void )
 {
     const view_data& vp = camera->view_params();
 
-    if ( drawAll )
-    {
-        draw_group( *this, vp, gen->mBillboards, gen->mWalls, gen->mFreeSpace );
-    }
-    else
-    {
-        draw_group( *this, vp, billboards, walls, freeSpace );
-    }
+    UNUSEDPARAM( vp );
+
 
     application< game >::draw();
 }
@@ -241,9 +180,6 @@ void game::handle_event( const SDL_Event& e )
         case SDL_KEYDOWN:
             switch ( e.key.keysym.sym )
             {
-                case SDLK_r:
-                    reset_map();
-                    break;
                 case SDLK_v:
                     toggle_culling();
                     break;
@@ -256,17 +192,6 @@ void game::handle_event( const SDL_Event& e )
                     {
                         camera = &player;
                     }
-                    break;
-                case SDLK_b:
-                    gTestFlags ^= DRAW_BILLBOARDS;
-                    break;
-
-                case SDLK_h:
-					gTestFlags ^= DRAW_WALLS;
-                    break;
-
-                case SDLK_UP:
-                    gTestFlags ^= DRAW_CANCEL_REGIONS;
                     break;
             }
             break;
@@ -282,9 +207,6 @@ void game::handle_event( const SDL_Event& e )
 
 namespace {
 
-uint32_t regionIter = 0;
-float frameCount = 0.0f;
-
 // For coloring arbitrary amounts of tiles
 glm::mat4 gQuadTransform(
     []( void ) -> glm::mat4
@@ -297,205 +219,4 @@ glm::mat4 gQuadTransform(
     }()
 );
 
-INLINE void draw_tile( const game_app_t& game, const map_tile& t, const glm::vec3& color, float alpha = 1.0f )
-{
-    t.normal_body().draw( "colored_cube", "single_color",
-                              game.camera->view_params(),
-                              glm::vec4( color, alpha ) );
-}
-
-INLINE void draw_tiles( const game_app_t& game,
-                        const std::vector< const map_tile* >& tiles,
-                        const glm::vec3& color, float alpha = 1.0f )
-{
-    for ( const map_tile* tile: tiles )
-    {
-        draw_tile( game, *tile, color, alpha );
-    }
-}
-
-INLINE void draw_adjacent_tiles( const game_app_t& game, const adjacent_region_list_t& adjRegions )
-{
-    for ( const adjacent_region& br: adjRegions )
-    {
-        auto adj = br.mRegion.lock();
-
-        if ( !adj )
-            continue;
-
-        draw_tiles( game, adj->mTiles, glm::vec3( adj->mColor ), 1.0f );
-    }
-}
-
-INLINE bool in_adjacent_region_list( ref_tile_region_t source, const adjacent_region_list_t& adjRegions )
-{
-    for ( const adjacent_region& r: adjRegions )
-        if ( source == r.mRegion )
-            return true;
-
-    return false;
-}
-
-bool has_cancel_regions( void )
-{
-	return !!( gTestFlags & DRAW_CANCEL_REGIONS );
-}
-
-void draw_regions( game& g, bool drawAdjacent = false )
-{  
-    {
-        ref_tile_region_t weakRegion = g.gen->mRegions[ regionIter ];
-        auto region = weakRegion.lock();
-        assert( region );
-
-        draw_tiles( g, region->mTiles, glm::vec3( 1.0f, 0.0f, 0.0f ), 1.0f );
-
-        if ( drawAdjacent )
-        {
-            draw_adjacent_tiles( g, region->mAdjacent );
-        }
-        else
-        {
-            for ( const adjacent_wall& w: region->mWalls )
-            {
-                draw_tile( g, *( w.mSource ), glm::vec3( w.mSource->mColor ), 1.0f );
-                draw_tiles( g, w.mWalls, glm::vec3( 1.0f ) );
-            }
-        }
-    }
-}
-
-INLINE void load_billboard_params( map_tile& tile, const shader_program& billboard )
-{
-    const glm::mat4 wT( tile.kinematic_body().world_transform() );
-
-    glm::vec3 boundsOrigin( wT[ 3 ] );
-
-    billboard.load_vec3( "origin", boundsOrigin );
-
-    billboard.load_mat3( "viewOrient", glm::mat3( wT ) );
-}
-
-void process_billboards( game& game, const view_data& vp, map_tile_list_t& billboards )
-{
-    const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
-    const shader_program& billboard = game.pipeline->programs().at( "billboard" );
-    const draw_buffer& billboardBuffer = game.pipeline->draw_buffers().at( "billboard" );
-
-    set_blend_mode blend( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-    // Draw all billboards
-    billboard.bind();
-    billboard.load_mat4( "modelToView", vp.mTransform );
-    billboard.load_mat4( "viewToClip", vp.mClipTransform );
-
-	imm_draw d( singleColor );
-
-    for ( map_tile* tile: billboards )
-    {
-        load_billboard_params( *tile, billboard  );
-
-        singleColor.bind();
-        billboard.bind();
-
-        billboard.load_vec4( "color", tile->mColor );
-
-        game.billTexture.bind( 0, "image", billboard );
-        billboardBuffer.render( billboard );
-		game.billTexture.release( 0 );
-
-        // Draw forward direction
-        {
-            btTransform wT;
-            tile->kinematic_body().motion_state().getWorldTransform( wT );
-            const btMatrix3x3& orientation = wT.getBasis();
-
-            d.begin( GL_LINES );
-            d.vertex( glm::vec3( 0.0f ) );
-            d.vertex( glm::ext::from_bullet( orientation[ 2 ] ) );
-            d.end();
-        }
-        if ( gTestFlags & DRAW_BILLBOARD_BOUNDS )
-            tile->normal_body().draw( "colored_cube", "single_color", game.camera->view_params(), tile->mColor );
-
-        billboard.bind();
-    }
-    billboard.release();
-}
-
-} // end namespace
-
-static void draw_group( game& game,
-                 const view_data& vp,
-                 map_tile_list_t& billboards,
-                 map_tile_list_t& walls,
-                 map_tile_list_t& freeSpace )
-{
-    UNUSEDPARAM( freeSpace );
-
-    const shader_program& singleColor = game.pipeline->programs().at( "single_color" );
-
-    // immDrawer can be used in some arbitrary code block that is aware of the renderer to draw something.
-    // It's useful for debugging...
-    imm_draw drawer( singleColor );
-    gImmDrawer = &drawer;
-
-    // Load a grey color so it looks somewhat fancy
-    singleColor.bind();
-
-	if ( gTestFlags & DRAW_WALLS )
-    {
-        for ( const map_tile* tile: walls )
-        {
-            tile->normal_body().draw( "colored_cube", "single_color", game.camera->view_params(), glm::vec4( 0.5f, 0.5f, 0.5f, 1.0f ) );
-        }
-    }
-
-	if ( gTestFlags & DRAW_BILLBOARDS )
-        process_billboards( game, vp, billboards );
-
-    singleColor.bind();
-    singleColor.load_mat4( "modelToView", vp.mTransform );
-    singleColor.load_vec4( "color", glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
-
-	if ( gTestFlags & DRAW_HALFSPACES )
-    {
-        for ( const map_tile* wall: walls )
-        {
-            if ( wall->mHalfSpaceIndex < 0 )
-                continue;
-
-            const map_tile_generator::collision_face_table_t& table =
-                    game.gen->wall_surf_table( wall->mHalfSpaceIndex );
-
-            for ( int32_t i: table )
-            {
-                if ( i < 0 )
-                {
-                    continue;
-                }
-
-                game.gen->wall_surf( i ).draw( drawer );
-            }
-        }
-    }
-
-    singleColor.bind();
-
-    if ( !!( gTestFlags & DRAW_REGIONS_BOUNDS )
-         || !!( gTestFlags & DRAW_REGIONS_WALLS ) )
-    {
-        draw_regions( game, !!( gTestFlags & DRAW_REGIONS_ADJACENT ) );
-    }
-
-    frameCount += 1.0f;
-
-    if ( frameCount >= 60.0f )
-    {
-        frameCount = 0.0f;
-
-        if ( ++regionIter == game.gen->mRegions.size() )
-            regionIter = 0;
-    }
-
-    singleColor.release();
 }
