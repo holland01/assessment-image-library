@@ -2,18 +2,35 @@
 #include "geom/geom.h"
 #include "physics_world.h"
 
-//-------------------------------------------------------------------------------------------------------
-// entity_bounds_primitive_t
-//-------------------------------------------------------------------------------------------------------
+#define MAX_ENTITIES ( 1 << 22 )
 
-entity::entity( const glm::vec4& color )
-    : mPhysEnt( nullptr ),
-      mKinematicEnt( nullptr ),
-      mMoveState( entity_move_state::automatic ),
-      mColor( color ),
-      mSize( 1.0f )
+entity entity_manager::make_entity( void )
 {
+    uint32_t index;
+
+    if ( mFreeIndices.size() > MIN_FREE_INDICES )
+    {
+        index = mFreeIndices.front();
+        mFreeIndices.pop();
+    }
+    else
+    {
+        mGenerations.push_back( 0 );
+        index = mGenerations.size() - 1;
+        assert( index < MAX_ENTITIES );
+    }
+
+    entity e;
+    e.mId = index | ( mGenerations[ index ] << ENTITY_INDEX_BITS );
+
+    return e;
 }
+
+
+
+/*
+
+DON'T DELETE: this is kept here for future reference
 
 void entity::toggle_kinematic( bool addMotionState )
 {
@@ -44,6 +61,7 @@ void entity::toggle_kinematic( bool addMotionState )
         mKinematicEnt->mBody->setIgnoreCollisionCheck( mPhysEnt->mBody.get(), true );
     }
 }
+
 
 void entity::sync( void )
 {
@@ -96,3 +114,7 @@ void entity::sync( void )
             break;
     }
 }
+
+*/
+
+

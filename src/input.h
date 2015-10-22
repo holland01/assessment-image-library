@@ -39,9 +39,6 @@ enum class input_key : uint32_t
 
 struct input_client : public entity
 {
-private:
-    physics_body* get_body( void ) { return mMode == MODE_SPEC? mKinematicEnt.get(): mPhysEnt.get(); }
-
 public:
 
     view_data mViewParams;
@@ -66,9 +63,7 @@ public:
 
     void    eval_mouse_move( float x, float y, bool calcRelative );
 
-    void	sync( void ) override;
-
-    void    set_physics( float mass, const glm::mat4& orientAndTranslate );
+    void	sync( void );
 
     void	add_dir( const glm::vec3& dir, float scale );
 

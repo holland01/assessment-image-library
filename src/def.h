@@ -22,6 +22,12 @@
 
 #define INLINE inline
 
+#ifdef _MSC_VER
+#define FORCEINLINE __forceinline
+#else
+#define FORCEINLINE INLINE
+#endif // _MSCVER
+
 #if defined( EMSCRIPTEN ) && defined( DEBUG )
 #   define __DEBUG_RENDERER__
 #endif // EMSCRIPTEN && DEBUG

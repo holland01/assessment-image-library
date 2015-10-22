@@ -171,13 +171,15 @@ void input_client::add_dir( const glm::vec3& dir, float scale )
     glm::vec3 f( dir * scale );
 
     // spectating allows us to move throughout the world without interference of physics gravity
-    physics_body* pb = get_body();
+
+    /*physics_body* pb = get_body();
 
     if ( pb )
     {
         pb->mBody->translate( glm::ext::to_bullet( f ) );
     }
     else
+    */
     {
         mViewParams.mOrigin += f;
     }
@@ -218,14 +220,17 @@ void input_client::update_view_data( void )
         mViewParams.mOrigin.y = 0.0f;
     }
 
+    /*
     if ( !mPhysEnt )
     {
         mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
     }
+    */
 }
 
 void input_client::sync( void )
 {
+    /*
     physics_body* body = get_body();
 
     if ( body )
@@ -252,17 +257,10 @@ void input_client::sync( void )
         mViewParams.mOrigin = glm::vec3( gBasis[ 3 ] );
     }
     else
+    */
     {
         update_view_data();
     }
-
-    entity::sync();
-}
-
-void input_client::set_physics( float mass, const glm::mat4& orientAndTranslate )
-{
-    mPhysEnt.reset( new physics_body( mass, orientAndTranslate, glm::vec3( 1.0f ) ) );
-    mPhysEnt->set_activation_state( DISABLE_DEACTIVATION );
 }
 
 void input_client::print_origin( void ) const

@@ -61,12 +61,6 @@ public:
 
     virtual void handle_event( const SDL_Event& e );
 
-    virtual void fill_entities( std::vector< entity* >& list ) const = 0;
-
-    virtual void clear_entities( std::vector< entity* >& list );
-
-    virtual void sync_entities( std::vector< entity* >& list );
-
     static child_t* instance( void );
 };
 
@@ -184,33 +178,13 @@ void application< child_t >::draw( void )
 }
 
 template < typename child_t >
-void application< child_t >::sync_entities( std::vector<entity*>& list )
-{
-    for ( entity* e: list )
-    {
-        e->sync();
-    }
-}
-
-template < typename child_t >
-void application< child_t >::clear_entities( std::vector<entity*>& list )
-{
-    list.clear();
-}
-
-template < typename child_t >
 void application< child_t >::update( void )
 {
-    clear_entities( mFrameEntities );
-
     if ( camera )
     {
         frustum.update( camera->view_params() );
         camera->sync();
     }
-
-    fill_entities( mFrameEntities );
-    sync_entities( mFrameEntities );
 }
 
 template < typename child_t >

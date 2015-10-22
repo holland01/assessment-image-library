@@ -11,7 +11,7 @@ public:
 
     void draw( void ) override;
 
-    void fill_entities( std::vector< entity* >& entities ) const override;
+    void fill_entities( std::vector< entity* >& entities ) const;
 
     void handle_event( const SDL_Event& e ) override;
 };

@@ -34,10 +34,6 @@ public:
 
     void draw( void ) override;
 
-    void fill_entities( std::vector< entity* >& list ) const override;
-
-    void clear_entities( std::vector< entity* >& list ) override;
-
     void fire_gun( void );
 };
 

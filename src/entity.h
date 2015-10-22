@@ -1,103 +1,65 @@
 #pragma once
 
 #include "geom/geom.h"
-#include <memory>
+#include <array>
+#include <queue>
 #include <glm/vec4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "physics_body.h"
-
-struct render_pipeline;
-struct view_data;
 
 //-------------------------------------------------------------------------------------------------------
 // entity
 //-------------------------------------------------------------------------------------------------------
 
-struct physics_world;
-
-enum class entity_move_state
-{
-    automatic = 0,
-    manual = 1
-};
+#define ENTITY_INDEX_BITS 22
+#define ENTITY_GENERATION_BITS 8
+#define ENTITY_INDEX_MASK ( ( 1 << ENTITY_INDEX_BITS ) - 1 )
+#define ENTITY_GENERATION_MASK ( ( 1 << ENTITY_GENERATION_BITS ) - 1 )
 
 struct entity
 {
-protected:
-    friend struct map_tile;
-    friend struct map_tile_generator;
+friend struct entity_manager;
 
-    std::unique_ptr< physics_body > mPhysEnt, mKinematicEnt;
-
-    entity_move_state mMoveState;
+private:
+    uint32_t mId = 0;
 
 public:
 
-    glm::vec4 mColor;
+    uint32_t index( void ) const { return mId & ENTITY_INDEX_MASK; }
 
-    glm::vec3 mSize;
+    uint8_t generation( void ) const { return ( mId >> ENTITY_INDEX_BITS ) & ENTITY_GENERATION_MASK; }
 
-    entity( const glm::vec4& color = glm::vec4( 1.0f ) );
-
-    void toggle_kinematic( bool addMotionState = true );
-
-    glm::mat4 scale_transform( void ) const { return glm::scale( glm::mat4( 1.0f ), mSize ); }
-
-    const physics_body& normal_body( void ) const { assert( mPhysEnt ); return *mPhysEnt; }
-
-    const physics_body& kinematic_body( void ) const { assert( mKinematicEnt ); return *mKinematicEnt; }
-
-    void orient_kinematic_to( const glm::vec3& p );
-
-    void set_normal_body_activation_state( int32_t state );
-
-    entity_move_state move_state( void ) const { return mMoveState; }
-
-    void flip_move_state( void );
-
-    void add_to_world( void );
-
-    void remove_from_world( void );
-
-    virtual void sync( void );
 };
 
-INLINE void entity::flip_move_state( void )
+//-------------------------------------------------------------------------------------------------------
+// entity_manager
+//
+// Idea stolen from
+// http://bitsquid.blogspot.com/2014/08/building-data-oriented-entity-system.html
+//-------------------------------------------------------------------------------------------------------
+
+struct entity_manager
 {
-    switch ( mMoveState )
-    {
-        case entity_move_state::automatic: mMoveState = entity_move_state::manual; break;
-        case entity_move_state::manual: mMoveState = entity_move_state::automatic; break;
-    }
+private:
+    static const uint32_t MIN_FREE_INDICES = 1024;
+
+    std::vector< uint8_t > mGenerations;
+
+    std::queue< uint32_t > mFreeIndices;
+
+public:
+
+    entity make_entity( void );
+
+    FORCEINLINE bool alive( entity e ) const { return e.generation() == mGenerations[ e.index() ]; }
+
+    FORCEINLINE void destroy( entity e );
+};
+
+FORCEINLINE void entity_manager::destroy( entity e )
+{
+    uint32_t i = e.index();
+    mGenerations[ i ]++;
+    mFreeIndices.push( i );
 }
 
-INLINE void entity::orient_kinematic_to( const glm::vec3& p )
-{
-    if ( mKinematicEnt )
-        mKinematicEnt->orient_to( p );
-}
-
-INLINE void entity::set_normal_body_activation_state( int32_t state )
-{
-    if ( mPhysEnt )
-        mPhysEnt->set_activation_state( state );
-}
-
-INLINE void entity::add_to_world( void )
-{
-    if ( mKinematicEnt )
-        mKinematicEnt->add_to_world();
-
-    if ( mPhysEnt )
-        mPhysEnt->add_to_world();
-}
-
-INLINE void entity::remove_from_world( void )
-{
-    if ( mKinematicEnt )
-        mKinematicEnt->remove_from_world();
-
-    if ( mPhysEnt )
-        mPhysEnt->remove_from_world();
-}
 
