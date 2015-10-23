@@ -2,6 +2,10 @@
 // TODO list for current tasks yet to be finished
 //
 
-* Look for sources giving information on proper wall collision resolution. Quake's source code might be the right route to go...
-    - Sys_win.c, line 715. Remember what you're trying to figure out is the program which is written for e1->v.touch in the SV_Impact function,
-    on line 165 in sv_phys.c
+[0] Add physics bodies to component system
+[1] Fix frustum culling - intersection test needs bounding box (depends: [0])
+[2] Rewrite shader load/bind semantics
+    - Anytime shader_program::load*( ... ) is called, the corresponding value should be cached.
+    - Once shader_program::bind() is called, all cached values which needed to be loaded should be sent to the pipeline.
+    - this will minimize unnecessary binds and lame planning.
+    - Shouldn't be necessary for APIs with DSA support, however.

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "def.h"
+#include "../def.h"
 #include <memory>
 #include <vector>
 #include <bullet3/btBulletCollisionCommon.h>

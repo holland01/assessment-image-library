@@ -1,6 +1,6 @@
 #include "entity.h"
 #include "geom/geom.h"
-#include "physics_world.h"
+#include "physics/physics_world.h"
 
 #define MAX_ENTITIES ( 1 << 22 )
 

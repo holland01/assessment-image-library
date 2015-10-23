@@ -15,12 +15,11 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_access.hpp>
-#include <glm/gtx/projection.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/projection.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include "debug_app.h"
-
-#include "application_update.h"
 
 void exec_frame( void );
 
@@ -31,9 +30,9 @@ unsigned int gDebugFlag = 0;
 game::game( uint32_t width, uint32_t height )
     : game_app_t( width, height )
 {
-    billTexture.mip_map( true );
-    billTexture.open_file( "asset/mooninite.png" );
-    billTexture.load_2d();
+    mBillTexture.mip_map( true );
+    mBillTexture.open_file( "asset/mooninite.png" );
+    mBillTexture.load_2d();
 }
 
 void game::fill_orient_map( void )
@@ -41,12 +40,6 @@ void game::fill_orient_map( void )
     mBillboardsOriented.clear();
 
     // TODO: iterate through billboards heres
-}
-
-void game::fire_gun( void )
-{
-    debug_set_flag( false );
-    bullet.reset( new entity() );
 }
 
 namespace {
@@ -73,7 +66,7 @@ void game::frame( void )
 
     mWorld.clear_physics_entities();
 
-    printf( "Position: %s\n", glm::to_string( camera->position() ).c_str() );
+    printf( "Position: %s\n", glm::to_string( mCamPtr->position() ).c_str() );
 }
 
 void game::update( void )
@@ -85,7 +78,7 @@ void game::update( void )
 
 void game::draw( void )
 {
-    const view_data& vp = camera->view_params();
+    const view_data& vp = mCamPtr->view_params();
 
     UNUSEDPARAM( vp );
 
@@ -106,22 +99,15 @@ void game::handle_event( const SDL_Event& e )
                     toggle_culling();
                     break;
                 case SDLK_c:
-                    if ( camera == &player )
+                    if ( mCamPtr == &mPlayer )
                     {
-                        camera = &spec;
+                        mCamPtr = &mSpec;
                     }
                     else
                     {
-                        camera = &player;
+                        mCamPtr = &mPlayer;
                     }
                     break;
-            }
-            break;
-
-        case SDL_MOUSEBUTTONDOWN:
-            if ( e.button.button == SDL_BUTTON_LEFT )
-            {
-                fire_gun();
             }
             break;
     }

@@ -1,11 +1,8 @@
 #include "application.h"
-#include "game.h"
-#include "physics_simulation.h"
+#include "test/game.h"
 #include "debug_app.h"
 
-// temporary hack to get around the fact that querying for an game
-// instance if an error is happening causes problems; we use this flag the exit.
-static bool* runningPtr = nullptr;
+bool gRunning = true;
 
 template < typename child_t >
 uint32_t run( void )
@@ -13,18 +10,17 @@ uint32_t run( void )
     using app_t = application< child_t >;
 
     child_t* app = app_t::instance();
-    runningPtr = &app->running;
 
 #ifdef EMSCRIPTEN
     InitEmInput();
 #else
-    while ( app->running )
+    while ( gRunning )
     {
         GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
 
         app->frame();
 
-        SDL_GL_SwapWindow( app->window );
+        SDL_GL_SwapWindow( app->window_handle() );
 
         SDL_Event e;
         while ( SDL_PollEvent( &e ) )
@@ -39,7 +35,7 @@ uint32_t run( void )
 
 void flag_exit( void )
 {
-    *runningPtr = false;
+    gRunning = false;
 }
 
 float get_time( void )

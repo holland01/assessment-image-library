@@ -1,12 +1,11 @@
 #pragma once
 
 #include "def.h"
-
-#include <memory>
 #include <bullet3/btBulletCollisionCommon.h>
 #include <bullet3/btBulletDynamicsCommon.h>
-#include <functional>
+#include <memory>
 #include <vector>
+#include <array>
 #include "glm_ext.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 

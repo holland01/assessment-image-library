@@ -1,7 +1,7 @@
 #include "halfspace.h"
 #include "../renderer.h"
 #include "geom_util.h"
-#include "../physics_body.h"
+#include "physics/physics_body.h"
 
 namespace {
     void shape_deleter( btBox2dShape* s )

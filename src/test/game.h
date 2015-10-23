@@ -1,7 +1,7 @@
 #pragma once
 
 #include "application.h"
-#include "physics_world.h"
+#include "physics/physics_world.h"
 #include "map.h"
 
 struct game;
@@ -20,11 +20,9 @@ private:
     mutable physics_world mWorld;
 
 public:
-    std::unique_ptr< entity > bullet;
+    texture mBillTexture;
 
-    texture billTexture;
-
-    game( uint32_t width, uint32_t height );
+    game( uint32_t mWidth, uint32_t mHeight );
 
     void frame( void ) override;
 
@@ -33,7 +31,5 @@ public:
     void handle_event( const SDL_Event& e ) override;
 
     void draw( void ) override;
-
-    void fire_gun( void );
 };
 

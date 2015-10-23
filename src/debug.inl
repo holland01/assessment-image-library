@@ -6,7 +6,7 @@ INLINE void debug_draw_hud( const application< app_impl_t >& app )
     // against by default
     GL_CHECK( glClear( GL_DEPTH_BUFFER_BIT ) );
 
-    const shader_program& ssSingleColor = app.pipeline->programs().at( "single_color_ss" );
+    const shader_program& ssSingleColor = app.pipeline().programs().at( "single_color_ss" );
 
     ssSingleColor.bind();
     ssSingleColor.load_vec4( "color", glm::vec4( 1.0f ) );
@@ -24,7 +24,7 @@ INLINE void debug_draw_hud( const application< app_impl_t >& app )
 template < typename app_impl_t >
 INLINE void debug_draw_axes( const application< app_impl_t >& app, const view_data& vp )
 {
-    const shader_program& singleColor = app.pipeline->programs().at( "single_color" );
+    const shader_program& singleColor = app.pipeline().programs().at( "single_color" );
 
     singleColor.bind();
     singleColor.load_mat4( "modelToView", vp.mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
@@ -50,8 +50,8 @@ INLINE void debug_draw_axes( const application< app_impl_t >& app, const view_da
 template < typename app_impl_t >
 INLINE void debug_draw_quad( const application< app_impl_t >& app, const glm::mat4& transform, const glm::vec3& color, float alpha )
 {
-    const shader_program& singleColor = app.pipeline->programs().at( "single_color" );
-    const draw_buffer& billboardBuffer = app.pipeline->draw_buffers().at( "billboard" );
+    const shader_program& singleColor = app.pipeline().programs().at( "single_color" );
+    const draw_buffer& billboardBuffer = app.pipeline().draw_buffers().at( "billboard" );
     const view_data& vp = app.camera->view_params();
 
     singleColor.bind();

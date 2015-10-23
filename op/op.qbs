@@ -8,7 +8,8 @@ Product {
         var inc = [
             "/usr/include/",
             "/usr/include/c++",
-            "../src/lib"
+            "../src/lib",
+            "../src"
         ];
 
         var librootInc = [
@@ -98,7 +99,6 @@ Product {
         "../asset/shader/es/single_color_ss.vert",
         "../src/application.cpp",
         "../src/application.h",
-        "../src/application_update.h",
         "../src/base.cpp",
         "../src/base.h",
         "../src/base.inl",
@@ -112,8 +112,6 @@ Product {
         "../src/eminput.h",
         "../src/entity.cpp",
         "../src/entity.h",
-        "../src/game.cpp",
-        "../src/game.h",
         "../src/geom/_geom_local.cpp",
         "../src/geom/_geom_local.h",
         "../src/geom/geom.h",
@@ -134,15 +132,18 @@ Product {
         "../src/map.h",
         "../src/map.inl",
         "../src/opengl.h",
-        "../src/physics_body.cpp",
-        "../src/physics_body.h",
-        "../src/physics_simulation.cpp",
-        "../src/physics_simulation.h",
-        "../src/physics_world.cpp",
-        "../src/physics_world.h",
+        "../src/physics/physics_body.cpp",
+        "../src/physics/physics_body.h",
+        "../src/physics/physics_entity.cpp",
+        "../src/physics/physics_entity.h",
+        "../src/physics/physics_world.cpp",
+        "../src/physics/physics_world.h",
         "../src/renderer.cpp",
         "../src/renderer.h",
         "../src/renderer.inl",
+        "../src/test/delaunay.h",
+        "../src/test/game.cpp",
+        "../src/test/game.h",
         "../src/view.cpp",
         "../src/view.h",
     ]
