@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../def.h"
-#include "../application.h"
+#include APPLICATION_BASE_HEADER
 
 // (NOTE)
 // To find the circumcircle:

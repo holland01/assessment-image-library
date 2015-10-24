@@ -9,6 +9,12 @@
 #	define GL_PROC __attribute__( ( __cdecl ) ) // default to cdecl calling convention on 32-bit non-MSVC compilers
 #endif
 
+#ifdef NDEBUG
+#   define APPLICATION_BASE_HEADER "application.h"
+#else
+#   define APPLICATION_BASE_HEADER "debug_app.h"
+#endif // NDEBUG
+
 #define GLM_FORCE_RADIANS
 
 #ifdef EMSCRIPTEN

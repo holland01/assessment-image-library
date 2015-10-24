@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "def.h"
+#include "messenger.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <vector>
@@ -14,8 +15,12 @@
 using string_int_map_t = std::unordered_map< std::string, int32_t >;
 using string_address_map_t = std::unordered_map< std::string, intptr_t >;
 
-extern void flag_exit( void ); // should be defined by the user in a different source file
 extern float get_time( void );
+
+static void flag_exit( void )
+{
+    gMessenger.mQuit = false;
+}
 
 bool file_get_pixels( const std::string& filepath,
 	std::vector< uint8_t >& outBuffer, int32_t& outBpp, int32_t& outWidth, int32_t& outHeight );

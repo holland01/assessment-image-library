@@ -1,6 +1,7 @@
 #pragma once
 
-#include "application.h"
+#include "def.h"
+#include APPLICATION_BASE_HEADER
 #include "physics/physics_world.h"
 #include "map.h"
 

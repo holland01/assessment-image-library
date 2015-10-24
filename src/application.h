@@ -3,6 +3,7 @@
 #include "geom/geom.h"
 #include "input.h"
 #include "debug.h"
+#include "messenger.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_main.h>
@@ -60,17 +61,19 @@ public:
 
     virtual void update( void );
 
+    void quit( void );
+
     virtual void handle_event( const SDL_Event& e );
 
     SDL_Window* window_handle( void ) { return mWindow; }
 
     bool running( void ) const { return mRunning; }
 
-    void running( bool r ) { mRunning = r; }
-
     const render_pipeline& pipeline( void ) const { return *( mPipeline.get() ); }
 
     static child_t* instance( void );
+
+    static int32_t run( void );
 };
 
 template < typename child_t >
@@ -87,6 +90,35 @@ child_t* application< child_t >::instance( void )
     }
 
     return ch_t::mInstance.get();
+}
+
+template < typename child_t >
+int32_t application< child_t>::run( void )
+{
+    using app_t = application< child_t >;
+
+    child_t* app = app_t::instance();
+
+#ifdef EMSCRIPTEN
+    InitEmInput();
+#else
+    while ( app->running() )
+    {
+        GL_CHECK( glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ) );
+
+        app->frame();
+
+        SDL_GL_SwapWindow( app->window_handle() );
+
+        SDL_Event e;
+        while ( SDL_PollEvent( &e ) )
+        {
+            app->handle_event( e );
+        }
+    }
+#endif
+
+    return 0;
 }
 
 template < typename child_t >
@@ -200,16 +232,32 @@ void application< child_t >::update( void )
 }
 
 template < typename child_t >
+void application< child_t >::quit( void )
+{
+    if ( mCamPtr )
+    {
+        SDL_SetRelativeMouseMode( SDL_FALSE );
+        mRunning = false;
+        return;
+    }
+}
+
+template < typename child_t >
 void application< child_t >::handle_event( const SDL_Event& e )
 {
+    if ( gMessenger.mQuit )
+    {
+        quit();
+        return;
+    }
+
     switch ( e.type )
     {
         case SDL_KEYDOWN:
             switch ( e.key.keysym.sym )
             {
                 case SDLK_ESCAPE:
-                    SDL_SetRelativeMouseMode( SDL_FALSE );
-                    mRunning = false;
+                    quit();
                     break;
                 case SDLK_F1:
                     mMouseShown = !mMouseShown;
