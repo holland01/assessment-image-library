@@ -47,7 +47,7 @@ input_client::input_client( void )
 
 input_client::input_client( const view_data& view )
     : mViewParams( view ),
-	  mMode( MODE_PLAY )
+      mMode( play )
 {
 	mKeysPressed.fill( 0 );
 }
@@ -187,7 +187,7 @@ void input_client::add_dir( const glm::vec3& dir, float scale )
 
 void input_client::update_view_data( void )
 {
-    if ( mMode == MODE_PLAY )
+    if ( mMode == play )
     {
         clamp_orientation( mViewParams.mCurrRot );
     }
@@ -195,9 +195,13 @@ void input_client::update_view_data( void )
     mViewParams.mLastRot = mViewParams.mCurrRot;
 
     mViewParams.mLastOrientation = mViewParams.mOrientation;
-    mViewParams.mOrientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( mViewParams.mCurrRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
-    mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
-    mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
+
+    if ( ( mFlags & flags::lock_orientation ) != flags::lock_orientation )
+    {
+        mViewParams.mOrientation = glm::rotate( glm::mat4( 1.0f ), glm::radians( mViewParams.mCurrRot.x ), glm::vec3( 1.0f, 0.0f, 0.0f ) );
+        mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.y ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+        mViewParams.mOrientation = glm::rotate( mViewParams.mOrientation, glm::radians( mViewParams.mCurrRot.z ), glm::vec3( 0.0f, 0.0f, 1.0f ) );
+    }
 
     mViewParams.mInverseOrient = glm::inverse( mViewParams.mOrientation );
 
@@ -215,17 +219,12 @@ void input_client::update_view_data( void )
     if ( mKeysPressed[ KEY_UP ] ) add_dir( mViewParams.mUp, mViewParams.mMoveStep );
     if ( mKeysPressed[ KEY_DOWN ] ) add_dir( mViewParams.mUp, -mViewParams.mMoveStep );
 
-    if ( mMode == MODE_PLAY )
+    if ( mMode == play )
     {
         mViewParams.mOrigin.y = 0.0f;
     }
 
-    /*
-    if ( !mPhysEnt )
-    {
-        mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
-    }
-    */
+    mViewParams.mTransform = mViewParams.mOrientation * glm::translate( glm::mat4( 1.0f ), -mViewParams.mOrigin );
 }
 
 void input_client::sync( void )

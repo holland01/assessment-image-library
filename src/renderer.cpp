@@ -562,9 +562,7 @@ imm_draw::imm_draw( const shader_program& prog )
 void imm_draw::begin( GLenum mode )
 {
     if ( !mEnabled )
-	{
-		return;
-	}
+        return;
 
     if ( !mBufferStore.mBuffer )
 	{
@@ -578,9 +576,7 @@ void imm_draw::begin( GLenum mode )
 void imm_draw::vertex( const draw_vertex_t& v )
 {
     if ( !mEnabled )
-	{
 		return;
-	}
 
     mBufferStore.mVertices.push_back( v );
 }
@@ -588,19 +584,29 @@ void imm_draw::vertex( const draw_vertex_t& v )
 void imm_draw::vertex( const glm::vec3& position )
 {
     if ( !mEnabled )
-	{
 		return;
-	}
 
     mBufferStore.mVertices.push_back( make_draw_vertex( position ) );
+}
+
+void imm_draw::vertex( const glm::vec3& position, const glm::vec4& color )
+{
+    if ( !mEnabled )
+        return;
+
+    glm::u8vec4 byteColor;
+    byteColor[ 0 ] = uint8_t( 255.0f * color[ 0 ] );
+    byteColor[ 1 ] = uint8_t( 255.0f * color[ 1 ] );
+    byteColor[ 2 ] = uint8_t( 255.0f * color[ 2 ] );
+    byteColor[ 3 ] = uint8_t( 255.0f * color[ 3 ] );
+
+    mBufferStore.mVertices.push_back( make_draw_vertex( position, byteColor ) );
 }
 
 void imm_draw::end( void )
 {
     if ( !mEnabled )
-	{
-		return;
-	}
+        return;
 
     mBufferStore.update();
     mBufferStore.mBuffer->render( mProgram );
@@ -647,7 +653,7 @@ namespace {
 render_pipeline::render_pipeline( void )
     : mVao( 0 )
 {
-    std::array< program_def_t, 3 > defs =
+    std::array< program_def_t, 4 > defs =
 	{{
 		{
 			"single_color",
@@ -669,7 +675,14 @@ render_pipeline::render_pipeline( void )
 			"billboard.frag",
             { "origin", "viewOrient", "modelToView", "viewToClip", "image", "color" },
 			{ "position", "texCoord" }
-		}
+        },
+        {
+            "vertex_color",
+            "vertex_color.vert",
+            "vertex_color.frag",
+            { "modelToView", "viewToClip" },
+            { "position", "color" }
+        }
 	}};
 
 	std::string shaderRootDir( "asset/shader/" OP_GLSL_SHADER_DIR "/" );

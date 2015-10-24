@@ -39,17 +39,28 @@ enum class input_key : uint32_t
 
 struct input_client : public entity
 {
-public:
+private:
+    uint32_t mFlags;
 
     view_data mViewParams;
 
     std::array< uint8_t, 8 > mKeysPressed;
 
+public:
+
     enum client_mode
 	{
-		MODE_PLAY = 0,
-		MODE_SPEC
+        play = 0,
+        spectate
 	};
+
+    struct flags
+    {
+        enum
+        {
+            lock_orientation = 0x1
+        };
+    };
 
     client_mode mMode;
 
@@ -79,7 +90,13 @@ public:
 
     void    move_step( float s );
 
+    void    flags( uint32_t f ) { mFlags = f; }
+
+    void    orientation( const glm::mat3& o ) { mViewParams.mOrientation = glm::mat4( o ); }
+
     const glm::vec3& position( void ) const;
+
+    uint32_t    flags( void ) const { return mFlags; }
 
     glm::vec3   calc_direction( const glm::vec3& d ) const;
 

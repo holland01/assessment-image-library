@@ -157,9 +157,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     glewExperimental = true;
     GLenum glewSuccess = glewInit();
     if ( glewSuccess != GLEW_OK )
-    {
         MLOG_ERROR( "Could not initialize GLEW: %s", ( const char* ) glewGetErrorString( glewSuccess ) );
-    }
 #endif
 
     SDL_RendererInfo info;
@@ -171,16 +169,18 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
 
     mPipeline.reset( new render_pipeline() );
 
-    const shader_program& program = mPipeline->programs().at( "single_color" );
-    program.bind();
+    std::vector< std::string > perspectiveLoad = { "vertex_color", "single_color" };
 
     mSpec.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
     mPlayer.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
 
-    mSpec.mMode = input_client::MODE_SPEC;
+    mSpec.mMode = input_client::spectate;
 
-    program.load_mat4( "viewToClip", mPlayer.view_params().mClipTransform );
-    program.release();
+    for ( const auto& name: perspectiveLoad )
+    {
+        bind_program p( name );
+        p.program().load_mat4( "viewToClip", mPlayer.view_params().mClipTransform );
+    }
 
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glDisable( GL_CULL_FACE ) );
@@ -262,17 +262,19 @@ void application< child_t >::handle_event( const SDL_Event& e )
                 case SDLK_F1:
                     mMouseShown = !mMouseShown;
                     if ( mMouseShown )
-                    {
                         SDL_SetRelativeMouseMode( SDL_FALSE );
-                    }
                     else
-                    {
                         SDL_SetRelativeMouseMode( SDL_TRUE );
-                    }
+                    break;
+                case SDLK_l:
+                    if ( mCamPtr )
+                        mCamPtr->flags( mCamPtr->flags() ^ input_client::flags::lock_orientation );
                     break;
                 default:
-                    mCamPtr->eval_key_press( ( input_key ) e.key.keysym.sym );
+                    if ( mCamPtr )
+                        mCamPtr->eval_key_press( ( input_key ) e.key.keysym.sym );
                     break;
+
             }
             break;
         case SDL_KEYUP:

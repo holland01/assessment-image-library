@@ -571,6 +571,8 @@ public:
 
     void vertex( const glm::vec3& position );
 
+    void vertex( const glm::vec3& position, const glm::vec4& color );
+
     void end( void );
 
     void enabled( bool value );
@@ -820,15 +822,12 @@ INLINE void shader_program::load_attrib_layout( const draw_buffer& buffer, const
     {
         if ( attrib.second != -1 )
         {
-            if ( !program.mDisableAttribs.empty() )
-            {
-                auto it = std::find( program.mDisableAttribs.cbegin(), program.mDisableAttribs.cend(), attrib.first );
+            auto it = std::find( program.mDisableAttribs.cbegin(), program.mDisableAttribs.cend(), attrib.first );
 
-                if ( it != program.mDisableAttribs.cend() )
-                {
-                    GL_CHECK( glDisableVertexAttribArray( attrib.second ) );
-                    continue;
-                }
+            if ( it != program.mDisableAttribs.cend() )
+            {
+                GL_CHECK( glDisableVertexAttribArray( attrib.second ) );
+                continue;
             }
 
             intptr_t offset;

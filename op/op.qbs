@@ -97,6 +97,8 @@ Product {
         "../asset/shader/es/single_color.frag",
         "../asset/shader/es/single_color_ss.frag",
         "../asset/shader/es/single_color_ss.vert",
+        "../asset/shader/es/vertex_color.frag",
+        "../asset/shader/es/vertex_color.vert",
         "../src/application.cpp",
         "../src/application.h",
         "../src/base.cpp",

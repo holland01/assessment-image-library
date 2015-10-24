@@ -24,27 +24,29 @@ INLINE void debug_draw_hud( const application< app_impl_t >& app )
 template < typename app_impl_t >
 INLINE void debug_draw_axes( const application< app_impl_t >& app, const view_data& vp )
 {
-    const shader_program& singleColor = app.pipeline().programs().at( "single_color" );
+    const shader_program& p = app.pipeline().programs().at( "vertex_color" );
 
-    singleColor.bind();
-    singleColor.load_mat4( "modelToView", vp.mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
-    singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
+    p.bind();
+    p.load_mat4( "modelToView", vp.mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) ) );
+    //singleColor.load_vec4( "color", glm::vec4( 1.0f ) );
 
-    imm_draw drawer( singleColor );
+    imm_draw drawer( p );
 
     const float AXIS_SIZE = 100.0f;
 
     // Draw coordinate space axes
     drawer.begin( GL_LINES );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ) );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ) );
-    drawer.vertex( glm::vec3( 0.0f ) );
-    drawer.vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ) );
+    drawer.vertex( glm::vec3( 0.0f ), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f )  );
+    drawer.vertex( glm::vec3( AXIS_SIZE, 0.0f, 0.0f ), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+
+    drawer.vertex( glm::vec3( 0.0f ), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+    drawer.vertex( glm::vec3( 0.0f, AXIS_SIZE, 0.0f ), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+
+    drawer.vertex( glm::vec3( 0.0f ), glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+    drawer.vertex( glm::vec3( 0.0f, 0.0f, AXIS_SIZE ), glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
     drawer.end();
 
-    singleColor.release();
+    p.release();
 }
 
 template < typename app_impl_t >
