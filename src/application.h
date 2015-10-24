@@ -172,7 +172,9 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     std::vector< std::string > perspectiveLoad = { "vertex_color", "single_color" };
 
     mSpec.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
-    mPlayer.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
+    //mPlayer.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
+    mPlayer.ortho( -1.0f, 1.0f, -1.0f, 1.0f );
+    //mSpec.ortho( -mWidth, mHeight, -1.0f, 1.0f );
 
     mSpec.mMode = input_client::spectate;
 
