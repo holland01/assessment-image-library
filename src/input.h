@@ -151,11 +151,6 @@ INLINE void input_client::perspective( float fovy, float width, float height, fl
     mViewParams.mHeight = height;
 }
 
-INLINE void input_client::ortho( float left, float right, float bottom, float top )
-{
-    mViewParams.mClipTransform = glm::ortho( left, right, bottom, top, 0.0f, 1.0f );
-}
-
 INLINE void input_client::clip_transform( const glm::mat4& proj )
 {
     mViewParams.mClipTransform = proj;

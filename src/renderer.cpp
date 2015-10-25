@@ -821,7 +821,12 @@ const render_pipeline* pipeline_aware::mInstance = nullptr;
 //-------------------------------------------------------------------------------------------------
 
 bind_program::bind_program( const std::string& what )
-    : mProgram( mInstance->program( what ) )
+    : bind_program( mInstance->program( what ) )
+{
+}
+
+bind_program::bind_program( const shader_program& program )
+    : mProgram( program )
 {
     mProgram.bind();
 }

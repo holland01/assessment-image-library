@@ -516,6 +516,8 @@ private:
 public:
     bind_program( const std::string& which );
 
+    bind_program( const shader_program& program );
+
     ~bind_program( void );
 
     const shader_program& program( void ) const { return mProgram; }
@@ -741,7 +743,6 @@ INLINE void shader_program::release( void ) const
 
 INLINE void shader_program::load_mat4( const std::string& name, const glm::mat4& t ) const
 {
-
     GL_CHECK( glUniformMatrix4fv( mUniforms.at( name ), 1, GL_FALSE, glm::value_ptr( t ) ) );
 }
 

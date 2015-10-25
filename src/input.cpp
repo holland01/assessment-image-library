@@ -266,3 +266,8 @@ void input_client::print_origin( void ) const
 {
     printf( "Origin: %s\n", glm::to_string( mViewParams.mOrigin ).c_str() );
 }
+
+void input_client::ortho( float left, float right, float bottom, float top )
+{
+    mViewParams.mClipTransform = glm::ortho( left, right, bottom, top, 0.0f, 300.0f );
+}

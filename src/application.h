@@ -63,6 +63,10 @@ public:
 
     void quit( void );
 
+    void set_screen_dim_ortho( float scale = 0.5f );
+
+    void load_clip_transform( const std::vector< std::string >& programs = std::vector< std::string >() );
+
     virtual void handle_event( const SDL_Event& e );
 
     SDL_Window* window_handle( void ) { return mWindow; }
@@ -122,7 +126,7 @@ int32_t application< child_t>::run( void )
 }
 
 template < typename child_t >
-application< child_t >::application( uint32_t width_ , uint32_t height_ )
+FORCEINLINE application< child_t >::application( uint32_t width_ , uint32_t height_ )
     : mWidth( width_ ),
       mHeight( height_ ),
       mFrameTime( 0.0f ),
@@ -169,20 +173,14 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
 
     mPipeline.reset( new render_pipeline() );
 
-    std::vector< std::string > perspectiveLoad = { "vertex_color", "single_color" };
+    mCamPtr = &mSpec;
 
     mSpec.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
-    //mPlayer.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
-    mPlayer.ortho( -1.0f, 1.0f, -1.0f, 1.0f );
-    //mSpec.ortho( -mWidth, mHeight, -1.0f, 1.0f );
+    mPlayer.perspective( 60.0f, ( float ) mWidth, ( float ) mHeight, 0.1f, 10000.0f );
+
+    load_clip_transform();
 
     mSpec.mMode = input_client::spectate;
-
-    for ( const auto& name: perspectiveLoad )
-    {
-        bind_program p( name );
-        p.program().load_mat4( "viewToClip", mPlayer.view_params().mClipTransform );
-    }
 
     GL_CHECK( glEnable( GL_TEXTURE_2D ) );
     GL_CHECK( glDisable( GL_CULL_FACE ) );
@@ -195,7 +193,6 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     GL_CHECK( glPointSize( 10.0f ) );
 #endif
 
-    mCamPtr = &mSpec;
     mRunning = true;
 }
 
@@ -241,6 +238,46 @@ void application< child_t >::quit( void )
         SDL_SetRelativeMouseMode( SDL_FALSE );
         mRunning = false;
         return;
+    }
+}
+
+#define CAM_PTR_ASSERT assert( mCamPtr && "mCamPtr not set!" )
+
+template < typename child_t >
+void application< child_t >::set_screen_dim_ortho( float scale )
+{
+    CAM_PTR_ASSERT;
+
+    mCamPtr->ortho( -float( mWidth ) * scale,
+                   float( mWidth ) * scale,
+                   -float( mHeight ) * scale,
+                   float( mHeight ) * scale );
+}
+
+template < typename child_t >
+void application< child_t >::load_clip_transform( const std::vector< std::string >& programs )
+{
+    CAM_PTR_ASSERT;
+
+    auto do_load = [ this ]( const shader_program& p )
+    {
+        bind_program bind( p );
+        bind.program().load_mat4( "viewToClip", mCamPtr->view_params().mClipTransform );
+    };
+
+    if ( programs.empty() )
+    {
+        for ( const auto& pair: mPipeline->programs() )
+        {
+            if ( pair.second.uniforms().find( "viewToClip" )
+                 != pair.second.uniforms().end() )
+                do_load( pair.second );
+        }
+    }
+    else
+    {
+        for ( const auto& name: programs )
+            do_load( mPipeline->program( name ) );
     }
 }
 
