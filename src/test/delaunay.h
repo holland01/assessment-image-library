@@ -27,5 +27,7 @@ public:
     void draw( void ) override;
 
     void frame( void ) override;
+
+    void draw_triangle( imm_draw& draw, const shader_program& prog, const glm::vec3& position );
 };
 

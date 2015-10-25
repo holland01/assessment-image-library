@@ -2,45 +2,26 @@
 
 #include "_geom_local.h"
 
+struct imm_draw;
+
 struct ray
 {
-	glm::vec3 p;
-	glm::vec3 d;
-	float t;
+    glm::vec3 mOrigin;
+    glm::vec3 mDir;
+    float mT;
 
 	ray( const glm::vec3& position = glm::vec3( 0.0f ),
 		 const glm::vec3& dir = glm::vec3( 0.0f ),
-		 float t_ = 1.0f )
-		: p( position ),
-		  d( dir ),
-		  t( t_ )
-	{}
+         float t_ = 1.0f );
 
-	ray( ray&& ) = delete;
-	ray& operator=( ray&& ) = delete;
+    ray( const ray& r );
 
-	ray( const ray& r )
-		: p( r.p ),
-		  d( r.d ),
-		  t( r.t )
-	{
-	}
+    ray& operator=( const ray& r );
 
-	ray& operator=( const ray& r )
-	{
-		if ( this != &r )
-		{
-			p = r.p;
-			d = r.d;
-			t = r.t;
-		}
+    FORCEINLINE glm::vec3 calc_position( float t ) const { return mOrigin + mDir * t; }
 
-		return *this;
-	}
+    FORCEINLINE glm::vec3 calc_position( void ) const { return calc_position( mT ); }
 
-	glm::vec3 calc_position( void ) const
-	{
-		return p + d * t;
-	}
+    void draw( imm_draw& drawer, const glm::vec4& color = glm::vec4( 1.0f ) ) const;
 };
 

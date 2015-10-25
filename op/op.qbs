@@ -123,6 +123,7 @@ Product {
         "../src/geom/halfspace.h",
         "../src/geom/plane.h",
         "../src/geom/point_project_pair.h",
+        "../src/geom/ray.cpp",
         "../src/geom/ray.h",
         "../src/geom/transform_data.h",
         "../src/glm_ext.hpp",
