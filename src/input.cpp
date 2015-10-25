@@ -269,5 +269,5 @@ void input_client::print_origin( void ) const
 
 void input_client::ortho( float left, float right, float bottom, float top )
 {
-    mViewParams.mClipTransform = glm::ortho( left, right, bottom, top, 0.0f, 300.0f );
+    mViewParams.mClipTransform = glm::ortho( left, right, bottom, top, 0.0f, 1000.0f );
 }

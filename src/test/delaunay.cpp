@@ -16,18 +16,32 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
     orient[ 1 ] = -up;
     orient[ 2 ] = -forward;
 
-    mCamPtr->position( glm::vec3( 0.482388f, 174.024277f, -0.287616f ) );
-
     mCamPtr->orientation( glm::inverse( orient ) );
     mCamPtr->flags( input_client::flags::lock_orientation );
 
-    set_screen_dim_ortho( 0.25f );
+    set_screen_dim_ortho( 0.1f );
     load_clip_transform();
 }
 
 void delaunay_test::draw( void )
 {
     dt_app_t::draw();
+
+    const shader_program& vcolor = mPipeline->program( "vertex_color" );
+
+    bind_program bind( vcolor );
+
+    imm_draw d( vcolor );
+
+    vcolor.load_mat4( "modelToView", mCamPtr->view_params().mTransform * glm::translate( glm::mat4( 1.0f ), glm::vec3( 50.0f, 0.0f, 50.0f ) ) );
+
+    const float SIZE = 10.0f;
+
+    d.begin( GL_TRIANGLES );
+    d.vertex( glm::vec3( -SIZE, 0.0f, 0.0f ), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+    d.vertex( glm::vec3( SIZE, 0.0f, 0.0f ), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+    d.vertex( glm::vec3( 0.0f, 0.0f, -SIZE ), glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+    d.end();
 }
 
 void delaunay_test::frame( void )
