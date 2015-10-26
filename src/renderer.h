@@ -1177,3 +1177,28 @@ INLINE void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData,
                                &vertexData[ 0 ] ) );
     release();
 }
+
+using gl_fn_t = void( * )( float );
+
+template < gl_fn_t pred >
+struct gl_push_float_attrib
+{
+    float mSave;
+
+    gl_push_float_attrib( GLenum param, float s )
+    {
+        GL_CHECK( glGetFloatv( param, &mSave ) );
+        pred( s );
+    }
+
+    ~gl_push_float_attrib( void )
+    {
+        pred( mSave );
+    }
+};
+
+template < typename... args >
+struct attrib_stack
+{
+
+};

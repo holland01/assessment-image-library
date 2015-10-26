@@ -22,6 +22,8 @@ struct ray
 
     FORCEINLINE glm::vec3 calc_position( void ) const { return calc_position( mT ); }
 
+    bool intersects( const ray& r, float& thisT, float& candidateT ) const;
+
     void draw( imm_draw& drawer, const glm::vec4& color = glm::vec4( 1.0f ) ) const;
 };
 

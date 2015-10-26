@@ -273,6 +273,18 @@ INLINE glm::mat3 scale( const glm::mat3& m, const glm::vec3& size )
 	return std::move( s );
 }
 
+INLINE bool parallel( const glm::vec3& a, const glm::vec3& b )
+{
+    float aLen = glm::length( a );
+    float bLen = glm::length( b );
+
+    if ( bLen == 0.0f || aLen == 0.0f )
+        return false;
+
+    float cosTheta = glm::abs( glm::dot( a, b ) / ( aLen * bLen ) );
+    return cosTheta == 1.0f;
+}
+
 } // namespace ext
 
 } // namespace glm

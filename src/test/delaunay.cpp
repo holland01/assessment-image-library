@@ -1,4 +1,6 @@
 #include "delaunay.h"
+#include "procedural.h"
+#include <random>
 
 delaunay_test::delaunay_test( uint32_t width, uint32_t height )
     : dt_app_t( width, height )
@@ -54,72 +56,86 @@ namespace {
         return bisect;
     }
 
-    // TODO: try only solving for an intersection between two of the rays first.
-    // See if you can use algebra to extract the correct scalars
-    // over a system of linear equations.
-    // (Some linear algebra matrix operations may be useful here)
-    glm::vec3 calc_intersection( const ray& r0, const ray& r1, const ray& r2 )
+    bool calc_intersection( const ray& r0, const ray& r1, const ray& r2, glm::vec3& point )
     {
-        /*
-        const float RANGE = 20.0f;
-        const float STEP  = 0.1f;
+        point = glm::vec3( FLT_MAX );
 
-        glm::vec3 point( -FLT_MIN );
+        float r0T, r1T, r2T;
 
-        for ( float s = -RANGE; s <= RANGE; s += STEP )
-        {
-            for ( float t = -RANGE; t <= RANGE; t += STEP )
-            {
-                for ( float u = -RANGE; u <= RANGE; u += STEP )
-                {
-                    glm::vec3 p0( r0.calc_position( s ) );
-                    glm::vec3 p1( r1.calc_position( t ) );
-                    glm::vec3 p2( r2.calc_position( u ) );
+        if ( !r0.intersects( r1, r0T, r1T ) )
+            return false;
 
-                    if ( p0 == p1 && p1 == p2 )
-                    {
-                        point = p0;
-                        break;
-                    }
-                }
-            }
-        }
-        */
+        if ( !r0.intersects( r2, r0T, r2T ) )
+            return false;
 
-        return point;
+        point = glm::vec3( r0.calc_position( r0T ) );
+
+        return true;
     }
+}
+
+namespace {
+
+    const uint32_t FRAME_LIMIT = 10000;
+
+    randomize gRandom( 5.0f, 20.0f );
+
+    uint32_t gFrameCount = 0;
+
+    std::array< glm::vec3, 3 > gVerts;
 }
 
 void delaunay_test::draw_triangle( imm_draw& draw, const shader_program& prog, const glm::vec3& position )
 {
     prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform * glm::translate( glm::mat4( 1.0f ), position ) );
 
-    const float SIZE = 10.0f;
-
-    const std::array< glm::vec3, 3 > verts =
-    {{
-         glm::vec3( -SIZE, 0.0f, 0.0f ),
-         glm::vec3( SIZE, 0.0f, 0.0f ),
-         glm::vec3( 0.0f, 0.0f, -SIZE )
-    }};
+    if ( gFrameCount++ % FRAME_LIMIT == 0 )
+    {
+        gVerts[ 0 ] = glm::vec3( -gRandom(), 0.0f, 0.0f );
+        gVerts[ 1 ] = glm::vec3( gRandom(), 0.0f, 0.0f );
+        gVerts[ 2 ] = glm::vec3( 0.0f, 0.0f, -gRandom() );
+    }
 
     draw.begin( GL_TRIANGLES );
-    draw.vertex( verts[ 0 ], glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    draw.vertex( verts[ 1 ], glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
-    draw.vertex( verts[ 2 ], glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
+    draw.vertex( gVerts[ 0 ], glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+    draw.vertex( gVerts[ 1 ], glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+    draw.vertex( gVerts[ 2 ], glm::vec4( 0.0f, 0.0f, 1.0f, 1.0f ) );
     draw.end();
 
-    glm::vec3 e1( verts[ 1 ] - verts[ 0 ] );
-    glm::vec3 e2( verts[ 2 ] - verts[ 0 ] );
-    glm::vec3 e3( verts[ 2 ] - verts[ 1 ] );
+    glm::vec3 e1( gVerts[ 1 ] - gVerts[ 0 ] );
+    glm::vec3 e2( gVerts[ 2 ] - gVerts[ 0 ] );
+    glm::vec3 e3( gVerts[ 2 ] - gVerts[ 1 ] );
 
-    ray bisect1 = make_bisector( verts[ 0 ], e1 );
-    ray bisect2 = make_bisector( verts[ 0 ], e2 );
-    ray bisect3 = make_bisector( verts[ 1 ], e3 );
+    ray bisect1 = make_bisector( gVerts[ 0 ], e1 );
+    ray bisect2 = make_bisector( gVerts[ 0 ], e2 );
+    ray bisect3 = make_bisector( gVerts[ 1 ], e3 );
 
-    glm::vec3 intersection( calc_intersection( bisect1, bisect2, bisect3 ) );
+    glm::vec3 intersection;
 
-    __nop();
+    if ( calc_intersection( bisect1, bisect2, bisect3, intersection ) )
+    {
+        draw.begin( GL_POINTS );
+        draw.vertex( intersection, glm::vec4( 1.0f, 1.0f, 0.0f, 1.0f ) );
+        draw.end();
+
+        float radius = glm::distance( gVerts[ 0 ], intersection );
+
+        const float twoPiStep = 1.0f / ( glm::two_pi< float >() * radius );
+
+        gl_push_float_attrib< glPointSize > pointSize( GL_POINT_SIZE, 1.0f );
+
+        draw.begin( GL_POINTS );
+        for ( float theta = 0.0f; theta <= glm::two_pi< float >(); theta += twoPiStep )
+        {
+            glm::vec3 p( intersection );
+
+            p.x += glm::cos( theta ) * radius;
+            p.z += glm::sin( theta ) * radius;
+
+            draw.vertex( p, glm::vec4( 1.0f ) );
+        }
+        draw.end();
+    }
 
     bisect1.draw( draw, glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
     bisect2.draw( draw, glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
