@@ -19,8 +19,47 @@
 struct delaunay_test;
 using dt_app_t = application< delaunay_test >;
 
+struct dtri
+{
+    std::array< glm::vec3, 3 > mVerts;
+    glm::vec3 mCircumCenter;
+    float mCircumRadius;
+
+    dtri( const std::array< glm::vec3, 3 >& verts, const glm::vec3& circumCircleCenter, float circumCircleRadius )
+        : mVerts( verts ),
+          mCircumCenter( circumCircleCenter ),
+          mCircumRadius( circumCircleRadius )
+    {
+    }
+};
+
+struct dnode
+{
+    glm::vec3 mPoint;
+    glm::vec4 mColor;
+
+    std::unique_ptr< dtri > mTriangle;
+
+    dnode( const glm::vec3& point, const glm::vec4& color )
+        : mPoint( point ),
+          mColor( color ),
+          mTriangle( nullptr )
+    {
+    }
+};
+
+FORCEINLINE bool operator == ( const dnode& a, const dnode& b )
+{
+    return a.mPoint == b.mPoint &&
+        a.mColor == b.mColor &&
+        a.mTriangle == b.mTriangle;
+}
+
 class delaunay_test : public dt_app_t
 {
+private:
+    std::vector< dnode > mNodes;
+
 public:
     delaunay_test( uint32_t width, uint32_t height );
 
@@ -28,6 +67,8 @@ public:
 
     void frame( void ) override;
 
-    void draw_triangle( imm_draw& draw, const shader_program& prog, const glm::vec3& position );
+    dtri* gen_triangle( const glm::vec3& position );
+
+    void draw_nodes( imm_draw& draw, const shader_program& prog );
 };
 
