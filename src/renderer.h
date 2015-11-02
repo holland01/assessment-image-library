@@ -1178,22 +1178,73 @@ INLINE void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData,
     release();
 }
 
-using gl_fn_t = void( * )( float );
+/*
+template < GLenum fetchParam,
+           typename set_fn_t, set_fn_t set,
+           typename get_fn_t, get_fn_t get,
+           typename... args >
+struct state
+{   
+    using args_type = std::tuple< args... >;
 
-template < gl_fn_t pred >
+    args_type mSave;
+
+    state( args... s )
+    {
+        std::tie< args... > save;
+
+        GL_CHECK( get( fetchParam, ( &save )... ) );
+        mSave = std::move( save );
+        set( std::forward< args >( s )... );
+    }
+
+    ~state( void )
+    {
+        std::tie< args... > t( mSave );
+
+        set( std::forward( t ) );
+    }
+};
+
+using gl_push_point_size_t = state< GL_POINT_SIZE,
+                                    void ( * )( float ), glPointSize,
+                                    void ( * )( GLenum, float* ), glGetFloatv,
+                                    float >;
+
+*/
+
+using float_func_t = void ( * )( float param );
+
+template < GLenum param, float_func_t set >
 struct gl_push_float_attrib
 {
-    float mSave;
+    float mSave = 0.0f;
 
-    gl_push_float_attrib( GLenum param, float s )
+    gl_push_float_attrib( float s )
     {
         GL_CHECK( glGetFloatv( param, &mSave ) );
-        pred( s );
+        set( s );
     }
 
     ~gl_push_float_attrib( void )
     {
-        pred( mSave );
+        set( mSave );
+    }
+};
+
+struct gl_push_polygon_mode
+{
+    GLint mSave = 0;
+
+    gl_push_polygon_mode( GLenum s )
+    {
+        GL_CHECK( glGetIntegerv( GL_POLYGON_MODE, &mSave ) );
+        GL_CHECK( glPolygonMode( GL_FRONT_AND_BACK, s ) );
+    }
+
+    ~gl_push_polygon_mode( void )
+    {
+        GL_CHECK( glPolygonMode( GL_FRONT_AND_BACK, mSave ) );
     }
 };
 

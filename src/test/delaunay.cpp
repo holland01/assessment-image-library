@@ -8,6 +8,8 @@ namespace {
 
     const uint32_t POINT_COUNT = 100;
 
+    const float POINT_STRIDE = 1.0f;
+
     randomize gRandom( 5.0f, 20.0f );
     randomize gPointRandom( 0.0f, 100.0f );
     randomize gColorRandom( 0.5f, 1.0f );
@@ -17,15 +19,66 @@ namespace {
         std::vector< const dnode* > mNodes;
         std::vector< std::vector< const dnode* > > mRelatives;
 
-        void sort( const dnode& src, std::vector< const dnode* >& v )
+        void sort( const dnode* src, std::vector< const dnode* >& v )
         {
             std::sort( v.begin(), v.end(), [ &src ]( const dnode* a, const dnode* b )
             {
-                return glm::distance( src.mPoint, a->mPoint ) < glm::distance( src.mPoint, b->mPoint );
+                return glm::distance( src->mPoint, a->mPoint ) < glm::distance( src->mPoint, b->mPoint );
             });
         }
 
-        tri_gen( const dnode& src )
+        ray make_bisector( const glm::vec3& startVertex, const glm::vec3& edge ) const
+        {
+            glm::vec3 p0( startVertex + edge * 0.5f );
+            glm::vec3 dir( glm::cross( edge, G_DIR_UP ) );
+
+            ray bisect( p0, glm::normalize( dir ), glm::length( dir ) );
+
+            return bisect;
+        }
+
+        bool calc_intersection( const ray& r0, const ray& r1, const ray& r2, glm::vec3& point ) const
+        {
+            point = glm::vec3( FLT_MAX );
+
+            float r0T, r1T, r2T;
+
+            if ( !r0.intersects( r1, r0T, r1T ) )
+                return false;
+
+            if ( !r0.intersects( r2, r0T, r2T ) )
+                return false;
+
+            point = glm::vec3( r0.calc_position( r0T ) );
+
+            return true;
+        }
+
+        dtri gen_triangle( const dnode* a, const dnode* b, const dnode* c ) const
+        {
+            std::array< dtri::vertex_type, 3 > verts;
+
+            verts[ 0 ] = a;
+            verts[ 1 ] = b;
+            verts[ 2 ] = c;
+
+            glm::vec3 e1( verts[ 1 ]->mPoint - verts[ 0 ]->mPoint );
+            glm::vec3 e2( verts[ 2 ]->mPoint - verts[ 0 ]->mPoint );
+            glm::vec3 e3( verts[ 2 ]->mPoint - verts[ 1 ]->mPoint );
+
+            ray bisect1 = make_bisector( verts[ 0 ]->mPoint, e1 );
+            ray bisect2 = make_bisector( verts[ 0 ]->mPoint, e2 );
+            ray bisect3 = make_bisector( verts[ 1 ]->mPoint, e3 );
+
+            glm::vec3 intersection;
+
+            bool result = calc_intersection( bisect1, bisect2, bisect3, intersection );
+            assert( result );
+
+            return dtri( verts, intersection, glm::distance( intersection, verts[ 0 ]->mPoint ) );
+        }
+
+        tri_gen( dnode& src )
         {
             mNodes.reserve( src.mNeighbors.size() + 1 );
             mNodes.push_back( &src );
@@ -40,7 +93,7 @@ namespace {
 
                 uint32_t k = 0;
 
-                for ( uint32_t j = 0; i < mNodes.size(); ++j )
+                for ( uint32_t j = 0; j < mNodes.size(); ++j )
                 {
                     if ( i == j )
                         continue;
@@ -49,9 +102,33 @@ namespace {
                 }
 
                 sort( mNodes[ i ], neighbors );
+
+                mRelatives.push_back( std::move( neighbors ) );
             }
 
-            // TODO: finish
+            for ( uint32_t i = 1; i < mNodes.size(); i += 2 )
+            {
+                /*
+                // We need two nodes per iteration
+                uint32_t need = mRelatives[ i ].size() % 2;
+                uint32_t length = mRelatives[ i ].size() - need;
+
+                // If we have a full even amount, that means we have the correct amount of triangles, and therefore
+                // won't have to deal with backups
+                if ( length == mRelatives[ i ].size() )
+                    go = false;
+                else
+                    __nop(); // debug
+                */
+
+                //for ( uint32_t j = 0; j < length; j += 2 )
+                {
+                    src.mTriangles.push_back( gen_triangle(
+                                                          &src,
+                                                          mNodes[ i ],
+                                                          mNodes[ ( i + 1 ) % mNodes.size() ] ) );
+                }
+            }
         }
     };
 
@@ -62,6 +139,7 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
     : dt_app_t( width, height )
 {
     mCamPtr->position( glm::vec3( 50.0f, 200.0f, 50.0f ) );
+    //mCamPtr->move_step( 10.0f );
 
     glm::vec3 point( 50.0f, 0.0f, 50.0f );
     glm::vec3 forward( glm::normalize( point - mCamPtr->position() ) );
@@ -76,15 +154,16 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
     mCamPtr->orientation( glm::inverse( orient ) );
     mCamPtr->flags( input_client::flags::lock_orientation );
 
-    set_screen_dim_ortho( 0.1f );
-    load_clip_transform();
+   // set_screen_dim_ortho( 0.1f );
+   // load_clip_transform();
 
     for ( uint32_t i = 0; i < POINT_COUNT; ++i )
     {
-        mNodes.push_back( dnode( glm::vec3( gPointRandom(), 0.0f, gPointRandom() ),
+        mNodes.push_back( dnode( glm::vec3( gPointRandom() * POINT_STRIDE, 0.0f, gPointRandom() * POINT_STRIDE ),
                                  glm::vec4( gColorRandom(), gColorRandom(), gColorRandom(), 1.0f ) ) );
     }
 
+    /*
     auto find_min = [ this ]( dnode& n, std::vector< const dnode* >& setA )
     {
         float minDist = FLT_MAX;
@@ -111,6 +190,7 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
         if ( minNeighbor )
             setA.push_back( minNeighbor );
     };
+    */
 
     for ( dnode& n: mNodes )
     {
@@ -133,7 +213,7 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
 
                 // If we have a point which is closer and in the same line of sight, we need to bail
                 if ( glm::distance( k.mPoint, n.mPoint ) < glm::distance( m.mPoint, n.mPoint )
-                     && glm::dot( dirToM, dirToK ) >= 0.999f ) // if > 0.8, they may as well be parallel
+                     && glm::dot( dirToM, dirToK ) >= 0.999f )
                 {
                     add = false;
                     break;
@@ -144,23 +224,14 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
                 n.mNeighbors.push_back( &m );
         }
 
+        // If we can't triangulate, then we're wasting our time with this one.
         if ( n.mNeighbors.size() < 2 )
         {
             n.mNeighbors.clear();
             continue;
         }
 
-        // Partition nodes into triangles
-
-
-        std::vector< const dnode* > allp;
-        allp.push_back( &n );
-        allp.insert( allp.end(), n.mNeighbors.begin(), n.mNeighbors.end() );
-
-        for ( uint32_t i = 0; i < allp.size(); i += 3 )
-        {
-            dtri t = gen_triangle(  )
-        }
+        tri_gen gen( n );
     }
 }
 
@@ -186,38 +257,12 @@ void delaunay_test::frame( void )
 }
 
 namespace {
-    ray make_bisector( const glm::vec3& startVertex, const glm::vec3& edge )
-    {
-        glm::vec3 p0( startVertex + edge * 0.5f );
-        glm::vec3 dir( glm::cross( edge, G_DIR_UP ) );
-
-        ray bisect( p0, glm::normalize( dir ), glm::length( dir ) );
-
-        return bisect;
-    }
-
-    bool calc_intersection( const ray& r0, const ray& r1, const ray& r2, glm::vec3& point )
-    {
-        point = glm::vec3( FLT_MAX );
-
-        float r0T, r1T, r2T;
-
-        if ( !r0.intersects( r1, r0T, r1T ) )
-            return false;
-
-        if ( !r0.intersects( r2, r0T, r2T ) )
-            return false;
-
-        point = glm::vec3( r0.calc_position( r0T ) );
-
-        return true;
-    }
 
     void draw_circle( imm_draw& draw, const dtri& tri )
     {
         const float twoPiStep = 1.0f / ( glm::two_pi< float >() * tri.mCircumRadius );
 
-        gl_push_float_attrib< glPointSize > pointSize( GL_POINT_SIZE, 1.0f );
+        gl_push_float_attrib< GL_POINT_SIZE, glPointSize > pointSize( 1.0f );
 
         draw.begin( GL_POINTS );
         for ( float theta = 0.0f; theta <= glm::two_pi< float >(); theta += twoPiStep )
@@ -234,39 +279,17 @@ namespace {
 
     void draw_tri( imm_draw& draw, const dtri& tri )
     {
-        const glm::vec4 color( 1.0f );
+        const glm::vec4 color( 1.0f, 0.0f, 1.0f, 1.0f );
 
         draw.begin( GL_TRIANGLES );
-        draw.vertex( tri.mVerts[ 0 ], color );
-        draw.vertex( tri.mVerts[ 1 ], color );
-        draw.vertex( tri.mVerts[ 2 ], color );
+        draw.vertex( tri.mVerts[ 0 ]->mPoint, color );
+        draw.vertex( tri.mVerts[ 1 ]->mPoint, color );
+        draw.vertex( tri.mVerts[ 2 ]->mPoint, color );
         draw.end();
     }
 }
 
-dtri delaunay_test::gen_triangle( const dnode* a, const dnode* b, const dnode* c )
-{
-    std::array< dtri::vertex_type, 3 > verts;
 
-    verts[ 0 ] = a;
-    verts[ 1 ] = b;
-    verts[ 2 ] = c;
-
-    glm::vec3 e1( verts[ 1 ].mPoint - verts[ 0 ].mPoint );
-    glm::vec3 e2( verts[ 2 ].mPoint - verts[ 0 ].mPoint );
-    glm::vec3 e3( verts[ 2 ].mPoint - verts[ 1 ].mPoint );
-
-    ray bisect1 = make_bisector( verts[ 0 ].mPoint, e1 );
-    ray bisect2 = make_bisector( verts[ 0 ].mPoint, e2 );
-    ray bisect3 = make_bisector( verts[ 1 ].mPoint, e3 );
-
-    glm::vec3 intersection;
-
-    bool result = calc_intersection( bisect1, bisect2, bisect3, intersection );
-    assert( result );
-
-    return dtri( verts, position + intersection, glm::distance( intersection, verts[ 0 ] ) );
-}
 
 void delaunay_test::draw_nodes( imm_draw& draw, const shader_program& prog )
 {
@@ -279,15 +302,20 @@ void delaunay_test::draw_nodes( imm_draw& draw, const shader_program& prog )
 
     for ( const dnode& n: mNodes )
     {
-        if ( n.mTriangles )
+        if ( !n.mTriangles.empty() )
         {
-            prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform * glm::translate( glm::mat4( 1.0f ), n.mPoint ) );
-            draw_tri( draw, *( n.mTriangles ) );
+            gl_push_polygon_mode s( GL_LINE );
+            for ( const dtri& t: n.mTriangles )
+            {
+                prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform );
+                draw_tri( draw, t );
 
-            prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform );
-            draw_circle( draw, *( n.mTriangles ) );
+                //prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform );
+                //draw_circle( draw, t );
+            }
         }
-        else
+        //else
+        /*
         {
             prog.load_mat4( "modelToView", mCamPtr->view_params().mTransform );
 
@@ -304,6 +332,7 @@ void delaunay_test::draw_nodes( imm_draw& draw, const shader_program& prog )
 
             draw.end();
         }
+        */
     }
 }
 

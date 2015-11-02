@@ -42,7 +42,7 @@ struct dnode
     glm::vec3 mPoint;
     glm::vec4 mColor;
 
-    std::vector< dtri > mTriangles;
+    mutable std::vector< dtri > mTriangles;
 
     std::vector< const dnode* > mNeighbors;
 
@@ -56,8 +56,8 @@ struct dnode
 FORCEINLINE bool operator == ( const dnode& a, const dnode& b )
 {
     return a.mPoint == b.mPoint &&
-        a.mColor == b.mColor &&
-        a.mTriangles == b.mTriangles;
+        a.mColor == b.mColor;
+        //a.mTriangles == b.mTriangles;
 }
 
 class delaunay_test : public dt_app_t
