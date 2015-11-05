@@ -12,7 +12,7 @@ namespace {
 
     randomize gRandom( 5.0f, 20.0f );
     randomize gPointRandom( 0.0f, 100.0f );
-    randomize gColorRandom( 0.5f, 1.0f );
+    randomize gColorRandom( 0.3f, 0.7f );
 
     ray make_bisector( const glm::vec3& startVertex, const glm::vec3& edge )
     {
@@ -87,7 +87,8 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
 
     for ( uint32_t i = 0; i < POINT_COUNT; ++i )
     {
-        mNodes.push_back( dnode( glm::vec3( gPointRandom() * POINT_STRIDE, 0.0f, gPointRandom() * POINT_STRIDE ),
+        mNodes.push_back( dnode( i,
+                                 glm::vec3( gPointRandom() * POINT_STRIDE, 0.0f, gPointRandom() * POINT_STRIDE ),
                                  glm::vec4( gColorRandom(), gColorRandom(), gColorRandom(), 1.0f ) ) );
     }
 
@@ -99,9 +100,9 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
         ray r0( glm::vec3( 50.0f, 0.0f, 50.0f ), r );
 
         float maxDist = FLT_MIN;
-        const dnode* pN = nullptr;
+        dnode* pN = nullptr;
 
-        for ( const dnode& n: mNodes )
+        for ( dnode& n: mNodes )
         {
             glm::vec3 dx( n.mPoint - r0.mOrigin );
 
@@ -115,52 +116,68 @@ delaunay_test::delaunay_test( uint32_t width, uint32_t height )
         }
 
         if ( pN )
+        {
+            pN->mInternal = false;
             mConvexHull.push_back( pN );
+        }
     }
+
+    for ( const dnode& n: mNodes )
+        if ( n.mInternal )
+            mInternal.push_back( &n );
 
     auto find_closest_point = [ this ]( const dnode& k, const float low ) -> std::tuple< float, const dnode* >
     {
         float minDist = FLT_MAX;
         dnode* p = nullptr;
 
-        for ( dnode& n: mNodes )
+        uint32_t x = 0;
+
+        for ( uint32_t i = 0; i < mNodes.size(); ++i )
         {
-            if ( k == n )
-                continue;
+            dnode& n = mNodes[ i ];
+
+            if ( n.mInternal )
+            {
+                if ( ( x++ % 3 ) == 0 )
+                    continue;
+            }
+
 
             float dist = glm::distance( k.mPoint, n.mPoint );
 
-            if ( !n.mTagged && !n.mInternal && low < dist && dist < minDist )
+            if ( !n.mTriVertex && low < dist && dist < minDist )
             {
                 p = &n;
                 minDist = dist;
             }
         }
 
-        //assert( p );
-
         if ( p )
-            p->mTagged = true;
+            p->mTriVertex = true;
 
         return std::tuple< float, const dnode* >( minDist, p );
     };
 
-    for ( uint32_t i = 0; i < mNodes.size(); i += 3 )
-    {
-        mNodes[ i ].mInternal = true;
+    const uint32_t internalCount = mInternal.size() / 3;
 
-        auto p0 = find_closest_point( mNodes[ i ], 0.0f );
-        auto p1 = find_closest_point( mNodes[ i ], std::get< 0 >( p0 ) );
-        auto p2 = find_closest_point( mNodes[ i ], std::get< 0 >( p1 ) );
+    for ( uint32_t i = 0, k = 0; k < internalCount; ( i += 3, k += 1 ) )
+    {
+        mNodes[ mInternal[ i ]->mIndex ].mColor = glm::vec4( 1.0f );
+        mNodes[ mInternal[ i ]->mIndex ].mTriCenter = true;
+
+        auto p0 = find_closest_point( *( mInternal[ i ] ), 0.0f );
+        auto p1 = find_closest_point( *( mInternal[ i ] ), std::get< 0 >( p0 ) );
+        auto p2 = find_closest_point( *( mInternal[ i ] ), std::get< 0 >( p1 ) );
 
         std::array< const dnode*, 3 > v = {{ std::get< 1 >( p0 ),
                                              std::get< 1 >( p1 ),
-                                             std::get< 1 >( p2 )  }};
+                                             std::get< 1 >( p2 ) }};
         dinternal_node in;
-        in.mInner = &mNodes[ i ];
+        in.mInner = mInternal[ i ];
         in.mOuter = std::move( v );
 
-        mInternal.push_back( std::move( in ) );
+        mTriGraph.push_back( std::move( in ) );
         mTriangles.push_back( gen_triangle( in.mOuter[ 0 ], in.mOuter[ 1 ], in.mOuter[ 2 ] ) );
     }
 }

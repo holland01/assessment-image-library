@@ -39,16 +39,20 @@ struct dtri
 
 struct dnode
 {
-    glm::vec3 mPoint;
+    const uint32_t mIndex;
+    const glm::vec3 mPoint;
     glm::vec4 mColor;
     bool mInternal;
-    bool mTagged;
+    bool mTriVertex;
+    bool mTriCenter;
 
-    dnode( const glm::vec3& point, const glm::vec4& color )
-        : mPoint( point ),
+    dnode( uint32_t index, const glm::vec3& point, const glm::vec4& color )
+        : mIndex( index ),
+          mPoint( point ),
           mColor( color ),
-          mInternal( false ),
-          mTagged( false )
+          mInternal( true ),
+          mTriVertex( false ),
+          mTriCenter( false )
     {
     }
 };
@@ -76,7 +80,8 @@ class delaunay_test : public dt_app_t
 private:
     std::vector< dnode > mNodes;
     std::vector< const dnode* > mConvexHull;
-    std::vector< dinternal_node > mInternal;
+    std::vector< const dnode* > mInternal;
+    std::vector< dinternal_node > mTriGraph;
     std::vector< dtri > mTriangles;
 
 public:
