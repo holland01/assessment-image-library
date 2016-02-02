@@ -39,7 +39,7 @@ both of which can be found in the asset/ folder. As their names suggest,
 these images display the same content. The key difference is that
 the png variant is black and white, while the jpg is obviously colored.
 
-Here's two screenshots depicting what the user would see if they ran it:
+Here's two screenshots depicting what the user would see if they ran the demo:
 
 ![Float]
 (http://i.imgur.com/8A5s9bH.png)
@@ -59,10 +59,10 @@ space using the mouse and W,S,A,D keys for standard movement
 in addition to the space bar and left shift key for raising and lowering the
 camera, respectively.
 
-In this demo, there's only set of images in the scene; so,
+In this demo, there's only a set of images in the scene; so,
 moving forward and backward using W and S, respectively, should be sufficient
-to view everything properly. The user may have to move backward a few
-steps before the image is shown.
+to view everything properly. ~The user may have to move backward a few
+steps before the image is shown.~ (fixed before upload) 
 
 Pressing the "UP" key will toggle between displaying
 the two available data formats - floating point and 8 bit.
