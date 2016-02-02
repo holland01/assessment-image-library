@@ -15,6 +15,7 @@
 #include <lib/glm/gtc/matrix_access.hpp>
 
 // These are nice in situations when you find yourself making lots of changes as you go along :)
+// Given time, I would replace the macros with their substitutions, but for now they work.
 #define IMG_DEF template <typename Tchannel, color_format Eformat, typename Tint = int32_t>
 #define IMG_DATA_TMPL data<Tchannel, Eformat, Tint>
 #define IMG_INT_TYPE Tint
@@ -22,35 +23,14 @@
 
 namespace img {
 
-// We obviously can't effectively square root integers,
-// so we take a simpler approach if we're using non-floating point values
-template <class Tchannel>
-typename std::enable_if<!std::is_same<Tchannel, float>::value, glm::tmat3x3<Tchannel>>::type
-	 normalize_kernel(const glm::tmat3x3<Tchannel>& base)
+// Using an approach similar to computing a vector's magnitude has proven
+// adequate as a normalization method. I think that
+// dividing by the determinant could produce even better results, though
+static inline glm::mat3	normalize_kernel(const glm::mat3& base)
 {
-	glm::tmat3x3<Tchannel> mm(base);
+	glm::mat3 mm(base);
 
-	Tchannel sum = Tchannel(0);
-	for (int i = 0; i < 3; ++i)
-		for (int j = 0; j < 3; ++j)
-			sum += glm::abs(mm[i][j]);
-
-	if (sum)
-		mm /= (sum * sum);
-
-	return mm;
-}
-
-// Using an approach similar to the vector magnitude has proven
-// adequate as a normalization method. It's likely, though, that
-// dividing by the determinant could produce even better results
-template <class Tchannel>
-typename std::enable_if<std::is_same<Tchannel, float>::value, glm::tmat3x3<float>>::type
-	normalize_kernel(const glm::tmat3x3<Tchannel>& base)
-{
-	glm::tmat3x3<Tchannel> mm(base);
-
-	Tchannel sum = Tchannel(0);
+	float sum = 0.0f;
 	for (int i = 0; i < 3; ++i)
 		for (int j = 0; j < 3; ++j)
 			sum += mm[i][j] * mm[i][j];
@@ -61,21 +41,15 @@ typename std::enable_if<std::is_same<Tchannel, float>::value, glm::tmat3x3<float
 	return mm;
 }
 
-#define V1 -2.0f
-#define U1 6.0f
-
-template <class Tchannel>
-glm::tmat3x3<Tchannel> make_kernel(bool normalize,
-							  Tchannel a, Tchannel b, Tchannel c,
-							  Tchannel d, Tchannel e, Tchannel f,
-							  Tchannel g, Tchannel h, Tchannel i)
+// A simple helper function we can use to make a kernel with.
+glm::mat3 make_kernel(bool normalize,
+							  float a, float b, float c,
+							  float d, float e, float f,
+							  float g, float h, float i)
 {
-	using mat_t = glm::tmat3x3<Tchannel>;
-	using vec_t = glm::tvec3<Tchannel>;
-
-	mat_t base(vec_t(a, b, c),
-			   vec_t(d, e, f),
-			   vec_t(g, h, i));
+	glm::mat3 base(	glm::vec3(a, b, c),
+					glm::vec3(d, e, f),
+					glm::vec3(g, h, i) );
 
 	if (normalize)
 		return normalize_kernel(base);
@@ -83,10 +57,19 @@ glm::tmat3x3<Tchannel> make_kernel(bool normalize,
 	return base;
 }
 
-static inline glm::tmat3x3<float> emboss_f32(bool normalize)
+#define EMBOSS_SAMPLE_FACTOR -2.0f
+#define EMBOSS_CENTER_FACTOR 6.0f
+
+static inline glm::tmat3x3<float> kernel_emboss(bool normalize)
 {
-	return make_kernel(normalize, V1, V1, 0.0f, V1, U1, 0.0f, 0.0f, 0.0f, 0.0f);
+	return make_kernel(normalize,
+					   EMBOSS_SAMPLE_FACTOR, EMBOSS_SAMPLE_FACTOR, 0.0f,
+					   EMBOSS_SAMPLE_FACTOR, EMBOSS_CENTER_FACTOR, 0.0f,
+					   0.0f, 0.0f, 0.0f);
 }
+
+#undef EMBOSS_SAMPLE_FACTOR
+#undef EMBOSS_CENTER_FACTOR
 
 enum class color_format
 {
@@ -94,6 +77,7 @@ enum class color_format
 	greyscale = 1
 };
 
+// Simple pixel type. Image data stores a buffer of this.
 IMG_DEF struct pixel
 {
 	using channel_t = Tchannel;
@@ -101,42 +85,26 @@ IMG_DEF struct pixel
 
 	vec_t mChannels;
 
-	pixel(Tchannel v = Tchannel(0))
+	pixel(channel_t v = channel_t(0))
 	{
 		mChannels.fill(v);
 	}
 };
 
-// This is used in apply_kernel
-IMG_DEF void add_pixel(IMG_PIXEL_TMPL& out, const IMG_PIXEL_TMPL& src, Tchannel scalar)
-{
-	for (size_t i = 0; i < (size_t)Eformat; ++i) {
-
-		if (std::is_same<float, Tchannel>::value) {
-			out.mChannels[i] += src.mChannels[i] * scalar;
-		} else if (scalar != 0) {
-			float x = float(src.mChannels[i]) / 255.0f;
-			float s = scalar == 2? -2.0f: 6.0f;
-			float o = float(out.mChannels[i]) / 255.0f;
-			o += x * s;
-
-			out.mChannels[i] = uint8_t(255.0f * o);
-		}
-	}
-}
-
-// "data" is basically a catch-all term for an image
+// "data" is basically a catch-all term for an image.
 IMG_DEF struct data
 {
 	using channel_t = Tchannel;
 	using int_t = Tint;
     using pixel_t = pixel<Tchannel, Eformat, Tint>;
     using buffer_t = std::vector<pixel_t>;
-	using mat3 = glm::tmat3x3<Tchannel>;
 
     static const size_t PIXEL_STRIDE = (size_t)Eformat;
 	static const size_t PIXEL_STRIDE_BYTES = PIXEL_STRIDE * sizeof(Tchannel);
 
+	// the integers are abstracted as template parameters out in the event that the user knows the hard limits
+	// of their dimensions. For example, maybe they're not using images larger than 128x128.
+	// We use a sane default of int32_t, if unspecified.
     int_t mWidth;
     int_t mHeight;
     buffer_t mPixels;
@@ -146,6 +114,7 @@ IMG_DEF struct data
 // floats as a format)
 using raw_buffer = std::vector<uint8_t>;
 
+// Trivial simple helper methods
 IMG_DEF IMG_INT_TYPE calc_pixel_offset(const IMG_DATA_TMPL &image, IMG_INT_TYPE x, IMG_INT_TYPE y)
 {
 	return (y * image.mWidth + x);
@@ -161,6 +130,9 @@ IMG_DEF const IMG_PIXEL_TMPL &get_pixel(const IMG_DATA_TMPL &image, IMG_INT_TYPE
 	return image.mPixels[calc_pixel_offset(image, x, y)];
 }
 
+// Converts each "pixel" type in the image's
+// data buffer to a corresponding byte representation
+// and returns it as a buffer.
 IMG_DEF raw_buffer get_raw_pixels(const IMG_DATA_TMPL &image)
 {
     constexpr size_t stride = (size_t)Eformat;
@@ -183,20 +155,8 @@ IMG_DEF raw_buffer get_raw_pixels(const IMG_DATA_TMPL &image)
     }
 }
 
-// I prefer to avoid constructors in certain situations. In this case,
-// it would be more efficient to use a constructor
-// and directly apply the initialization list to the array (assuming that's valid).
-template <typename pixel_t>
-pixel_t make_pixel(std::initializer_list<typename pixel_t::channel_t> args)
-{
-    pixel_t p;
-    for (auto i = args.begin(); i != args.end(); ++i) {
-        size_t chan = args.size() - std::distance(i, args.end());
-        p.mChannels[chan] = *i;
-    }
-    return std::move(p);
-}
-
+// Useful for constructing textures out of user-specified data, rather than image files stored on disk.
+// Obviously not much going on here.
 IMG_DEF IMG_DATA_TMPL make_image(IMG_INT_TYPE width, IMG_INT_TYPE height, const IMG_PIXEL_TMPL &fillValue)
 {
 	size_t size = width * height;
@@ -212,9 +172,11 @@ enum class from_file_error
 {
 	none,
 	invalid_path,
-	incompatible_format // if stbi_load* returns a channel count for the image which doesn't work with the desired format
+	incompatible_format // we return this if stbi_load* returns a channel count for the image which doesn't work with the desired format
 };
 
+// The main image creation function. from_file_error is a pointer specifically because
+// the user just may not care; having the option of a nullptr can be nice in some cases.
 template <typename image_t>
 image_t from_file(const std::string &path, from_file_error *error, bool invertImage = true)
 {
@@ -228,11 +190,11 @@ image_t from_file(const std::string &path, from_file_error *error, bool invertIm
 	int32_t numChannels = 0;
 	channel_t *buffer = nullptr;
 
-	//UNUSEDPARAM( path );
-
-	// We use the emulated static_if here to avoid
+	// We use the emulated static_if (*) here to avoid
 	// the compiler complaining about conflicting types for the stbi_load* function
 	// in the opposing conditional
+
+	// (*) see base.inl for the implementation and source reference
 	static_if<std::is_same<channel_t, float>::value>([&](auto f) {
 		f(buffer) = (channel_t*) stbi_loadf(path.c_str(), (int32_t*) &img.mWidth, (int32_t*) &img.mHeight, &numChannels, 0);
 	}).else_([&](auto f) {
@@ -241,7 +203,7 @@ image_t from_file(const std::string &path, from_file_error *error, bool invertIm
 
 	if (!buffer) {
 		e = from_file_error::invalid_path;
-		goto finish;
+		goto finish; // Haters gonna hate: I believe goto is still effective in some situations :)
 	}
 
 	if ((size_t)numChannels != image_t::PIXEL_STRIDE) {
@@ -296,6 +258,8 @@ image_t apply_kernel(const image_t& src, const glm::mat3& kernel)
 
 	static const bool IS_FLOAT = std::is_same< float, channel_t >::value;
 
+	// Trivial image-kernel convolving function. Information
+	// on kernels was taken from https://en.wikipedia.org/wiki/Kernel_(image_processing)
 	for (int_t y = 0; y < copy.mHeight; ++y) {
 		for (int_t x = 0; x < copy.mWidth; ++x) {
 			std::array< float, image_t::PIXEL_STRIDE > accum;
@@ -322,6 +286,8 @@ image_t apply_kernel(const image_t& src, const glm::mat3& kernel)
 
 					const pixel_t& pix = copy.mPixels[calc_pixel_offset(copy, px, py)];
 
+					// If we're not using floats for our image data,
+					// we need to do a bit of conversion.
 					if (IS_FLOAT) {
 						for (uint32_t i = 0; i < accum.size(); ++i)
 							accum[i] += pix.mChannels[i] * kernel[ky][kx];
@@ -335,6 +301,7 @@ image_t apply_kernel(const image_t& src, const glm::mat3& kernel)
 				}
 			}
 
+			// Make sure nothing is screwed up.
 			for (uint32_t i = 0; i < accum.size(); ++i)
 				accum[i] = glm::clamp(accum[i], 0.0f, 1.0f);
 
@@ -352,6 +319,7 @@ image_t apply_kernel(const image_t& src, const glm::mat3& kernel)
 	return std::move(copy);
 }
 
+// Debugging...
 IMG_DEF std::string to_string(const IMG_DATA_TMPL &image)
 {
 	std::stringstream stream;
@@ -366,6 +334,7 @@ IMG_DEF std::string to_string(const IMG_DATA_TMPL &image)
 	return stream.str();
 }
 
+// Debugging...
 IMG_DEF std::string to_string(const IMG_PIXEL_TMPL &p)
 {
 	std::stringstream stream;
@@ -379,6 +348,7 @@ IMG_DEF std::string to_string(const IMG_PIXEL_TMPL &p)
 	return stream.str();
 }
 
+// Some predefined types
 using rgb_f32_t = data<float, color_format::rgb>;
 using rgb_u8_t = data<uint8_t, color_format::rgb>;
 using greyscale_u8_t = data<uint8_t, color_format::greyscale>;

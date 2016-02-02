@@ -1,6 +1,9 @@
 ### image-library assessment
 
-The image-library incorporated as desired by the assessment is contained
+This repo is primarily for the purposes of evaluation by a potential employer.
+
+However, most of the code here has been written with other goals in mind:
+the image-library incorporated as desired by the assessment is contained
 within a code base I've maintained and worked on over the years.
 
 The code base is used primarily for writing demos and experimentation.
@@ -88,19 +91,18 @@ would also be contained in something like an std::vector as well.
 
 * **if you ran out of time, what you were hoping to do next**
 
-I would have implemented the image scaling function.   
+I would have implemented the image scaling function, in addition
+to providing a Windows build :).   
 
-### Running the demo
+### Running the demo (Ubuntu only)
 
-The demo can be found in its build directory:
-build-op-Desktop_Qt_5_5_0_GCC_64bit-Debug/qtc_Desktop__cbb42f77-debug\
-/install-root
+The demo can be found in the dist folder.
 
 The binary file "op" is the executable.
 
 The code bases links against both SDL 2 and Bullet Physics. Bullet is statically
-linked, and so is SDL 2. However, SDL 2 itself requires libraries
-with which it is dynamically linked. So, open up a terminal and copypasta
+linked, and so is SDL 2. However, SDL 2 itself requires shared
+library dependencies. So, open up a terminal and copypasta
 the following:
 
 ```
@@ -120,4 +122,5 @@ libxkbcommon-dev;
 ```
 
 If you're running another distro, the above should at least tell you what
-libraries you need.
+libraries you need. A Windows build has been omitted simply as a means
+to save time, however if it's desired one can be produced.
