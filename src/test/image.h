@@ -23,14 +23,13 @@ struct image_test : public image_app_t
 		std::vector< std::string > mTitles;
 		std::vector< glm::ivec4 > mViewports;
 
-		static const bool DO_KERNEL_NORMALIZE = true;
 		static const bool IS_FLOAT = std::is_same< float, channel_t >::value;
+		static const bool DO_KERNEL_NORMALIZE = true;
 
 		using image_rgb_t = img::data< channel_t, img::color_format::rgb >;
 		using image_greyscale_t = img::data< channel_t, img::color_format::greyscale >;
 
-		static const glm::tmat3x3< channel_t > KERNEL_RGB;
-		static const glm::tmat3x3< channel_t > KERNEL_GREYSCALE;
+		glm::tmat3x3< channel_t > KERNEL;
 
 		const std::string mTitle;
 
@@ -39,7 +38,10 @@ struct image_test : public image_app_t
 			  mImageTest( parent ),
 			  mTitle( title )
 		{
-			// We  have four examples, each of which use the same image: the well-known lena.
+
+			glm::mat3 kernel( img::emboss_f32( DO_KERNEL_NORMALIZE ) );
+
+			// We  have four examples, each of which use the same image: the lovely and all-too-well-known lena.
 			// Two are greyscale, two are RGB. For both groups, one image is embossed, and the other is
 			// its original
 
@@ -58,7 +60,7 @@ struct image_test : public image_app_t
 			mTitles.push_back( "RGB" );
 			mViewports.push_back( glm::ivec4( 0, 0, w, h ) );
 
-			mTextures.push_back( make_texture( img::apply_kernel( rgb0, KERNEL_RGB ) ) );
+			mTextures.push_back( make_texture( img::apply_kernel( rgb0, kernel ) ) );
 			mOrigins.push_back( glm::vec3( 0.0f ) );
 			mTitles.push_back( "EMBOSS RGB" );
 			mViewports.push_back( glm::ivec4( 0, h, w, h ) );
@@ -69,7 +71,7 @@ struct image_test : public image_app_t
 			mTitles.push_back( "GREYSCALE" );
 			mViewports.push_back( glm::ivec4( w + mImageTest.mWidth % 2, 0, w, h ) );
 
-			mTextures.push_back( make_texture( img::apply_kernel( gs0, KERNEL_GREYSCALE ) ) );
+			mTextures.push_back( make_texture( img::apply_kernel( gs0, kernel ) ) );
 			mOrigins.push_back( glm::vec3( 0.0f ) );
 			mTitles.push_back( "EMBOSS GREYSCALE" );
 			mViewports.push_back( glm::ivec4( w + mImageTest.mWidth % 2, h, w, h ) );
@@ -216,16 +218,3 @@ struct image_test : public image_app_t
 				mUseF32 = !mUseF32;
 	}
 };
-
-template < typename channel_t >
-const glm::tmat3x3< channel_t > image_test::test_bundle< channel_t >::KERNEL_RGB =
-		image_test::test_bundle< channel_t >::IS_FLOAT?
-		img::kernel_emboss_rgb_f32< channel_t >( DO_KERNEL_NORMALIZE ):
-			img::kernel_emboss_rgb_u8< channel_t >( DO_KERNEL_NORMALIZE );
-
-template < typename channel_t >
-const glm::tmat3x3< channel_t > image_test::test_bundle< channel_t >::KERNEL_GREYSCALE =
-		image_test::test_bundle< channel_t >::IS_FLOAT?
-		img::kernel_emboss_lum_f32< channel_t >( DO_KERNEL_NORMALIZE ):
-			img::kernel_emboss_lum_u8< channel_t >( DO_KERNEL_NORMALIZE );
-

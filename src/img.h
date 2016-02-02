@@ -20,28 +20,13 @@
 #define IMG_INT_TYPE Tint
 #define IMG_PIXEL_TMPL pixel<Tchannel, Eformat, Tint>
 
-#define IMG_MAKE_KERNEL(name, a, b, c, d, e, f, g, h, i) \
-	template <typename Tchannel>\
-	glm::tmat3x3<Tchannel> kernel_##name(bool normalize)\
-	{\
-		using mat_t = glm::tmat3x3<Tchannel>;\
-		using vec_t = typename mat_t::col_type;\
-\
-		mat_t base(vec_t(Tchannel((a)), Tchannel((b)), Tchannel((c))),\
-				   vec_t(Tchannel((d)), Tchannel((e)), Tchannel((f))),\
-				   vec_t(Tchannel((g)), Tchannel((h)), Tchannel((i))));\
-\
-		if (normalize)\
-			return normalize_kernel(base);\
-		return base;\
-	}
-
 namespace img {
 
 // We obviously can't effectively square root integers,
 // so we take a simpler approach if we're using non-floating point values
-template <typename Tchannel>
-glm::tmat3x3<Tchannel> normalize_kernel(const glm::tmat3x3<Tchannel>& base)
+template <class Tchannel>
+typename std::enable_if<!std::is_same<Tchannel, float>::value, glm::tmat3x3<Tchannel>>::type
+	 normalize_kernel(const glm::tmat3x3<Tchannel>& base)
 {
 	glm::tmat3x3<Tchannel> mm(base);
 
@@ -51,7 +36,7 @@ glm::tmat3x3<Tchannel> normalize_kernel(const glm::tmat3x3<Tchannel>& base)
 			sum += glm::abs(mm[i][j]);
 
 	if (sum)
-		mm /= sum;
+		mm /= (sum * sum);
 
 	return mm;
 }
@@ -59,12 +44,13 @@ glm::tmat3x3<Tchannel> normalize_kernel(const glm::tmat3x3<Tchannel>& base)
 // Using an approach similar to the vector magnitude has proven
 // adequate as a normalization method. It's likely, though, that
 // dividing by the determinant could produce even better results
-template <>
-glm::tmat3x3<float> normalize_kernel(const glm::tmat3x3<float>& base)
+template <class Tchannel>
+typename std::enable_if<std::is_same<Tchannel, float>::value, glm::tmat3x3<float>>::type
+	normalize_kernel(const glm::tmat3x3<Tchannel>& base)
 {
-	glm::tmat3x3<float> mm(base);
+	glm::tmat3x3<Tchannel> mm(base);
 
-	float sum = 0.0f;
+	Tchannel sum = Tchannel(0);
 	for (int i = 0; i < 3; ++i)
 		for (int j = 0; j < 3; ++j)
 			sum += mm[i][j] * mm[i][j];
@@ -75,16 +61,32 @@ glm::tmat3x3<float> normalize_kernel(const glm::tmat3x3<float>& base)
 	return mm;
 }
 
-#define V -2
-#define U0 4
+#define V1 -2.0f
+#define U1 6.0f
 
-IMG_MAKE_KERNEL(emboss_lum_u8, V, V, 0, V, U0, 0, 0, 0, 0)
-IMG_MAKE_KERNEL(emboss_rgb_u8, V, V, 0, V, U0, 0, 0, 0, 0)
+template <class Tchannel>
+glm::tmat3x3<Tchannel> make_kernel(bool normalize,
+							  Tchannel a, Tchannel b, Tchannel c,
+							  Tchannel d, Tchannel e, Tchannel f,
+							  Tchannel g, Tchannel h, Tchannel i)
+{
+	using mat_t = glm::tmat3x3<Tchannel>;
+	using vec_t = glm::tvec3<Tchannel>;
 
-#define U1 8
+	mat_t base(vec_t(a, b, c),
+			   vec_t(d, e, f),
+			   vec_t(g, h, i));
 
-IMG_MAKE_KERNEL(emboss_lum_f32, V, V, 0, V, U1, 0, 0, 0, 0)
-IMG_MAKE_KERNEL(emboss_rgb_f32, V, V, 0, V, U1, 0, 0, 0, 0)
+	if (normalize)
+		return normalize_kernel(base);
+
+	return base;
+}
+
+static inline glm::tmat3x3<float> emboss_f32(bool normalize)
+{
+	return make_kernel(normalize, V1, V1, 0.0f, V1, U1, 0.0f, 0.0f, 0.0f, 0.0f);
+}
 
 enum class color_format
 {
@@ -106,10 +108,21 @@ IMG_DEF struct pixel
 };
 
 // This is used in apply_kernel
-IMG_DEF void add_pixel(IMG_PIXEL_TMPL& out, const IMG_PIXEL_TMPL& src, float scalar)
+IMG_DEF void add_pixel(IMG_PIXEL_TMPL& out, const IMG_PIXEL_TMPL& src, Tchannel scalar)
 {
-	for (size_t i = 0; i < (size_t)Eformat; ++i)
-		out.mChannels[i] += src.mChannels[i] * scalar;
+	for (size_t i = 0; i < (size_t)Eformat; ++i) {
+
+		if (std::is_same<float, Tchannel>::value) {
+			out.mChannels[i] += src.mChannels[i] * scalar;
+		} else if (scalar != 0) {
+			float x = float(src.mChannels[i]) / 255.0f;
+			float s = scalar == 2? -2.0f: 6.0f;
+			float o = float(out.mChannels[i]) / 255.0f;
+			o += x * s;
+
+			out.mChannels[i] = uint8_t(255.0f * o);
+		}
+	}
 }
 
 // "data" is basically a catch-all term for an image
@@ -271,8 +284,9 @@ finish:
 
 // Applies an arbitrary kernel matrix to an image; the result
 // is a copy of the source image with the matrix applied to it.
+// Regardless of the image data's format, we use floating point computations.
 template <typename image_t>
-image_t apply_kernel(const image_t& src, const typename image_t::mat3& kernel)
+image_t apply_kernel(const image_t& src, const glm::mat3& kernel)
 {
 	image_t copy(src);
 
@@ -280,11 +294,12 @@ image_t apply_kernel(const image_t& src, const typename image_t::mat3& kernel)
 	using pixel_t = typename image_t::pixel_t;
 	using channel_t = typename image_t::channel_t;
 
-	const channel_t CLAMP_MAX = std::is_same< float, channel_t >::value? channel_t(1.0): channel_t(0xFF);
+	static const bool IS_FLOAT = std::is_same< float, channel_t >::value;
 
 	for (int_t y = 0; y < copy.mHeight; ++y) {
 		for (int_t x = 0; x < copy.mWidth; ++x) {
-			pixel_t accum(channel_t(0));
+			std::array< float, image_t::PIXEL_STRIDE > accum;
+			accum.fill( 0.0f );
 
 			for (int32_t i = -1; i <= 1; ++i) {
 				for (int32_t j = -1; j <= 1; ++j) {
@@ -305,14 +320,32 @@ image_t apply_kernel(const image_t& src, const typename image_t::mat3& kernel)
 					int_t kx = 1 - j;
 					int_t ky = 1 - i;
 
-					add_pixel(accum, copy.mPixels[calc_pixel_offset(copy, px, py)], kernel[ky][kx]);
+					const pixel_t& pix = copy.mPixels[calc_pixel_offset(copy, px, py)];
+
+					if (IS_FLOAT) {
+						for (uint32_t i = 0; i < accum.size(); ++i)
+							accum[i] += pix.mChannels[i] * kernel[ky][kx];
+					} else {
+						float kernelf = kernel[ky][kx] == 2? -2.0f: kernel[ky][kx];
+						for (uint32_t i = 0; i < accum.size(); ++i) {
+							float x = float(pix.mChannels[i]) / 255.0f;
+							accum[i] += x * kernelf;
+						}
+					}
 				}
 			}
 
-			for (uint32_t i = 0; i < accum.mChannels.size(); ++i)
-				accum.mChannels[i] = glm::clamp(accum.mChannels[i], channel_t(0), CLAMP_MAX);
+			for (uint32_t i = 0; i < accum.size(); ++i)
+				accum[i] = glm::clamp(accum[i], 0.0f, 1.0f);
 
-			copy.mPixels[calc_pixel_offset(copy, x, y)] = accum;
+			uint32_t offset = calc_pixel_offset(copy, x, y);
+
+			static_if<IS_FLOAT>([&](auto f) {
+				f(copy.mPixels[offset].mChannels) = accum;
+			}).else_([&](auto f){
+				for (uint32_t i = 0; i < accum.size(); ++i)
+					f(copy.mPixels[offset].mChannels[i]) = uint8_t(accum[i] * 255.0f);
+			});
 		}
 	}
 
