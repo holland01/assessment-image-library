@@ -4,6 +4,9 @@ uniform sampler2D image;
 uniform vec4 color;
 
 out vec4 fragment;
+
+const vec4 gamma = vec4( vec3( 1.0 / 3.0 ), 1.0 );
+
 void main( void )
 {
     vec4 tex = texture( image, frag_TexCoord );
@@ -16,6 +19,5 @@ void main( void )
     }
     */
 
-
-    fragment = tex * color;
+    fragment = pow( tex * color, gamma );
 }

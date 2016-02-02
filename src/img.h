@@ -75,8 +75,16 @@ glm::tmat3x3<float> normalize_kernel(const glm::tmat3x3<float>& base)
 	return mm;
 }
 
-IMG_MAKE_KERNEL(emboss_lum, 0, -2, 1, 0, 1, 0, 0, 0, 0)
-IMG_MAKE_KERNEL(emboss_rgb, -2, -2, 0, -2, 6, 0, 0, 0, 0)
+#define V -2
+#define U0 4
+
+IMG_MAKE_KERNEL(emboss_lum_u8, V, V, 0, V, U0, 0, 0, 0, 0)
+IMG_MAKE_KERNEL(emboss_rgb_u8, V, V, 0, V, U0, 0, 0, 0, 0)
+
+#define U1 8
+
+IMG_MAKE_KERNEL(emboss_lum_f32, V, V, 0, V, U1, 0, 0, 0, 0)
+IMG_MAKE_KERNEL(emboss_rgb_f32, V, V, 0, V, U1, 0, 0, 0, 0)
 
 enum class color_format
 {
@@ -272,6 +280,8 @@ image_t apply_kernel(const image_t& src, const typename image_t::mat3& kernel)
 	using pixel_t = typename image_t::pixel_t;
 	using channel_t = typename image_t::channel_t;
 
+	const channel_t CLAMP_MAX = std::is_same< float, channel_t >::value? channel_t(1.0): channel_t(0xFF);
+
 	for (int_t y = 0; y < copy.mHeight; ++y) {
 		for (int_t x = 0; x < copy.mWidth; ++x) {
 			pixel_t accum(channel_t(0));
@@ -298,6 +308,9 @@ image_t apply_kernel(const image_t& src, const typename image_t::mat3& kernel)
 					add_pixel(accum, copy.mPixels[calc_pixel_offset(copy, px, py)], kernel[ky][kx]);
 				}
 			}
+
+			for (uint32_t i = 0; i < accum.mChannels.size(); ++i)
+				accum.mChannels[i] = glm::clamp(accum.mChannels[i], channel_t(0), CLAMP_MAX);
 
 			copy.mPixels[calc_pixel_offset(copy, x, y)] = accum;
 		}
@@ -336,6 +349,7 @@ IMG_DEF std::string to_string(const IMG_PIXEL_TMPL &p)
 using rgb_f32_t = data<float, color_format::rgb>;
 using rgb_u8_t = data<uint8_t, color_format::rgb>;
 using greyscale_u8_t = data<uint8_t, color_format::greyscale>;
+using greyscale_f32_t = data<float, color_format::greyscale>;
 
 } // namespace img
 

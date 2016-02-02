@@ -29,6 +29,10 @@ protected:
 
     bool mDrawAll = false;
 
+	bool mDrawHUD = true;
+
+	bool mDrawAxes = true;
+
     SDL_Window* mWindow = nullptr;
 
     SDL_Renderer* mRenderer = nullptr;
@@ -216,8 +220,8 @@ void application< child_t >::draw( void )
     {
         const view_data& vp = mCamPtr->view_params();
 
-        debug_draw_axes( *this, vp );
-        debug_draw_hud( *this );
+		if ( mDrawAxes ) debug_draw_axes( *this, vp );
+		if ( mDrawHUD ) debug_draw_hud( *this );
     }
 }
 
