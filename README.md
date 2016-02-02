@@ -2,11 +2,16 @@
 
 This repo is primarily for the purposes of evaluation by a potential employer.
 
+Initially, I was given an assessment which involved two challenge questions/
+problems to complete. The time limit was 3 hours. Since it took me 3 hours
+to complete the first one alone, I chose to do the second one and provide
+a concrete implementation which is demonstratable
+
 However, most of the code here has been written with other goals in mind:
 the image-library incorporated as desired by the assessment is contained
 within a code base I've maintained and worked on over the years.
 
-The code base is used primarily for writing demos and experimentation.
+The code base itself is used primarily for writing demos and experimentation.
 
 The directory, src, contains all of the source code. The files which are
 directly relevant to the assessment are:
@@ -17,20 +22,35 @@ itself.
 
 image_test.h is a demo which uses the img.h file to
 render the following 8 different kinds of images:
-    - RGB 8 bit
-    - Greyscale 8 bit
-    - RGB 8 bit embossed
-    - Greyscale 8 bit embossed
+    - RGB, 8 bit
+    - Greyscale, 8 bit
+    - RGB, 8 bit embossed
+    - Greyscale, 8 bit embossed
 
-    - RGB floating point
-    - Greyscale floating point
-    - RGB floating point embossed
-    - Greyscale floating point embossed
+    - RGB, floating point
+    - Greyscale, floating point
+    - RGB, floating point embossed
+    - Greyscale, floating point embossed
 
 All of the images are dependent on two files: lena_rgb.jpg, and lena.png,
 both of which can be found in the asset/ folder. As their names suggest,
 these images display the same content. The key difference is that
 the png variant is black and white, while the jpg is obviously colored.
+
+Here's two screenshots depicting what the user would see if they ran it:
+
+![Float]
+(http://i.imgur.com/8A5s9bH.png)
+
+![Byte]
+(http://i.imgur.com/Mm4Xtyf.png)
+
+The textures are gamma corrected directly in the OpenGL shader, which processes
+their sampling and fragment output. Technically, gamma correction can be
+accomplished using the SRGB8 texture format which is provided by the API,
+but this is a much simpler process given the amount of time available.
+
+#### Interaction
 
 Demo interaction is simple: one can move around a basic scene in 3D
 space using the mouse and W,S,A,D keys for standard movement
@@ -45,20 +65,13 @@ steps before the image is shown.
 Pressing the "UP" key will toggle between displaying
 the two available data formats - floating point and 8 bit.
 
-The images are gamma corrected directly in the OpenGL shader which processes
-their sampling and fragment output. Technically, gamma correction can be
-accomplished using the SRGB8 texture format which is provided by the API,
-but this is a much smoother process.
+Unfortunately, the demo has only been tested on Ubuntu 15.04. At the bottom
+is a simple script which will install any necessary dependencies (for those who have access to an Ubuntu distro.)
 
-Unfortunately, the demo has only been tested on Ubuntu 15.04. There is a simple
-guide provided on running it, for those who have access to an Ubuntu distro.
+#### Answers to Assessment Questions
 
-(scroll to the bottom for a simple installation guide)
-
-### Answers to Assessment Questions
-
-* **why you chose the implementation you did, and any upsides/downsides it
-  afords in comparison to other options.**
+* **Why did you choose your implementation? Are there any upsides/downsides it
+  affords in comparison to other options?**
 
 The implementation chosen was strictly for the sake of demonstrating a
 reasonable understanding of modern C++, in addition to showing
@@ -67,9 +80,10 @@ a few scenarios where more C-like techniques were useful (mostly
 
 As such, this implementation makes large usage of templates. The benefits
 of using a templated architecture is that it allows for users to adjust
-the usage of their data to different formats as necessary. Much of the same
-code can be used for the direct processing of the image data itself, regardless
-of its native type (e.g, 32 bit integer, float, a byte, etc.).
+the usage of their data to different formats as necessary with little
+modification to the code itself. Much of the same code can be used for the
+direct processing of the image data, regardless of its native type
+(e.g, 32 bit integer, float, a byte, etc.).
 
 The downsides of this approach are the obvious code bloat and longer compile
 times. The code bloat is very unideal for embedded systems, considering that
@@ -80,6 +94,9 @@ If I were restricted to something like C99, my implementation of choice
 would be to represent an image internally as a pointer to an unsigned char,
 and to perform any conversions between differing types as necessary.
 
+I'd probably also use data hiding, and resort to handles as a fundamental
+unit for manipulating desired data parts.
+
 What may be worth taking into account as well is cache efficiency: a more cache
 efficient solution would allow for a image data store which was handled
 by the library itself. Users would access the images themselves using
@@ -89,12 +106,12 @@ its own buffer. For example, all width values would be stored in their own
 buffer, as would be the same for height values. Data buffers
 would also be contained in something like an std::vector as well.
 
-* **if you ran out of time, what you were hoping to do next**
+* **If you ran out of time, what were you hoping to do next?**
 
 I would have implemented the image scaling function, in addition
 to providing a Windows build :).   
 
-### Running the demo (Ubuntu only)
+#### Running the demo (Ubuntu only)
 
 The demo can be found in the dist folder.
 
