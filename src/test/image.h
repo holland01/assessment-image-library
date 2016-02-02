@@ -187,6 +187,8 @@ struct image_test : public image_app_t
 		  mU8( new test_bundle< uint8_t >( "BYTE", *this ) ), // mPipeline is a parent member which holds all shader programs and vertex buffers being used
 		  mUseF32( true )
 	{
+		mCamPtr->position( glm::vec3( 0.0f, 0.0f, 2.0f ) );
+
 		mF32->mDrawText = &mDrawText;
 		mU8->mDrawText = &mDrawText;
 
