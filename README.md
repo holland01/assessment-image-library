@@ -61,8 +61,8 @@ camera, respectively.
 
 In this demo, there's only a set of images in the scene; so,
 moving forward and backward using W and S, respectively, should be sufficient
-to view everything properly. ~The user may have to move backward a few
-steps before the image is shown.~ (fixed before upload) 
+to view everything properly. ~~The user may have to move backward a few
+steps before the image is shown.~~ (fixed before upload) 
 
 Pressing the "UP" key will toggle between displaying
 the two available data formats - floating point and 8 bit.
