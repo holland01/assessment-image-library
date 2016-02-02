@@ -8,10 +8,14 @@ void main( void )
 {
     vec4 tex = texture( image, frag_TexCoord );
 
+    /*
     if ( tex.a == 0.0 )
     {
-        discard;
+        tex.a = vec4(1.0);
+        //discard;
     }
+    */
+
 
     fragment = tex * color;
 }

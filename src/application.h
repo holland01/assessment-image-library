@@ -187,7 +187,8 @@ FORCEINLINE application< child_t >::application( uint32_t width_ , uint32_t heig
     GL_CHECK( glEnable( GL_DEPTH_TEST ) );
     GL_CHECK( glDepthFunc( GL_LEQUAL ) );
     GL_CHECK( glClearDepthf( 1.0f ) );
-    GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+	GL_CHECK( glDisable( GL_BLEND ) );
+	//GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
 
 #ifndef OP_GL_USE_ES
     GL_CHECK( glPointSize( 10.0f ) );

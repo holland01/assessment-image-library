@@ -10,7 +10,8 @@ smooth out vec2 frag_TexCoord;
 
 void main( void )
 {
-    mat3 orient = -viewOrient;
+    mat3 orient = viewOrient;
+
     gl_Position = viewToClip * modelToView * vec4( origin + orient * position, 1.0 );
     frag_TexCoord = texCoord;
 }

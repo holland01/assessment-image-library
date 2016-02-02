@@ -27,6 +27,14 @@ static INLINE glm::mat3 orient_by_direction( const glm::vec3& dir, const glm::ve
 	return std::move( glm::mat3( glm::rotate( glm::mat4( 1.0f ), rot, glm::vec3( 0.0f, 1.0f, 0.0f ) ) ) );
 }
 
+static INLINE glm::mat3 orient_to( const glm::vec3& srcPosition, const glm::vec3& destPosition, const glm::mat3& srcOrient )
+{
+	//glm::vec3 backOrtho( glm::cross( srcOrient[ 0 ], srcOrient[ 1 ] ) );
+
+	return orient_by_direction( glm::normalize( destPosition - srcPosition ),
+				glm::normalize( srcOrient[ 0 ] ), glm::normalize( srcOrient[ 2 ] ) );
+}
+
 static INLINE void rotate_matrix_xyz( glm::mat4& r, const glm::vec3& rotation )
 {
 	r = glm::rotate( glm::mat4( 1.0f ), rotation.x, glm::vec3( 1.0f, 0.0f, 0.0f ) );

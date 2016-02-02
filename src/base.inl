@@ -151,3 +151,45 @@ static INLINE type_t log4( const type_t& t )
 	static_assert( std::numeric_limits< type_t >::is_iec559, "Math_Log4 is called with integral type; type required is floating point" );
 	return std::log10( t ) * type_t( 1.602059991 );
 }
+
+// 1337 C++ h4x stolen from here, http://baptiste-wicht.com/posts/2015/07/simulate-static_if-with-c11c14.html,
+// which in turn was (of course) stolen from the boost mailing list :)
+namespace static_if_detail {
+
+struct identity {
+	template<typename T>
+	T operator()(T&& x) const {
+		return std::forward<T>(x);
+	}
+};
+
+template<bool Cond>
+struct statement {
+	template<typename F>
+	void then(const F& f){
+		f(identity());
+	}
+
+	template<typename F>
+	void else_(const F&){}
+};
+
+template<>
+struct statement<false> {
+	template<typename F>
+	void then(const F&){}
+
+	template<typename F>
+	void else_(const F& f){
+		f(identity());
+	}
+};
+
+} //end of namespace static_if_detail
+
+template<bool Cond, typename F>
+static_if_detail::statement<Cond> static_if(F const& f){
+	static_if_detail::statement<Cond> if_;
+	if_.then(f);
+	return if_;
+}

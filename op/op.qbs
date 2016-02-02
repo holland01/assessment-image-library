@@ -1,4 +1,6 @@
 import qbs
+import qbs.FileInfo
+import qbs.Process
 
 Product {
     type: "application" // To suppress bundle generation on Mac
@@ -9,19 +11,16 @@ Product {
             "/usr/include/",
             "/usr/include/c++",
             "../src/lib",
-            "../src"
+            "../src",
         ];
 
         var librootInc = [
             "/sdl2/include",
             "/bullet3/",
-            "/bullet3/bullet3",
-          //  "/bullet3/bullet3/BulletCollision",
-          //  "/bullet3/bullet3/BulletDynamics",
-          //  "/bullet3/bullet3/LinearMath"
+            "/bullet3/bullet3"
         ];
 
-        var devlibRoot = qbs.getEnv("DEVLIB_ROOT");
+        var devlibRoot = qbs.getEnv("PROJECT_ROOT") + "/lib/";
 
         librootInc.forEach(function(includePath) {
             inc.push(devlibRoot + includePath);
@@ -36,17 +35,17 @@ Product {
         "-Wno-unused-but-set-variable",
         "-Wno-unused-result",
         "-Wno-strict-aliasing",
+        "-Wno-int-to-pointer-cast",
         "-std=c++1y"
     ]
     cpp.linkerFlags: {
         var linkFlags = [
-            "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
+            "-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/sdl2/lib/x86_64-linux-gnu/",
             "-L/usr/lib/x86_64-linux-gnu",
+            "-lSDL2",
             "-lGL",
             "-lGLU",
             "-lGLEW",
-            "-L/usr/lib/x86_64-linux-gnu",
-            "-lSDL2",
             "-lpthread",
             "-Wl,--no-undefined",
             "-lm",
@@ -73,8 +72,9 @@ Product {
             "-lrt"
         ];
 
-        linkFlags.push("-L" + qbs.getEnv("DEVLIB_ROOT") + "/bullet3/bin");
+        //throw "Relative Path: " + project;
 
+        linkFlags.push("-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/bullet3/bin");
         var bulletSuffix = "_gmake_x64_debug";
 
         var bulletLibs = [
@@ -129,6 +129,7 @@ Product {
         "../src/glm_ext.hpp",
         "../src/input.cpp",
         "../src/input.h",
+        "../src/img.h",
         "../src/lib/stb_image.c",
         "../src/main.cpp",
         "../src/map.inl",
@@ -149,6 +150,7 @@ Product {
         "../src/test/delaunay.h",
         "../src/test/game.cpp",
         "../src/test/game.h",
+        "../src/test/image.h",
         "../src/view.cpp",
         "../src/view.h",
     ]

@@ -46,9 +46,10 @@ void get_datetime( const char* format, char* outBuffer, int32_t length )
 
 void exit_on_gl_error( int32_t line, const char* glFunc, const char* callerFunc )
 {
+	static bool fetched = false;
     GLenum error = glGetError();
 
-    if ( GL_NO_ERROR != error )
+	if ( GL_NO_ERROR != error && !fetched )
     {
 
 #ifndef OP_GL_USE_ES
@@ -57,6 +58,7 @@ void exit_on_gl_error( int32_t line, const char* glFunc, const char* callerFunc 
         const char* errorString = "Unavailable";
 #endif
 
+		fetched = true;
         stdoutf( "GL ERROR", "%s -> [ %s ( %i ) ]: \'0x%x\' => %s", callerFunc, glFunc, line, error, errorString );
         flag_exit();
     }
@@ -76,7 +78,18 @@ bool file_get_pixels( const std::string& filepath,
 	}
 	
     outBuffer.resize( outWidth * outHeight * outBpp, 255 );
-	memcpy( &outBuffer[ 0 ], imagePixels, outBuffer.size() ); 
+
+	// Flip image....
+	for ( int32_t y = 0; y < outHeight; ++y )
+	{
+		for ( int32_t x = 0; x < outWidth; ++x )
+		{
+			memcpy( &outBuffer[ outBpp * ( y * outWidth + x ) ],
+				&imagePixels[ outBpp * ( ( outHeight - 1 - y ) * outWidth + x ) ],
+					outBpp * sizeof( uint8_t )) ;
+		}
+	}
+		//memcpy( &outBuffer[ 0 ], imagePixels, outBuffer.size() );
 
 	stbi_image_free( imagePixels );
 

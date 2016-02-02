@@ -19,7 +19,7 @@ extern float get_time( void );
 
 static void flag_exit( void )
 {
-    gMessenger.mQuit = false;
+	gMessenger.mQuit = true;
 }
 
 bool file_get_pixels( const std::string& filepath,

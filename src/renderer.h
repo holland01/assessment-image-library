@@ -102,15 +102,28 @@ struct triangle
 
 //---------------------------------------------------------------------
 // texture_t
+//
+// FIXME (0): calc_mip_2d shouldn't be strictly a mip function; it should be applicable to
+// all texture glTexImage2D functions, because a mip level of 0 is a valid value for any texture.
+// So, consider renaming this to something like "load_pixels_2d" or something
+//
+// FIXME (1): since GL_FLOAT is allowed to be used when uploading a pixel buffer (providing we're not using ES 2 or lower),
+// using mBpp to determine both internal and external texture formats is no longer as full proof as it once was:
+// a GL_ALPHA format could easily correspond to a BPP of 4, if we're using floats as our color channel primitive, for example.
+// Or, if each channel is only a byte in size, a BPP of 4 could refer to GL_RGBA.
+// A better heuristic needs to be developed. At the very least, the user should be allowed to specify what they want explicitly without
+// side effects happening.
 //---------------------------------------------------------------------
 struct texture
 {
 private:
-    bool mSrgb: 1;
+	bool mSrgb;
 
-    bool mMipmap: 1;
+	bool mMipmap;
 
     GLuint mHandle;
+
+	GLenum mBufferType;
 
     GLenum mWrap;
 
@@ -161,6 +174,8 @@ public:
 
 	GLuint handle( void ) const { return mHandle; }
 
+	GLenum buffer_type( void ) const { return mBufferType; }
+
 	GLenum wrap_mode( void ) const { return mWrap; }
 
 	GLenum min_filter( void ) const { return mMinFilter; }
@@ -184,6 +199,8 @@ public:
     GLsizei depth( void ) const { return mDepth; }
 
     GLsizei bpp( void ) const { return mBpp; }
+
+	void buffer_type( GLenum type );
 
     void width( GLsizei w );
 
@@ -854,10 +871,11 @@ INLINE void shader_program::load_attrib_layout( const draw_buffer& buffer, const
 // texture_t
 //-------------------------------------------------------------------------------------------------------
 
+
 INLINE void texture::calc_mip_2d( int32_t mip, int32_t mipwidth, int32_t mipheight ) const
 {
     GL_CHECK( glTexImage2D( mTarget, mip, mInternalFormat,
-                mipwidth, mipheight, 0, mFormat, GL_UNSIGNED_BYTE, &mPixels[ 0 ] ) );
+				mipwidth, mipheight, 0, mFormat, mBufferType, &mPixels[ 0 ] ) );
 }
 
 INLINE void texture::gen_handle( void )
@@ -882,6 +900,11 @@ INLINE void texture::release( int offset ) const
 {
     GL_CHECK( glActiveTexture( GL_TEXTURE0 + offset ) );
     GL_CHECK( glBindTexture( mTarget, 0 ) );
+}
+
+INLINE void texture::buffer_type( GLenum type )
+{
+	mBufferType = type;
 }
 
 INLINE void texture::width( GLsizei w )
@@ -1177,6 +1200,17 @@ INLINE void draw_buffer::update( const std::vector< draw_vertex_t >& vertexData,
                                &vertexData[ 0 ] ) );
     release();
 }
+
+struct draw_text
+{
+	const shader_program& mProgram;
+	std::unique_ptr< texture > mTexture;
+	std::unique_ptr< imm_draw > mDraw;
+
+	draw_text( const render_pipeline& pipeline );
+
+	void draw( const std::string& text, const glm::vec2& origin );
+};
 
 /*
 template < GLenum fetchParam,

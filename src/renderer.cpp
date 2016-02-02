@@ -181,6 +181,7 @@ static INLINE void FlipBytes( byte* out, const byte* src, int width, int height,
 texture::texture( void )
     : mSrgb( false ), mMipmap( false ),
       mHandle( 0 ),
+	  mBufferType( GL_UNSIGNED_BYTE ),
       mWrap( GL_CLAMP_TO_EDGE ), mMinFilter( GL_LINEAR ), mMagFilter( GL_LINEAR ),
       mFormat( 0 ), mInternalFormat( 0 ), mTarget( GL_TEXTURE_2D ), mMaxMip( 0 ),
       mWidth( 0 ),
@@ -234,7 +235,8 @@ void texture::load_2d( void )
 	else
 	{
         GL_CHECK( glTexImage2D( mTarget,
-            0, mInternalFormat, mWidth, mHeight, 0, mFormat, GL_UNSIGNED_BYTE, &mPixels[ 0 ] ) );
+			0, mInternalFormat, mWidth, mHeight, 0,
+			mFormat, mBufferType, &mPixels[ 0 ] ) );
 	}
 
     release();
@@ -284,17 +286,19 @@ bool texture::determine_formats( void )
 {
     switch( mBpp )
 	{
-	case 1:
-        mFormat = GL_ALPHA;
-        mInternalFormat = GL_ALPHA8;
+	case 1: // bytes
+		mFormat = FORMAT_GREYSCALE;
+		mInternalFormat = INTERNAL_FORMAT_GREYSCALE;
 		break;
 
-	case 3:
+	case 12: // floats
+	case 3: // bytes
         mFormat = GL_RGB;
         mInternalFormat = GL_RGB8;
 		break;
 
-	case 4:
+	case 16: // floats
+	case 4: // bytes
         mFormat = GL_RGBA;
         mInternalFormat = GL_RGBA8;
 		break;
@@ -617,6 +621,94 @@ void imm_draw::enabled( bool value )
     mEnabled = value;
 }
 
+//-------------------------------------------------------------------------------------------------
+// draw_text
+// Confession:
+// this a terrible implementation, because a) it's not general purpose and b) it just BARELY
+// works. However, for its own purposes it's effective. There is plans to improve upon it when
+// time allows...
+//-------------------------------------------------------------------------------------------------
+
+draw_text::draw_text( const render_pipeline& pipeline )
+	: mProgram( pipeline.program( "texture_ss" ) ),
+	  mTexture( new texture() ),
+	  mDraw( new imm_draw( mProgram ) )
+{
+	if ( !mTexture->open_file( "asset/font_atlas.jpg" ) )
+	{
+		MLOG_ERROR( "Font atlas missing, or there is an issue with the path" );
+		return;
+	}
+
+	mTexture->min_filter( GL_LINEAR );
+	mTexture->mag_filter( GL_LINEAR );
+	mTexture->load_2d();
+}
+
+// The atlas used is 10 x 10,
+// so we also have to subtract each used char by a bias (32, for this atlas in particular)
+// in order to effectively map our characters
+void draw_text::draw( const std::string& text, const glm::vec2& origin )
+{
+	GL_CHECK( glEnable( GL_BLEND ) );
+	GL_CHECK( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
+
+	mProgram.bind();
+
+	float step = 0.07f;
+	glm::vec2 v( origin );
+
+	float offset = step * 0.5f;
+	float uvStepX = 1.0f / 10.0f;
+	float uvStepY = 1.0f / 10.0f;
+
+	mTexture->bind( 1, "image", mProgram );
+
+	mDraw->begin( GL_TRIANGLES );
+
+	for ( uint32_t i = 0; i < text.length(); ++i )
+	{
+		char c =  text[ i ] - 32; // 32 is a bias necessary for the atlas which is loaded
+
+		// We have to introduce a few "tweaks". I'm guessing this is dependent on
+		// the pixel dimensions for the atlas; either way, these numbers work,
+		// but ideally we would just use 1.0f, c, and 10.0f as values
+		// in these computations
+		glm::vec2 uvStart;
+		uvStart.x = ( ( float )( c % 10 ) - 0.1f ) / 10.0f;
+		uvStart.y = 0.9f - ( ( float )( c / 10 ) - 0.1f ) / 10.0f;
+
+		glm::vec3 v0( v.x + offset, v.y + offset, (float)c );
+		glm::vec2 uv0( uvStart.x + uvStepX, uvStart.y + uvStepY );
+
+		glm::vec3 v1( v.x - offset, v.y + offset, (float)c );
+		glm::vec2 uv1( uvStart.x, uvStart.y + uvStepX );
+
+		glm::vec3 v2( v.x + offset, v.y - offset, (float)c );
+		glm::vec2 uv2( uvStart.x + uvStepX, uvStart.y );
+
+		glm::vec3 v3( v.x - offset, v.y - offset, (float)c );
+		glm::vec2 uv3( uvStart.x, uvStart.y );
+
+		//mDraw->vertex( make_draw_vertex( v2, uv2, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v0, uv0, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v1, uv1, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v2, uv2, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v2, uv2, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v1, uv1, glm::u8vec4( 255 ) ) );
+		mDraw->vertex( make_draw_vertex( v3, uv3, glm::u8vec4( 255 ) ) );
+
+		v.x += step;
+	}
+
+	mDraw->end();
+
+	mTexture->release();
+
+	mProgram.release();
+
+	GL_CHECK( glDisable( GL_BLEND ) );
+}
 
 //-------------------------------------------------------------------------------------------------
 // pipeline_t
@@ -625,6 +717,7 @@ void imm_draw::enabled( bool value )
 #ifdef OP_GL_USE_ES
 #	define OP_GLSL_SHADER_PREPEND "precision mediump float;\n"
 #	define OP_GLSL_SHADER_DIR "es"
+#	error "You need to write a texture_ss shader for ES"
 #else
 #	define OP_GLSL_SHADER_PREPEND "#version 130\n"
 #	define OP_GLSL_SHADER_DIR "desktop"
@@ -653,7 +746,7 @@ namespace {
 render_pipeline::render_pipeline( void )
     : mVao( 0 )
 {
-    std::array< program_def_t, 4 > defs =
+	std::array< program_def_t, 5 > defs =
 	{{
 		{
 			"single_color",
@@ -669,6 +762,13 @@ render_pipeline::render_pipeline( void )
             { "color" },
             { "position" }
         },
+		{
+			"texture_ss",
+			"texture_ss.vert",
+			"texture_ss.frag",
+			{ "image" },
+			{ "position", "texCoord" }
+		},
 		{
 			"billboard",
 			"billboard.vert",
@@ -776,7 +876,9 @@ render_pipeline::render_pipeline( void )
                 make_draw_vertex( glm::vec3( -1.0f, 1.0f, 0.0f ), glm::vec2( 0.0f, 1.0f ), glm::u8vec4( 255 ) ),
                 make_draw_vertex( glm::vec3( 1.0f, 1.0f, 0.0f ), glm::vec2( 1.0f, 1.0f ), glm::u8vec4( 255 ) )
 			},
-			{}
+			{
+				 // empty, so we don't use indices for this buffer
+			 }
         }
 	}};
 
