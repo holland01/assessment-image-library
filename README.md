@@ -4,8 +4,8 @@ This repo is primarily for the purposes of evaluation by a potential employer.
 
 Initially, I was given an assessment which involved two challenge questions/
 problems to complete. The time limit was 3 hours. Since it took me 3 hours
-to complete the first one alone, I chose to do the second one and provide
-a concrete implementation which is demonstratable
+to complete the first one alone, I chose to do the second one after, and provide
+a concrete implementation which is demonstratable.
 
 However, most of the code here has been written with other goals in mind:
 the image-library incorporated as desired by the assessment is contained
@@ -13,15 +13,17 @@ within a code base I've maintained and worked on over the years.
 
 The code base itself is used primarily for writing demos and experimentation.
 
-The directory, src, contains all of the source code. The files which are
+The directory, src/, contains all of the source code. The files which are
 directly relevant to the assessment are:
-
+```
 * src/img.h - the actual image library file
 * src/tests/image_test.h - an example demo which shows how to use the file
 itself.
+```
 
 image_test.h is a demo which uses the img.h file to
 render the following 8 different kinds of images:
+```
     - RGB, 8 bit
     - Greyscale, 8 bit
     - RGB, 8 bit embossed
@@ -31,7 +33,7 @@ render the following 8 different kinds of images:
     - Greyscale, floating point
     - RGB, floating point embossed
     - Greyscale, floating point embossed
-
+```
 All of the images are dependent on two files: lena_rgb.jpg, and lena.png,
 both of which can be found in the asset/ folder. As their names suggest,
 these images display the same content. The key difference is that
@@ -117,7 +119,7 @@ The demo can be found in the dist folder.
 
 The binary file "op" is the executable.
 
-The code bases links against both SDL 2 and Bullet Physics. Bullet is statically
+The code base links against both SDL 2 and Bullet Physics. Bullet is statically
 linked, and so is SDL 2. However, SDL 2 itself requires shared
 library dependencies. So, open up a terminal and copypasta
 the following:
