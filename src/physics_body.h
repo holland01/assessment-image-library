@@ -36,11 +36,19 @@ private:
     using collision_point_fn_t = std::function< void( const btVector3& wp ) >;
 
 public:
+    bool mFuck = false;
+
     physics_body( btCollisionShape* shape, btMotionState* ms, btRigidBody* body );
 
     physics_body( float mass, const glm::mat4& orientAndTranslate, const glm::vec3& halfSpaceExtents );
 
     physics_body( void );
+
+    physics_body( physics_body&& m );
+
+    physics_body& operator= ( physics_body&& m );
+
+    ~physics_body( void );
 
     const btBoxShape* box_shape( void ) const { return ( const btBoxShape* ) mShape.get(); }
 

@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <utility>
 #include <functional>
-#include <bullet3/LinearMath/btTransform.h>
-#include <bullet3/LinearMath/btMatrix3x3.h>
+#include <bullet/LinearMath/btTransform.h>
+#include <bullet/LinearMath/btMatrix3x3.h>
 
 namespace glm {
 

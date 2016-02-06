@@ -36,6 +36,8 @@ public:
 
     game( uint32_t width, uint32_t height );
 
+    ~game( void );
+
     void frame( void ) override;
 
     void update( void ) override;

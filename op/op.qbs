@@ -14,13 +14,10 @@ Product {
         var librootInc = [
             "/sdl2/include",
             "/bullet3/",
-            "/bullet3/bullet3",
-          //  "/bullet3/bullet3/BulletCollision",
-          //  "/bullet3/bullet3/BulletDynamics",
-          //  "/bullet3/bullet3/LinearMath"
+            "/bullet3/bullet3/"
         ];
 
-        var devlibRoot = qbs.getEnv("DEVLIB_ROOT");
+        var devlibRoot = qbs.getEnv("PROJECT_ROOT") + "/lib";
 
         librootInc.forEach(function(includePath) {
             inc.push(devlibRoot + includePath);
@@ -39,12 +36,11 @@ Product {
     ]
     cpp.linkerFlags: {
         var linkFlags = [
-            "-L" + qbs.getEnv("DEVLIB_ROOT") + "/sdl2/lib/x86_64-linux-gnu/",
+            "-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/sdl2/lib/x86_64-linux-gnu/",
             "-L/usr/lib/x86_64-linux-gnu",
             "-lGL",
             "-lGLU",
             "-lGLEW",
-            "-L/usr/lib/x86_64-linux-gnu",
             "-lSDL2",
             "-lpthread",
             "-Wl,--no-undefined",
@@ -72,7 +68,7 @@ Product {
             "-lrt"
         ];
 
-        linkFlags.push("-L" + qbs.getEnv("DEVLIB_ROOT") + "/bullet3/bin");
+        linkFlags.push("-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/bullet3/bin");
 
         var bulletSuffix = "_gmake_x64_debug";
 

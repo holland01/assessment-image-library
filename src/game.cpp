@@ -81,6 +81,20 @@ game::game( uint32_t width, uint32_t height )
     spec.move_step( 1.0f );
 }
 
+game::~game( void )
+{
+    billboards.clear();
+    freeSpace.clear();
+    walls.clear();
+
+    gen->mFreeSpace.clear();
+    gen->mWalls.clear();
+    gen->mBillboards.clear();
+
+    gen->mTiles.clear();
+    gen->mRegions.clear();
+}
+
 void game::fill_orient_map( void )
 {
     mBillboardsOriented.clear();
@@ -139,7 +153,7 @@ void game::frame( void )
     if ( !drawAll )
     {
         gen->find_entities( billboards, walls, freeSpace, frustum, *( camera ) );
-    };
+    }
 
     draw();
 

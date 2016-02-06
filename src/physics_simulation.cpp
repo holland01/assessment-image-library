@@ -130,7 +130,7 @@ namespace {
         }
     };
 
-    physics_sys gSystem;
+    std::unique_ptr< physics_sys > gSystem( nullptr );
 }
 
 physics_simulation::physics_simulation( uint32_t w, uint32_t h )
@@ -138,13 +138,14 @@ physics_simulation::physics_simulation( uint32_t w, uint32_t h )
 {
     camera = &spec;
     camera->position( glm::vec3( 0.0f, 10.0f, 100.0f ) );
+    gSystem.reset( new physics_sys() );
 }
 
 void physics_simulation::frame( void )
 {
     physics_app_t::update();
 
-    gSystem.mDynamics->stepSimulation( 1.0f / 60.0f, 10 );
+    gSystem->mDynamics->stepSimulation( 1.0f / 60.0f, 10 );
 
     draw();
 }
@@ -167,8 +168,8 @@ void physics_simulation::draw( void )
     };
 
     cubeDraw.bind();
-    draw_it( gSystem.mFallMotionState.get(), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
-    draw_it( gSystem.mFall2MotionState.get(), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
+    draw_it( gSystem->mFallMotionState.get(), glm::vec4( 1.0f, 0.0f, 0.0f, 1.0f ) );
+    draw_it( gSystem->mFall2MotionState.get(), glm::vec4( 0.0f, 1.0f, 0.0f, 1.0f ) );
     cubeDraw.release();
 
     application< physics_simulation >::draw();

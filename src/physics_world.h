@@ -3,8 +3,8 @@
 #include "def.h"
 #include <memory>
 #include <vector>
-#include <bullet3/btBulletCollisionCommon.h>
-#include <bullet3/btBulletDynamicsCommon.h>
+#include <bullet/btBulletCollisionCommon.h>
+#include <bullet/btBulletDynamicsCommon.h>
 #include "physics_body.h"
 
 struct physics_world
@@ -23,7 +23,7 @@ private:
 
     std::vector< const physics_body* > mPhysEntities;
 
-    physics_body mGround;
+    std::unique_ptr< physics_body > mGround;
 
 public:
 

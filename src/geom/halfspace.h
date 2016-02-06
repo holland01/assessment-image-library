@@ -2,8 +2,8 @@
 
 #include "_geom_local.h"
 #include "transform_data.h"
-#include <bullet3/BulletCollision/CollisionShapes/btBox2dShape.h>
-#include <bullet3/LinearMath/btConvexHull.h>
+#include <bullet/BulletCollision/CollisionShapes/btBox2dShape.h>
+#include <bullet/LinearMath/btConvexHull.h>
 #include <memory>
 
 //-------------------------------------------------------------------------------------------------------

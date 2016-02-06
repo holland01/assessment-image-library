@@ -65,6 +65,42 @@ physics_body::physics_body( void )
 {
 }
 
+physics_body::physics_body( physics_body&& m )
+    : mOwned( m.mOwned ),
+      mKinematic( m.mKinematic ), mStatic( m.mStatic ),
+      mShape( std::move( m.mShape ) ),
+      mMotionState( std::move( m.mMotionState ) ),
+      mBody( std::move( m.mBody ) )
+
+{
+}
+
+physics_body::~physics_body( void )
+{
+    remove_from_world();
+    mBody.release();
+    mMotionState.release();
+    mShape.release();
+}
+
+physics_body& physics_body::operator= ( physics_body&& m )
+{
+    if ( &m == this )
+    {
+        return *this;
+    }
+
+    mShape = std::move( m.mShape );
+    mMotionState = std::move( m.mMotionState );
+    mBody = std::move( m.mBody );
+
+    mOwned = m.mOwned;
+    mStatic = m.mStatic;
+    mKinematic = m.mKinematic;
+
+    return *this;
+}
+
 float physics_body::mass( void )
 {
     return mass_from_body( mBody.get() );
