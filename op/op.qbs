@@ -5,12 +5,6 @@ Product {
     Depends { name: "cpp" }
     consoleApplication: true
     cpp.includePaths: {
-        var inc = [
-            "/usr/include/",
-            "/usr/include/c++",
-            "../src/lib"
-        ];
-
         var librootInc = [
             "/sdl2/include",
             "/bullet3/",
@@ -19,9 +13,14 @@ Product {
 
         var devlibRoot = qbs.getEnv("PROJECT_ROOT") + "/lib";
 
+        var inc = [];
+
         librootInc.forEach(function(includePath) {
             inc.push(devlibRoot + includePath);
         });
+
+        inc.push("/usr/include/c++");
+        inc.push("../src/lib");
 
         return inc;
     }
@@ -68,19 +67,24 @@ Product {
             "-lrt"
         ];
 
-        linkFlags.push("-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/bullet3/bin");
+        //var bulletBase = "-l:" + qbs.getEnv("PROJECT_ROOT") + "/lib/bullet3/bin/";
 
+        linkFlags.push("-L" + qbs.getEnv("PROJECT_ROOT") + "/lib/bullet3/bin");
+        linkFlags.push("-Wl,-Bstatic");
         var bulletSuffix = "_gmake_x64_debug";
+        var bulletPrefix = "-l";
 
         var bulletLibs = [
-            "-lBulletDynamics",
-            "-lBulletCollision",
-            "-lLinearMath",
+            "BulletDynamics",
+            "BulletCollision",
+            "LinearMath",
         ];
 
         bulletLibs.forEach(function(lib) {
-            linkFlags.push(lib + bulletSuffix);
+            linkFlags.push(bulletPrefix + lib + bulletSuffix);
         });
+
+        linkFlags.push("-Wl,-Bdynamic");
 
         return linkFlags;
     }

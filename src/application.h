@@ -139,7 +139,7 @@ application< child_t >::application( uint32_t width_ , uint32_t height_ )
     const shader_program& program = pipeline->programs().at( "single_color" );
     program.bind();
 
-    spec.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
+	spec.perspective( 60.0f, ( float ) width, ( float ) height, 10000.0f, 0.1f );
     player.perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
 
     spec.mMode = input_client::MODE_SPEC;

@@ -3,8 +3,8 @@
 #include "def.h"
 #include <memory>
 #include <vector>
-#include <bullet/btBulletCollisionCommon.h>
-#include <bullet/btBulletDynamicsCommon.h>
+#include <bullet3/btBulletCollisionCommon.h>
+#include <bullet3/btBulletDynamicsCommon.h>
 #include "physics_body.h"
 
 struct physics_world

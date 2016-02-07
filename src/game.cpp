@@ -60,7 +60,7 @@ namespace {
         { "region_wall_tiles_test", DRAW_WALLS | DRAW_REGIONS_WALLS }
     };
 
-    uint32_t gTestFlags = gTestConfig[ "region_wall_tiles_test" ];
+	uint32_t gTestFlags = gTestConfig[ "default" ];
 }
 
 game::game( uint32_t width, uint32_t height )
@@ -246,6 +246,8 @@ void game::draw( void )
     application< game >::draw();
 }
 
+static bool f = false;
+
 void game::handle_event( const SDL_Event& e )
 {
     application< game >::handle_event( e );
@@ -282,6 +284,17 @@ void game::handle_event( const SDL_Event& e )
                 case SDLK_UP:
                     gTestFlags ^= DRAW_CANCEL_REGIONS;
                     break;
+				case SDLK_RIGHT:
+					f = !f;
+					if ( f )
+					{
+                        camera->perspective( 60.0f, ( float ) width, ( float ) height, 0.1f, 10000.0f );
+					}
+					else
+					{
+                        camera->perspective( 60.0f, ( float ) width, ( float ) height, 10000.0f, 0.1f );
+					}
+					break;
             }
             break;
 
@@ -455,7 +468,7 @@ static void draw_group( game& game,
 
     // Load a grey color so it looks somewhat fancy
     singleColor.bind();
-
+	singleColor.load_mat4( "viewToClip", vp.mClipTransform );
 	if ( gTestFlags & DRAW_WALLS )
     {
         for ( const map_tile* tile: walls )
